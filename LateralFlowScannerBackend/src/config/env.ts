@@ -59,6 +59,10 @@ const envSchema = z.object({
     INVITE_CODE: z.string().default('LATERAL_2024'),
     ADMIN_INVITE_CODE: z.string().default('ADMIN_LATERAL_2024'),
 
+    // OAuth
+    GOOGLE_CLIENT_ID: z.string().optional(),
+    FACEBOOK_APP_ID: z.string().optional(),
+
     // Firebase (Notifications)
     GOOGLE_APPLICATION_CREDENTIALS: z.string().optional(),
     FIREBASE_SERVICE_ACCOUNT: z.string().optional(),

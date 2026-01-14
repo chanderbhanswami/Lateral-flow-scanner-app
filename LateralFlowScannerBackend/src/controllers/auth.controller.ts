@@ -15,6 +15,9 @@ const ACCESS_TOKEN_EXPIRY = '7d';
 const REFRESH_TOKEN_EXPIRY = '30d';
 const REFRESH_TOKEN_EXPIRY_MS = 30 * 24 * 60 * 60 * 1000;
 
+// Google Client
+const googleClient = new OAuth2Client(config.GOOGLE_CLIENT_ID);
+
 // Helper function to generate tokens
 const generateTokens = (userId: string) => {
     const accessToken = jwt.sign(
