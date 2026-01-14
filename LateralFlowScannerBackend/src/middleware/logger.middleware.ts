@@ -11,7 +11,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction) =
             url: req.url,
             status: res.statusCode,
             duration: `${duration}ms`,
-            ip: req.ip,
+            ip: req.ip as string | undefined,
         });
     });
 

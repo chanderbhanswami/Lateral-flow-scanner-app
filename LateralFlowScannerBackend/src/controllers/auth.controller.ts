@@ -104,7 +104,7 @@ export const authController = {
                 resourceType: 'user',
                 resourceId: user._id.toString(),
                 status: 'success',
-                ipAddress: req.ip,
+                ipAddress: req.ip as string | undefined,
                 userAgent: req.headers['user-agent'],
             });
 
@@ -191,7 +191,7 @@ export const authController = {
                 action: 'USER_LOGIN',
                 resourceType: 'user',
                 status: 'success',
-                ipAddress: req.ip,
+                ipAddress: req.ip as string | undefined,
                 userAgent: req.headers['user-agent'],
             });
 
@@ -301,7 +301,7 @@ export const authController = {
                 resourceType: 'user',
                 details: { provider: 'google' },
                 status: 'success',
-                ipAddress: req.ip,
+                ipAddress: req.ip as string | undefined,
             });
 
             res.json({
@@ -580,7 +580,7 @@ export const authController = {
                 resourceType: 'user',
                 details: { action: 'password_reset' },
                 status: 'success',
-                ipAddress: req.ip,
+                ipAddress: req.ip as string | undefined,
             });
 
             res.json({
@@ -744,7 +744,7 @@ export const authController = {
                     action: 'USER_LOGOUT',
                     resourceType: 'user',
                     status: 'success',
-                    ipAddress: req.ip,
+                    ipAddress: req.ip as string | undefined,
                 });
             }
 
@@ -776,7 +776,7 @@ export const authController = {
                 resourceType: 'user',
                 details: { scope: 'all_devices' },
                 status: 'success',
-                ipAddress: req.ip,
+                ipAddress: req.ip as string | undefined,
             });
 
             res.json({
