@@ -48,6 +48,11 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Root route for readiness checks
+app.get('/', (req, res) => {
+    res.send('Lateral Flow Scanner API is running 🚀');
+});
+
 // API routes
 app.use('/api', routes);
 
