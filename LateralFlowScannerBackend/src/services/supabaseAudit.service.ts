@@ -16,8 +16,8 @@ export interface AuditLogEntry {
     resourceType: ResourceType;
     resourceId?: string;
     details?: Record<string, unknown>;
-    ipAddress?: string;
-    userAgent?: string;
+    ipAddress?: string | string[];
+    userAgent?: string | string[];
     status: 'success' | 'failure';
     errorMessage?: string;
     timestamp?: Date;
@@ -229,8 +229,8 @@ class SupabaseAuditService {
             resource: entry.resourceType, // Map resourceType to resource field
             resourceId: entry.resourceId,
             details: entry.details,
-            ipAddress: entry.ipAddress,
-            userAgent: entry.userAgent,
+            ipAddress: Array.isArray(entry.ipAddress) ? entry.ipAddress[0] : entry.ipAddress,
+            userAgent: Array.isArray(entry.userAgent) ? entry.userAgent[0] : entry.userAgent,
             timestamp: entry.timestamp,
         });
     }

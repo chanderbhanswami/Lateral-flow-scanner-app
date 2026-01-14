@@ -8,14 +8,18 @@ export class AuditService {
         resource: string;
         resourceId?: string;
         details?: any;
-        ipAddress?: string;
-        userAgent?: string;
+        ipAddress?: string | string[];
+        userAgent?: string | string[];
     }): Promise<void> {
         try {
-            await AuditLog.create({
+            // Normalize array values to strings
+            const normalizedData = {
                 ...data,
+                ipAddress: Array.isArray(data.ipAddress) ? data.ipAddress[0] : data.ipAddress,
+                userAgent: Array.isArray(data.userAgent) ? data.userAgent[0] : data.userAgent,
                 timestamp: new Date(),
-            });
+            };
+            await AuditLog.create(normalizedData);
         } catch (error) {
             logger.error('Audit log error:', error);
             // Don't throw - audit logging should not break main flow

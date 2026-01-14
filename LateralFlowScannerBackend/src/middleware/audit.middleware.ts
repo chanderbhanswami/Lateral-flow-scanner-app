@@ -24,8 +24,8 @@ export const auditMiddleware = (action: string, resource: string) => {
                             query: req.query,
                             body: sanitizeBody(req.body),
                         },
-                        ipAddress: (req.ip as string | undefined),
-                        userAgent: req.get('user-agent') || undefined,
+                        ipAddress: req.ip,
+                        userAgent: req.get('user-agent'),
                     });
                 }
             }
