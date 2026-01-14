@@ -105,7 +105,7 @@ export const authController = {
                 resourceId: user._id.toString(),
                 status: 'success',
                 ipAddress: req.ip as string | undefined,
-                userAgent: req.headers['user-agent'],
+                userAgent: req.headers['user-agent'] as string | undefined,
             });
 
             res.status(201).json({
@@ -192,7 +192,7 @@ export const authController = {
                 resourceType: 'user',
                 status: 'success',
                 ipAddress: req.ip as string | undefined,
-                userAgent: req.headers['user-agent'],
+                userAgent: req.headers['user-agent'] as string | undefined,
             });
 
             res.json({
