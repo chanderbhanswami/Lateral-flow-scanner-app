@@ -12,6 +12,26 @@ class ApiClient {
                 'Content-Type': 'application/json',
             },
         });
+
+        // Add request interceptor
+        this.instance.interceptors.request.use(
+            async (config) => {
+                try {
+                    // Dynamically import storageService to avoid circular dependency if any
+                    const { storageService } = require('../services/storage.service');
+                    const token = storageService.getAccessToken();
+                    if (token) {
+                        config.headers.Authorization = `Bearer ${token}`;
+                    }
+                } catch (error) {
+                    console.error('Error attaching token:', error);
+                }
+                return config;
+            },
+            (error) => {
+                return Promise.reject(error);
+            }
+        );
     }
 
     getInstance(): AxiosInstance {

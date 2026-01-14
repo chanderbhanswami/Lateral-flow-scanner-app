@@ -109,3 +109,4 @@ coverage/
 
 hermes_path.txt
 generateHash.js
+android/gradle.properties
