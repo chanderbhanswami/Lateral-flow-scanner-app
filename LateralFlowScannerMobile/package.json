@@ -51,7 +51,7 @@
     "react-native-exif": "^0.5.0",
     "react-native-fast-image": "^8.6.3",
     "react-native-fast-opencv": "^0.4.7",
-    "react-native-fbsdk-next": "^13.0.0",
+    "react-native-fbsdk-next": "^13.4.1",
     "react-native-fs": "^2.20.0",
     "react-native-gesture-handler": "^2.30.0",
     "react-native-get-random-values": "^2.0.0",

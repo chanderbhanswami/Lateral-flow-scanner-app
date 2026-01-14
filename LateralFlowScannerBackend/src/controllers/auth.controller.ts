@@ -229,17 +229,17 @@ export const authController = {
 
             // Verify Google token
             // In production, use google-auth-library to verify
-            // const ticket = await googleClient.verifyIdToken({ idToken, audience: GOOGLE_CLIENT_ID });
-            // const payload = ticket.getPayload();
+            const ticket = await googleClient.verifyIdToken({
+                idToken,
+                audience: config.GOOGLE_CLIENT_ID,
+            });
+            const payload = ticket.getPayload();
 
-            // For now, decode the JWT (NOT for production - use proper verification)
-            const decodedToken = jwt.decode(idToken) as any;
-
-            if (!decodedToken || !decodedToken.email) {
-                throw new ApiError(400, 'Invalid Google token', 'INVALID_TOKEN');
+            if (!payload || !payload.email) {
+                throw new ApiError(400, 'Invalid Google token payload', 'INVALID_TOKEN');
             }
 
-            const { email, name, picture, sub: googleId } = decodedToken;
+            const { email, name, picture, sub: googleId } = payload;
 
             // Find or create user
             let user = await User.findOne({
@@ -337,19 +337,19 @@ export const authController = {
                 throw new ApiError(400, 'Facebook access token required', 'TOKEN_REQUIRED');
             }
 
-            // In production, verify with Facebook Graph API
-            // const response = await axios.get(`https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${fbAccessToken}`);
-            // const { id: facebookId, name, email, picture } = response.data;
+            // Verify with Facebook Graph API
+            const fbResponse = await axios.get(`https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${fbAccessToken}`);
 
-            // Placeholder for Facebook verification
-            // For production, implement proper Facebook token verification
-            const facebookId = 'fb_' + Date.now();
-            const email = req.body.email;
-            const name = req.body.name;
-            const picture = req.body.picture;
+            // Check if we got valid data
+            if (!fbResponse.data || !fbResponse.data.id) {
+                throw new ApiError(401, 'Invalid Facebook Access Token', 'INVALID_TOKEN');
+            }
+
+            const { id: facebookId, name, email, picture: pictureObj } = fbResponse.data;
+            const picture = pictureObj?.data?.url;
 
             if (!email) {
-                throw new ApiError(400, 'Email is required from Facebook', 'EMAIL_REQUIRED');
+                throw new ApiError(400, 'Email permission is required from Facebook. Please try again.', 'EMAIL_REQUIRED');
             }
 
             // Find or create user

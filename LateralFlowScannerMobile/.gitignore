@@ -108,3 +108,4 @@ coverage/
 .vscode
 
 hermes_path.txt
+generateHash.js
