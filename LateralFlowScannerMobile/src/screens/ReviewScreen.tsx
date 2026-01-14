@@ -1,0 +1,324 @@
+import React, { useState } from 'react';
+import { View, StyleSheet, Text, Image, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useNavigation, useRoute } from '@react-navigation/native';
+import Toast from 'react-native-toast-message';
+import { ReviewScreenProps } from '../types';
+import { useCapture } from '../hooks/useCapture';
+import { Button } from '../components/UI/Button';
+import { Card } from '../components/UI/Card';
+import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
+import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
+
+export const ReviewScreen: React.FC = () => {
+    const navigation = useNavigation<ReviewScreenProps['navigation']>();
+    const route = useRoute<ReviewScreenProps['route']>();
+    const { captureData, imageUri } = route.params;
+
+    const { uploadCapture, isUploading } = useCapture();
+    const { batches } = useConcentrationBatch(); // Get all batches to find the selected one
+
+    const [concentration, setConcentration] = useState(captureData.concentration || '');
+    const [notes, setNotes] = useState(captureData.notes || '');
+
+    // Manage batch selection
+    const initialBatch = batches.find(b => b.id === captureData.concentrationBatchId);
+    const [selectedBatch, setSelectedBatch] = useState(initialBatch || null);
+    const [showBatchSelector, setShowBatchSelector] = useState(false);
+
+    const handleSend = async () => {
+        try {
+            const updatedData = {
+                ...captureData,
+                concentration,
+                concentrationBatchId: selectedBatch?.id || undefined, // Ensure updated batch ID is sent
+                notes,
+            };
+
+            await uploadCapture(updatedData, imageUri);
+
+            Toast.show({
+                type: 'success',
+                text1: 'Upload successful',
+                text2: 'Capture has been saved',
+            });
+
+            // Navigate back to capture screen
+            navigation.navigate('Capture');
+        } catch (error) {
+            console.error('Upload error:', error);
+            Toast.show({
+                type: 'error',
+                text1: 'Upload failed',
+                text2: String(error),
+            });
+        }
+    };
+
+    const handleBatchSelect = (batch: any) => {
+        setSelectedBatch(batch);
+        setShowBatchSelector(false);
+        // Optional: auto-fill concentration value from batch if empty
+        if (!concentration && batch.concentration) {
+            setConcentration(batch.concentration);
+        }
+    };
+
+    const handleCancel = () => {
+        navigation.goBack();
+    };
+
+    return (
+        <View style={styles.container}>
+            <ScrollView contentContainerStyle={styles.scrollContent}>
+                {/* Image Preview */}
+                <Card style={styles.imageCard}>
+                    <Image
+                        source={{ uri: `file://${imageUri}` }}
+                        style={styles.image}
+                        resizeMode="contain"
+                    />
+                </Card>
+
+                {/* Batch Selection */}
+                <Card style={styles.inputCard}>
+                    <Text style={styles.inputLabel}>Concentration Batch</Text>
+                    <TouchableOpacity
+                        style={styles.batchSelector}
+                        onPress={() => setShowBatchSelector(true)}
+                    >
+                        {selectedBatch ? (
+                            <View style={styles.selectedBatchRow}>
+                                <View style={[styles.batchColor, { backgroundColor: selectedBatch.color || '#3b82f6' }]} />
+                                <Text style={styles.batchName}>{selectedBatch.name}</Text>
+                                <Text style={styles.batchInfo}>({selectedBatch.concentration} {selectedBatch.unit})</Text>
+                            </View>
+                        ) : (
+                            <Text style={styles.placeholderText}>Select a batch...</Text>
+                        )}
+                        <Text style={styles.changeLink}>Change</Text>
+                    </TouchableOpacity>
+                </Card>
+
+                {/* Capture Info */}
+                <Card style={styles.infoCard}>
+                    <Text style={styles.sectionTitle}>Capture Information</Text>
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Mode:</Text>
+                        <Text style={styles.infoValue}>{captureData.captureMode}</Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Quality Score:</Text>
+                        <Text style={styles.infoValue}>
+                            {captureData.analysisData.qualityScore.toFixed(1)}/100
+                        </Text>
+                    </View>
+
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Timestamp:</Text>
+                        <Text style={styles.infoValue}>
+                            {new Date(captureData.timestamp).toLocaleString()}
+                        </Text>
+                    </View>
+                </Card>
+
+                {/* Concentration Input */}
+                <Card style={styles.inputCard}>
+                    <Text style={styles.inputLabel}>Concentration Value *</Text>
+                    <TextInput
+                        style={styles.input}
+                        value={concentration}
+                        onChangeText={setConcentration}
+                        placeholder="Enter concentration value (e.g. 10)"
+                        placeholderTextColor="#999"
+                    />
+                </Card>
+
+                {/* Notes Input */}
+                <Card style={styles.inputCard}>
+                    <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                    <TextInput
+                        style={[styles.input, styles.notesInput]}
+                        value={notes}
+                        onChangeText={setNotes}
+                        placeholder="Add any notes..."
+                        placeholderTextColor="#999"
+                        multiline
+                        numberOfLines={4}
+                    />
+                </Card>
+
+                {/* Warnings */}
+                {captureData.analysisData.warnings.length > 0 && (
+                    <Card style={styles.warningCard}>
+                        <Text style={styles.warningTitle}>Warnings</Text>
+                        {captureData.analysisData.warnings.map((warning, index) => (
+                            <Text key={index} style={styles.warningText}>
+                                • {warning}
+                            </Text>
+                        ))}
+                    </Card>
+                )}
+
+                {/* Action Buttons */}
+                <View style={styles.buttonContainer}>
+                    <Button
+                        title="Cancel"
+                        onPress={handleCancel}
+                        variant="outline"
+                        style={styles.button}
+                        disabled={isUploading}
+                    />
+                    <Button
+                        title={isUploading ? 'Sending...' : 'Send'}
+                        onPress={handleSend}
+                        style={styles.button}
+                        disabled={isUploading || !concentration}
+                        loading={isUploading}
+                    />
+                </View>
+            </ScrollView>
+
+            {/* Batch Selector Modal */}
+            <BatchSelector
+                visible={showBatchSelector}
+                onClose={() => setShowBatchSelector(false)}
+                onSelect={handleBatchSelect}
+            />
+        </View>
+    );
+};
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: '#f5f5f5',
+    },
+    scrollContent: {
+        padding: 16,
+    },
+    imageCard: {
+        marginBottom: 16,
+        padding: 0,
+        overflow: 'hidden',
+    },
+    image: {
+        width: '100%',
+        height: 300,
+    },
+    infoCard: {
+        marginBottom: 16,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        marginBottom: 12,
+        color: '#1f2937',
+    },
+    infoRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingVertical: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: '#e5e7eb',
+    },
+    infoLabel: {
+        fontSize: 14,
+        color: '#6b7280',
+    },
+    infoValue: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#1f2937',
+    },
+    inputCard: {
+        marginBottom: 16,
+    },
+    inputLabel: {
+        fontSize: 14,
+        fontWeight: '500',
+        marginBottom: 8,
+        color: '#1f2937',
+    },
+    input: {
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+        padding: 12,
+        fontSize: 16,
+        color: '#1f2937',
+        backgroundColor: '#fff',
+    },
+    notesInput: {
+        height: 100,
+        textAlignVertical: 'top',
+    },
+    warningCard: {
+        marginBottom: 16,
+        backgroundColor: '#fef3c7',
+        borderColor: '#f59e0b',
+        borderWidth: 1,
+    },
+    warningTitle: {
+        fontSize: 16,
+        fontWeight: '600',
+        marginBottom: 8,
+        color: '#92400e',
+    },
+    warningText: {
+        fontSize: 14,
+        color: '#78350f',
+        marginBottom: 4,
+    },
+    buttonContainer: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginTop: 16,
+        marginBottom: 40,
+    },
+    button: {
+        flex: 1,
+        marginHorizontal: 8,
+    },
+    batchSelector: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        padding: 12,
+        backgroundColor: '#fff',
+        borderWidth: 1,
+        borderColor: '#d1d5db',
+        borderRadius: 8,
+    },
+    selectedBatchRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        flex: 1,
+    },
+    batchColor: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        marginRight: 8,
+    },
+    batchName: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: '#1f2937',
+        marginRight: 8,
+    },
+    batchInfo: {
+        fontSize: 14,
+        color: '#6b7280',
+    },
+    placeholderText: {
+        fontSize: 16,
+        color: '#9ca3af',
+    },
+    changeLink: {
+        fontSize: 14,
+        color: '#3b82f6',
+        fontWeight: '600',
+    },
+});

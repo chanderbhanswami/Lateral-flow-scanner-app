@@ -1,0 +1,68 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.2.12479018"
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+allprojects {
+    repositories {
+        // Required for some RN native modules
+        maven {
+            url("$rootDir/../node_modules/react-native/android")
+        }
+        maven {
+            url("$rootDir/../node_modules/jsc-android/dist")
+        }
+
+        // Needed for VisionCamera / OpenCV / some native libs
+        maven { url "https://www.jitpack.io" }
+
+        google()
+        mavenCentral()
+    }
+}
+
+// Force all modules to use the same NDK version to avoid conflicts
+subprojects {
+    project.configurations.all {
+        resolutionStrategy.eachDependency { details ->
+            if (details.requested.group == 'com.facebook.react' && details.requested.name == 'react-android') {
+                 // No-op, just ensuring we interact with deps if needed.
+            }
+        }
+    }
+    
+    // Direct configuration attempt without afterEvaluate which caused the crash
+    // We check for the android extension existence dynamically
+    plugins.withType(com.android.build.gradle.LibraryPlugin) {
+        project.android.ndkVersion = "27.2.12479018"
+        // Propagate hermes-engine CMake config to all native modules (for worklets-core)
+        project.android.defaultConfig {
+            externalNativeBuild {
+                cmake {
+                    arguments "-Dhermes-engine_DIR=${rootDir}/app/cmake"
+                }
+            }
+        }
+    }
+    plugins.withType(com.android.build.gradle.AppPlugin) {
+        project.android.ndkVersion = "27.2.12479018"
+    }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "LateralFlowScanner",
+  "displayName": "Lateral Flow Scanner",
+  "expo": {
+    "name": "Lateral Flow Scanner",
+    "slug": "lateral-flow-scanner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.lateralflowscanner.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.lateralflowscanner"
+    }
+  }
+}
