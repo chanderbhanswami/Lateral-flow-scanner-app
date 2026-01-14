@@ -147,6 +147,15 @@ android {
     packagingOptions {
         pickFirst 'lib/**/libc++_shared.so'
     }
+
+    // Rename release output files to LFS.apk and LFS.aab
+    applicationVariants.all { variant ->
+        variant.outputs.all {
+            if (variant.buildType.name == "release") {
+                outputFileName = "LFS.apk"
+            }
+        }
+    }
 }
 
 // Note: Hermes is provided by React Native 0.83+ automatically
@@ -175,5 +184,20 @@ dependencies {
 
     if (!hermesEnabled.toBoolean()) {
         implementation jscFlavor
+    }
+}
+
+// Rename AAB bundle to LFS.aab after bundleRelease
+tasks.whenTaskAdded { task ->
+    if (task.name == "bundleRelease") {
+        task.doLast {
+            def bundleDir = file("${buildDir}/outputs/bundle/release")
+            def originalFile = new File(bundleDir, "app-release.aab")
+            def renamedFile = new File(bundleDir, "LFS.aab")
+            if (originalFile.exists()) {
+                originalFile.renameTo(renamedFile)
+                println "Renamed: app-release.aab -> LFS.aab"
+            }
+        }
     }
 }
