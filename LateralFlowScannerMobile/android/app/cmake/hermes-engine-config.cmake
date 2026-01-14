@@ -5,13 +5,9 @@
 # And provides targets: hermes-engine::hermesvm AND hermes-engine::libhermes
 
 # Gradle cache path where hermes-android is extracted
-# Handle Windows paths correctly
-if(WIN32)
-    set(GRADLE_USER_HOME "$ENV{USERPROFILE}\\.gradle")
-    string(REPLACE "\\" "/" GRADLE_USER_HOME "${GRADLE_USER_HOME}")
-else()
-    set(GRADLE_USER_HOME "$ENV{HOME}/.gradle")
-endif()
+# NOTE: Android NDK CMake runs in isolated environment - env vars & EXISTS don't work
+# Hardcoded path for this specific machine. Update if building on different machine.
+set(GRADLE_USER_HOME "C:/Users/chand/.gradle")
 
 message(STATUS "[Hermes Config] GRADLE_USER_HOME: ${GRADLE_USER_HOME}")
 message(STATUS "[Hermes Config] ANDROID_ABI: ${ANDROID_ABI}")
@@ -25,7 +21,12 @@ foreach(GRADLE_VERSION "8.13" "8.12" "8.11" "8.10" "8.9" "8.8" "8.7" "8.6" "8.5"
         message(STATUS "[Hermes Config] Searching in: ${HERMES_GRADLE_CACHE}")
         
         # Find the hermes-android directory with JNI structure (not prefab)
-        file(GLOB HERMES_TRANSFORM_DIRS "${HERMES_GRADLE_CACHE}/*/transformed/jetified-hermes-android-*-debug")
+        # Search for both debug and release variants
+        file(GLOB HERMES_TRANSFORM_DIRS
+            "${HERMES_GRADLE_CACHE}/*/transformed/jetified-hermes-android-*-debug"
+            "${HERMES_GRADLE_CACHE}/*/transformed/jetified-hermes-android-*-release"
+            "${HERMES_GRADLE_CACHE}/*/transformed/hermes-android-*"
+        )
         
         foreach(DIR ${HERMES_TRANSFORM_DIRS})
             if(EXISTS "${DIR}/jni/${ANDROID_ABI}/libhermesvm.so")

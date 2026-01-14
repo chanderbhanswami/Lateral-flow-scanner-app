@@ -85,6 +85,17 @@ class NotificationService {
 
     private async syncToken(token: string) {
         try {
+            // Import here to avoid circular dependency
+            const { storageService } = require('./storage.service');
+
+            // Only sync token if user is authenticated (has access token)
+            // Otherwise, we'd get 401 errors that show confusing network toasts
+            const accessToken = storageService.getAccessToken();
+            if (!accessToken) {
+                console.log('[NotificationService] Skipping FCM sync - user not authenticated');
+                return;
+            }
+
             const storedToken = await AsyncStorage.getItem('fcm_token');
             if (storedToken !== token) {
                 // Send to backend

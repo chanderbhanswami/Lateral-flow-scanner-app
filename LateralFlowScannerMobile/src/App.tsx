@@ -29,9 +29,12 @@ const queryClient = new QueryClient({
   },
 });
 
+// Setup interceptors immediately at module load (before any components render)
+// This prevents race conditions where API calls happen before interceptors are ready
+setupInterceptors();
+
 const App = () => {
   useEffect(() => {
-    setupInterceptors();
     initializeServices();
     networkService.initialize();
   }, []);

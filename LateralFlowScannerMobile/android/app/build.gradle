@@ -92,6 +92,13 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.lateralflowscannermobile"
+    
+    // Use short path for CMake build to work around Windows 260 character path limit
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory "D:/rn-build"
+        }
+    }
     defaultConfig {
         applicationId "com.lateralflowscannermobile"
         minSdkVersion rootProject.ext.minSdkVersion
