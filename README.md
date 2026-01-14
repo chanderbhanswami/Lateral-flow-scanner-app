@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="LateralFlowScannerMobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="120" alt="LFS Logo"/>
+  <img src="/LateralFlowScannerMobile/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png" width="120" alt="LFS Logo"/>
 </p>
 
 <h1 align="center">Lateral Flow Scanner</h1>
