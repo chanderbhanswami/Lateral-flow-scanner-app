@@ -17,7 +17,7 @@ export const auditMiddleware = (action: string, resource: string) => {
                         userId,
                         action,
                         resource,
-                        resourceId: req.params.id,
+                        resourceId: req.params.id as string,
                         details: {
                             method: req.method,
                             path: req.path,
