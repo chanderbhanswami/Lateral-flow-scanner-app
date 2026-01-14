@@ -1,0 +1,28 @@
+{
+  "compilerOptions": {
+    // File Layout
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // Environment Settings - Universal for types library
+    "module": "commonjs",
+    "target": "ES2022",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    // Interop
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    // Library Outputs - Important for shared packages
+    "declaration": true,
+    "declarationMap": true,
+    // Strict Typechecking
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
+}
