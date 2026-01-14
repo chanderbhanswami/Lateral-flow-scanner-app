@@ -6,6 +6,10 @@ let redis: Redis;
 
 export const connectRedis = async (): Promise<Redis> => {
     try {
+        if (!config.REDIS_URL) {
+            throw new Error('REDIS_URL is not defined');
+        }
+
         redis = new Redis(config.REDIS_URL, {
             maxRetriesPerRequest: null, // Required by BullMQ
             enableReadyCheck: true,

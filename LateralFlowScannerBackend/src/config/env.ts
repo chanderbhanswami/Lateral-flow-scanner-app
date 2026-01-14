@@ -18,7 +18,7 @@ const envSchema = z.object({
     POSTGRES_URI: z.string().optional(),
 
     // Redis
-    REDIS_URL: z.string(),
+    REDIS_URL: z.string().optional(),
     UPSTASH_REDIS_URL: z.string().optional(),
 
     // Cloudflare R2
@@ -69,6 +69,15 @@ const parsed = envSchema.safeParse(process.env);
 if (!parsed.success) {
     console.error('❌ Invalid environment variables:', parsed.error.flatten().fieldErrors);
     process.exit(1);
+}
+
+// Fallback to Upstash if REDIS_URL is missing
+if (!parsed.data.REDIS_URL && parsed.data.UPSTASH_REDIS_URL) {
+    parsed.data.REDIS_URL = parsed.data.UPSTASH_REDIS_URL;
+}
+
+if (!parsed.data.REDIS_URL) {
+    console.warn('⚠️ No REDIS_URL or UPSTASH_REDIS_URL provided. Caching may not work.');
 }
 
 export const config = parsed.data;
