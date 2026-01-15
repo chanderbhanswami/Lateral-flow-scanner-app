@@ -110,3 +110,6 @@ coverage/
 hermes_path.txt
 generateHash.js
 android/gradle.properties
+
+# Firebase config (contains sensitive data)
+android/app/google-services.json
