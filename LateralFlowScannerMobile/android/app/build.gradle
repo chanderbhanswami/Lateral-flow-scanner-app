@@ -195,15 +195,26 @@ dependencies {
 }
 
 // Rename AAB bundle to LFS.aab after bundleRelease
-tasks.whenTaskAdded { task ->
-    if (task.name == "bundleRelease") {
-        task.doLast {
-            def bundleDir = file("${buildDir}/outputs/bundle/release")
+// Rename AAB bundle to LFS.aab after bundleRelease
+afterEvaluate {
+    def bundleTask = tasks.findByName("bundleRelease")
+    if (bundleTask) {
+        bundleTask.doLast {
+            def bundleDir = file("${project.buildDir}/outputs/bundle/release")
             def originalFile = new File(bundleDir, "app-release.aab")
             def renamedFile = new File(bundleDir, "LFS.aab")
+            
+            println "Looking for AAB at: ${originalFile.absolutePath}"
+            
             if (originalFile.exists()) {
-                originalFile.renameTo(renamedFile)
-                println "Renamed: app-release.aab -> LFS.aab"
+                def result = originalFile.renameTo(renamedFile)
+                if (result) {
+                    println "AAB Rename Success: app-release.aab -> LFS.aab"
+                } else {
+                    println "AAB Rename Failed: Could not rename file."
+                }
+            } else {
+                println "AAB Rename Warning: File not found at ${originalFile.absolutePath}"
             }
         }
     }
