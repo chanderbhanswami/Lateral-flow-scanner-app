@@ -47,7 +47,7 @@ export const LoginScreen: React.FC = () => {
         const config: any = {};
         if (ENV.GOOGLE_WEB_CLIENT_ID) {
             config.webClientId = ENV.GOOGLE_WEB_CLIENT_ID;
-            config.offlineAccess = true;
+            config.offlineAccess = false; // We need idToken, not serverAuthCode
         }
         GoogleSignin.configure(config);
     }, []);
