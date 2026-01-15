@@ -7,11 +7,13 @@ import { BatchList } from '../components/ConcentrationBatch/BatchList';
 import { BatchForm } from '../components/ConcentrationBatch/BatchForm';
 import { Modal } from '../components/UI/Modal';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isSmallScreen = screenWidth < 380;
 
 export const ConcentrationManagementScreen: React.FC = () => {
+    const navigation = useNavigation();
     const { batches, createBatch, updateBatch, deleteBatch } = useConcentrationBatch();
     const [showForm, setShowForm] = useState(false);
     const [editingBatch, setEditingBatch] = useState<any>(null);
@@ -56,8 +58,15 @@ export const ConcentrationManagementScreen: React.FC = () => {
 
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>Batches</Text>
-                    <Text style={styles.subtitle}>{batches.length} item{batches.length !== 1 ? 's' : ''}</Text>
+                    <View style={styles.headerRow}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                            <Icon name="arrow-left" size={28} color="#1e293b" />
+                        </TouchableOpacity>
+                        <View>
+                            <Text style={styles.title}>Batches</Text>
+                            <Text style={styles.subtitle}>{batches.length} item{batches.length !== 1 ? 's' : ''}</Text>
+                        </View>
+                    </View>
                 </View>
 
                 <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
@@ -158,6 +167,13 @@ const styles = StyleSheet.create({
         color: '#64748b',
         marginTop: 4,
         fontWeight: '500',
+    },
+    headerRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    backButton: {
+        marginRight: 16,
     },
     content: {
         flex: 1,

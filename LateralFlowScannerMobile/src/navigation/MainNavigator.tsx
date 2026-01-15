@@ -35,22 +35,22 @@ const MainNavigator: React.FC = () => {
             <Stack.Screen
                 name="ConcentrationManagement"
                 component={ConcentrationManagementScreen}
-                options={{ title: 'Concentration Batches', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="Guide"
                 component={GuideScreen}
-                options={{ title: 'Guide', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="History"
                 component={HistoryScreen}
-                options={{ title: 'History', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="Settings"
                 component={SettingsScreen}
-                options={{ title: 'Settings', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="ChangePassword"
@@ -60,12 +60,12 @@ const MainNavigator: React.FC = () => {
             <Stack.Screen
                 name="Notifications"
                 component={NotificationScreen}
-                options={{ title: 'Notifications', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="Statistics"
                 component={StatisticsScreen}
-                options={{ title: 'Statistics', headerShown: true }}
+                options={{ headerShown: false }}
             />
         </Stack.Navigator>
     );

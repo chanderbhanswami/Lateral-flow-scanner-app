@@ -84,6 +84,14 @@ export const HomeScreen: React.FC = () => {
         setRefreshing(false);
     };
 
+    // Dynamic Greeting
+    const getGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) return 'Good Morning,';
+        if (hour < 18) return 'Good Afternoon,';
+        return 'Good Evening,';
+    };
+
     // Quick Actions
     const secondaryItems = [
         {
@@ -103,6 +111,12 @@ export const HomeScreen: React.FC = () => {
             icon: 'history',
             color: '#f59e0b',
             onPress: () => navigation.navigate('History'),
+        },
+        {
+            title: 'Guide',
+            icon: 'book-open-page-variant',
+            color: '#10b981',
+            onPress: () => navigation.navigate('Guide'),
         },
         {
             title: 'Settings',
@@ -146,7 +160,7 @@ export const HomeScreen: React.FC = () => {
                             </Text>
                         </View>
                         <View>
-                            <Text style={styles.greeting}>Good Morning,</Text>
+                            <Text style={styles.greeting}>{getGreeting()}</Text>
                             <Text style={styles.userName} numberOfLines={1}>
                                 {user?.name || 'User'}
                             </Text>
@@ -234,7 +248,7 @@ export const HomeScreen: React.FC = () => {
                         )}
 
                         {/* Grid Layout */}
-                        <Text style={styles.sectionTitle}>Dashboard</Text>
+                        <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Dashboard</Text>
                         <View style={styles.gridContainer}>
                             {secondaryItems.map((item, index) => (
                                 <TouchableOpacity
@@ -304,18 +318,18 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         paddingHorizontal: 24,
         paddingVertical: 16,
-        backgroundColor: 'rgba(255,255,255,0.7)',
+        backgroundColor: 'rgba(255,255,255,0.4)',
         marginHorizontal: 16,
         marginTop: 8,
-        borderRadius: 20,
+        borderRadius: 24,
         borderWidth: 1,
-        borderColor: '#fff',
+        borderColor: 'rgba(255,255,255,0.3)',
         // Glass Shadow
         shadowColor: '#64748b',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.05,
         shadowRadius: 10,
-        elevation: 2,
+        elevation: 0, // Removed elevation to avoid Android shadow artifacts causing "white box"
     },
     userInfo: {
         flexDirection: 'row',
@@ -353,16 +367,11 @@ const styles = StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
-        backgroundColor: '#fff',
+        backgroundColor: 'rgba(255,255,255,0.6)',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 1,
-        borderColor: '#e2e8f0',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 1,
+        borderColor: 'rgba(255,255,255,0.5)',
     },
     badge: {
         position: 'absolute',
@@ -505,7 +514,6 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         padding: 12,
-        // Gradient overlay via background logic or simplified semi-transparent
         backgroundColor: 'rgba(0,0,0,0.6)',
     },
     recentScanBadge: {
@@ -557,14 +565,15 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         height: 130, // Fixed height for consistency
         borderRadius: 24,
-        backgroundColor: 'rgba(255,255,255,0.8)',
+        backgroundColor: 'rgba(255,255,255,0.5)', // More transparent
         borderWidth: 1,
-        borderColor: '#fff',
+        borderColor: 'rgba(255,255,255,0.4)',
+        // Reduced shadow to remove "box" feel
         shadowColor: '#64748b',
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.05,
-        shadowRadius: 10,
-        elevation: 2,
+        shadowRadius: 4,
+        elevation: 0,
     },
     iconContainer: {
         width: 52,

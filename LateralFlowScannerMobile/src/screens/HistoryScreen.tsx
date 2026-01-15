@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet, FlatList, Text, Image, TouchableOpacity, RefreshControl, Animated, Easing, TextInput } from 'react-native';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { captureApi } from '../api/capture.api';
 import { Loading } from '../components/UI/Loading';
@@ -10,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { PaginatedResponse, CaptureData } from '@lateralflowscanner/shared';
 
 export const HistoryScreen: React.FC = () => {
+    const navigation = useNavigation();
     const [page, setPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
@@ -117,7 +119,12 @@ export const HistoryScreen: React.FC = () => {
 
             <SafeAreaView style={styles.container} edges={['top']}>
                 <View style={styles.header}>
-                    <Text style={styles.title}>History</Text>
+                    <View style={styles.headerTopRow}>
+                        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+                            <Icon name="arrow-left" size={28} color="#1e293b" />
+                        </TouchableOpacity>
+                        <Text style={styles.title}>History</Text>
+                    </View>
                     <View style={styles.searchContainer}>
                         <Icon name="magnify" size={20} color="#94a3b8" />
                         <TextInput
@@ -209,8 +216,15 @@ const styles = StyleSheet.create({
         fontSize: 28,
         fontWeight: '800',
         color: '#1e293b',
-        marginBottom: 16,
         letterSpacing: -0.5,
+    },
+    headerTopRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    backButton: {
+        marginRight: 12,
     },
     searchContainer: {
         flexDirection: 'row',

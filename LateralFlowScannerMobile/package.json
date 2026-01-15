@@ -66,6 +66,7 @@
     "react-native-nitro-modules": "^0.32.0",
     "react-native-permissions": "^5.4.4",
     "react-native-proximity": "^3.0.0",
+    "react-native-reanimated": "^4.2.1",
     "react-native-safe-area-context": "^5.6.2",
     "react-native-screens": "^4.19.0",
     "react-native-sensors": "^7.3.6",

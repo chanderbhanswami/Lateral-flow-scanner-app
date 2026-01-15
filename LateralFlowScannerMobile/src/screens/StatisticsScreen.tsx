@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, StyleSheet, Text, ScrollView, RefreshControl, Dimensions, Animated, Easing } from 'react-native';
+import { View, StyleSheet, Text, ScrollView, RefreshControl, Dimensions, Animated, Easing, TouchableOpacity } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { statisticsApi, UserStatistics, GlobalStatistics } from '../api/statistics.api';
 import { Card } from '../components/UI/Card';
@@ -33,6 +33,7 @@ const CountUp = ({ value, suffix = '', formatter = (v: number) => v.toString() }
 };
 
 export const StatisticsScreen: React.FC = () => {
+    const navigation = useNavigation();
     const [userStats, setUserStats] = useState<UserStatistics | null>(null);
     const [globalStats, setGlobalStats] = useState<GlobalStatistics | null>(null);
     const [loading, setLoading] = useState(false);
@@ -93,6 +94,9 @@ export const StatisticsScreen: React.FC = () => {
                 >
                     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                         <View style={styles.header}>
+                            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 16 }}>
+                                <Icon name="arrow-left" size={28} color="#1e293b" />
+                            </TouchableOpacity>
                             <Text style={styles.headerTitle}>Statistics</Text>
                             <Text style={styles.headerSubtitle}>Insights & usage metrics</Text>
                         </View>

@@ -9,6 +9,7 @@ export const useCamera = () => {
     const format = useCameraFormat(device, [
         { photoResolution: 'max' },
         { fps: CAMERA_CONSTANTS.TARGET_FPS },
+        { pixelFormat: 'yuv' } as any // Explicitly request YUV
     ]);
 
     const [config, setConfig] = useState<CameraConfig>({

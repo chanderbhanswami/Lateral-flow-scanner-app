@@ -305,6 +305,7 @@ export const CaptureScreen: React.FC = () => {
                 isActive={config.isActive}
                 photo={true}
                 format={format}
+                pixelFormat="yuv"
                 fps={config.fps}
                 zoom={config.zoom}
                 exposure={config.exposure}

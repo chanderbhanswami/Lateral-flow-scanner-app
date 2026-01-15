@@ -1,11 +1,13 @@
 import React, { useRef, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, Animated, Easing } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, Animated, Easing, TouchableOpacity } from 'react-native';
 import { Card } from '../components/UI/Card';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import LinearGradient from 'react-native-linear-gradient';
+import { useNavigation } from '@react-navigation/native';
 
 export const GuideScreen: React.FC = () => {
+    const navigation = useNavigation();
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
@@ -79,6 +81,9 @@ export const GuideScreen: React.FC = () => {
                 >
                     <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
                         <View style={styles.header}>
+                            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginBottom: 16 }}>
+                                <Icon name="arrow-left" size={28} color="#1e293b" />
+                            </TouchableOpacity>
                             <Text style={styles.title}>User Guide</Text>
                             <Text style={styles.subtitle}>
                                 Master the scanning workflow in 5 simple steps.

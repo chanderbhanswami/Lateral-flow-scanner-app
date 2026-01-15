@@ -685,32 +685,38 @@ export const authController = {
             }
 
             // Find user and check if token exists
+            // Generate new hash early
             const hashedToken = crypto.createHash('sha256').update(refreshToken).digest('hex');
-            const user = await User.findOne({
-                _id: decoded.userId,
-                'refreshTokens.token': hashedToken,
-                isActive: true,
-            });
-
-            if (!user) {
-                throw new ApiError(401, 'Invalid refresh token', 'INVALID_TOKEN');
-            }
-
-            // Remove old token
-            user.refreshTokens = user.refreshTokens.filter(t => t.token !== hashedToken);
 
             // Generate new tokens
-            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(user._id.toString());
+            const { accessToken: newAccessToken, refreshToken: newRefreshToken } = generateTokens(decoded.userId);
+            const hashedNewToken = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
 
-            // Store new refresh token
-            user.refreshTokens.push({
-                token: crypto.createHash('sha256').update(newRefreshToken).digest('hex'),
-                deviceInfo: getDeviceInfo(req),
-                createdAt: new Date(),
-                expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
-            });
+            // Atomic update: Verify old token exists AND replace it with new one in a single step
+            // using the positional ($) operator. This bypasses VersionError.
+            const user = await User.findOneAndUpdate(
+                {
+                    _id: decoded.userId,
+                    'refreshTokens.token': hashedToken,
+                    isActive: true,
+                },
+                {
+                    $set: {
+                        'refreshTokens.$': {
+                            token: hashedNewToken,
+                            deviceInfo: getDeviceInfo(req),
+                            createdAt: new Date(),
+                            expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
+                        }
+                    }
+                },
+                { new: true } // Return updated doc
+            );
 
-            await user.save();
+            if (!user) {
+                // If no document matched, the token was invalid or already used
+                throw new ApiError(401, 'Invalid refresh token', 'INVALID_TOKEN');
+            }
 
             res.json({
                 success: true,
