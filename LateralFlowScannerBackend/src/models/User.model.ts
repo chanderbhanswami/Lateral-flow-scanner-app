@@ -169,20 +169,15 @@ UserSchema.index({ 'refreshTokens.token': 1 });
 // ==========================================
 // Pre-save Middleware - Hash Password
 // ==========================================
-(UserSchema as any).pre('save', async function (this: IUser & Document, next: (err?: Error) => void): Promise<void> {
+UserSchema.pre('save', async function (): Promise<void> {
     // Only hash if password is modified and exists
     if (!this.isModified('password') || !this.password) {
-        return next();
+        return;
     }
 
-    try {
-        const salt = await bcrypt.genSalt(12);
-        this.password = await bcrypt.hash(this.password, salt);
-        this.lastPasswordChange = new Date();
-        next();
-    } catch (error) {
-        next(error as Error);
-    }
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    this.lastPasswordChange = new Date();
 });
 
 // ==========================================
