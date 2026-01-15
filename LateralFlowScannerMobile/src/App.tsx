@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Toast from 'react-native-toast-message';
 import * as Sentry from '@sentry/react-native';
+import BootSplash from 'react-native-bootsplash';
 import AppNavigator from './navigation/AppNavigator';
 import { setupInterceptors } from './api/interceptors';
 import { initializeServices } from './services/initialization.service';
@@ -35,8 +36,13 @@ setupInterceptors();
 
 const App = () => {
   useEffect(() => {
-    initializeServices();
-    networkService.initialize();
+    const init = async () => {
+      await initializeServices();
+      networkService.initialize();
+      // Hide splash screen after app is ready
+      await BootSplash.hide({ fade: true });
+    };
+    init();
   }, []);
 
   return (

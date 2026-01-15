@@ -148,6 +148,13 @@ android {
         pickFirst 'lib/**/libc++_shared.so'
     }
 
+    // Use short path to avoid Windows 260 char limit
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory "D:/rn-build"
+        }
+    }
+
     // Rename release output files to LFS.apk and LFS.aab
     applicationVariants.all { variant ->
         variant.outputs.all {

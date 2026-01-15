@@ -45,6 +45,7 @@
     "react": "19.2.0",
     "react-native": "0.83.1",
     "react-native-blob-util": "^0.24.6",
+    "react-native-bootsplash": "^6.3.12",
     "react-native-config": "^1.6.1",
     "react-native-crypto": "^2.2.1",
     "react-native-device-info": "^15.0.1",

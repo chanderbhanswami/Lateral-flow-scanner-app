@@ -1,19 +1,17 @@
 package com.lateralflowscannermobile
 
 import android.os.Bundle
-import android.os.SystemClock
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.zoontek.rnbootsplash.RNBootSplash
 
 class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
-    // Keep splash screen visible for 2 seconds
-    SystemClock.sleep(2000)
-    // Switch from BootTheme (splash screen) to AppTheme
-    setTheme(R.style.AppTheme)
+    // Initialize bootsplash
+    RNBootSplash.init(this, R.style.BootTheme)
     super.onCreate(savedInstanceState)
   }
 
