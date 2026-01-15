@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createMMKV, type MMKV } from 'react-native-mmkv';
+import { MMKV } from 'react-native-mmkv';
 import { CaptureData } from '../types';
 
 // Lazy initialization to avoid issues during module loading
@@ -7,7 +7,7 @@ let storage: MMKV | null = null;
 
 function getStorage(): MMKV {
     if (!storage) {
-        storage = createMMKV({ id: 'default' });
+        storage = new MMKV({ id: 'default' });
     }
     return storage;
 }
@@ -28,8 +28,8 @@ class StorageService {
     }
 
     async clearTokens(): Promise<void> {
-        getStorage().remove('accessToken');
-        getStorage().remove('refreshToken');
+        getStorage().delete('accessToken');
+        getStorage().delete('refreshToken');
     }
 
     // Capture management
