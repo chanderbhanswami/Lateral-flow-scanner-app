@@ -12,7 +12,20 @@
           "package_name": "com.lateralflowscannermobile"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "361246203650-2qch9gbv8o4jgkdhrf91qsgtasgo1a5m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.lateralflowscannermobile",
+            "certificate_hash": "f52b3449ff0496440ac12e257aad17ee7d142a93"
+          }
+        },
+        {
+          "client_id": "361246203650-a61cj3ar7q1dm42tcn0hfsai90dsf3vk.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDTSbhyeVfhwJFgen5Si-vBYL30jHBGWk0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "361246203650-a61cj3ar7q1dm42tcn0hfsai90dsf3vk.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
