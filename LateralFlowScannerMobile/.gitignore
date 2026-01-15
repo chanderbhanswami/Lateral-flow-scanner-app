@@ -111,5 +111,7 @@ hermes_path.txt
 generateHash.js
 android/gradle.properties
 
+.bundle/
+
 # Firebase config (contains sensitive data)
 android/app/google-services.json
