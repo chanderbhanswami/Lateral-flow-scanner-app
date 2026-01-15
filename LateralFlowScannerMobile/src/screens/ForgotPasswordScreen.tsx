@@ -5,11 +5,10 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     Image,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
@@ -138,81 +137,81 @@ export const ForgotPasswordScreen: React.FC = () => {
     }
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
-                    {/* Back Button */}
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Icon name="arrow-left" size={24} color="#374151" />
-                    </TouchableOpacity>
+            <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
+                {/* Back Button */}
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Icon name="arrow-left" size={24} color="#374151" />
+                </TouchableOpacity>
 
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <Text style={styles.title}>Forgot Password?</Text>
+                    <Text style={styles.subtitle}>
+                        No worries! Enter your email address and we'll send you a verification code to reset your password.
+                    </Text>
+                </View>
+
+                {/* Form */}
+                <Card style={styles.card}>
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Email Address</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Enter your email"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                autoComplete="email"
                             />
+                            {email && isValidEmail(email) && (
+                                <Icon name="check-circle" size={20} color="#10b981" style={styles.validIcon} />
+                            )}
                         </View>
-                        <Text style={styles.title}>Forgot Password?</Text>
-                        <Text style={styles.subtitle}>
-                            No worries! Enter your email address and we'll send you a verification code to reset your password.
-                        </Text>
                     </View>
 
-                    {/* Form */}
-                    <Card style={styles.card}>
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Email Address</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    placeholder="Enter your email"
-                                    placeholderTextColor="#9ca3af"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    autoComplete="email"
-                                />
-                                {email && isValidEmail(email) && (
-                                    <Icon name="check-circle" size={20} color="#10b981" style={styles.validIcon} />
-                                )}
-                            </View>
-                        </View>
+                    <Button
+                        title="Send Reset Code"
+                        onPress={handleSendResetLink}
+                        loading={loading}
+                        disabled={loading || !email.trim()}
+                        style={styles.sendButton}
+                    />
+                </Card>
 
-                        <Button
-                            title="Send Reset Code"
-                            onPress={handleSendResetLink}
-                            loading={loading}
-                            disabled={loading || !email.trim()}
-                            style={styles.sendButton}
-                        />
-                    </Card>
-
-                    {/* Back to Login */}
-                    <TouchableOpacity
-                        style={styles.loginLink}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Icon name="arrow-left" size={16} color="#3b82f6" />
-                        <Text style={styles.loginLinkText}>Back to Sign In</Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+                {/* Back to Login */}
+                <TouchableOpacity
+                    style={styles.loginLink}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Icon name="arrow-left" size={16} color="#3b82f6" />
+                    <Text style={styles.loginLinkText}>Back to Sign In</Text>
+                </TouchableOpacity>
+            </View>
+        </KeyboardAwareScrollView>
     );
 };
 

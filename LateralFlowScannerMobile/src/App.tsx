@@ -50,7 +50,11 @@ const App = () => {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <NavigationContainer>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar
+              barStyle="dark-content"
+              translucent={true}
+              backgroundColor="transparent"
+            />
             <AppNavigator />
             <Toast config={toastConfig} />
           </NavigationContainer>

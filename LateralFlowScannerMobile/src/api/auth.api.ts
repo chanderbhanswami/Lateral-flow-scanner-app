@@ -50,7 +50,8 @@ export const authApi = {
             API_ENDPOINTS.AUTH.LOGIN,
             credentials
         );
-        return response.data!;
+        // Handle both wrapped (ApiResponse) and unwrapped formats
+        return (response as any).data ?? response as unknown as LoginResponse;
     },
 
     async register(data: { email: string; password: string; name: string; inviteCode: string }): Promise<LoginResponse> {
@@ -58,7 +59,8 @@ export const authApi = {
             API_ENDPOINTS.AUTH.REGISTER,
             data
         );
-        return response.data!;
+        // Handle both wrapped (ApiResponse) and unwrapped formats
+        return (response as any).data ?? response as unknown as LoginResponse;
     },
 
     // ==========================================
@@ -69,7 +71,8 @@ export const authApi = {
             API_ENDPOINTS.AUTH.GOOGLE,
             data
         );
-        return response.data!;
+        // Handle both wrapped (ApiResponse) and unwrapped formats
+        return (response as any).data ?? response as unknown as LoginResponse;
     },
 
     async facebookAuth(data: FacebookAuthRequest): Promise<LoginResponse> {
@@ -77,7 +80,8 @@ export const authApi = {
             API_ENDPOINTS.AUTH.FACEBOOK,
             data
         );
-        return response.data!;
+        // Handle both wrapped (ApiResponse) and unwrapped formats
+        return (response as any).data ?? response as unknown as LoginResponse;
     },
 
     // ==========================================

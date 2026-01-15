@@ -5,13 +5,12 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     ActivityIndicator,
     Image,
     Modal,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
 import { ENV } from '../config/env';
@@ -214,290 +213,289 @@ export const RegisterScreen: React.FC = () => {
     };
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={() => navigation.goBack()}
-                        >
-                            <Icon name="arrow-left" size={24} color="#374151" />
-                        </TouchableOpacity>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <Text style={styles.title}>Create Account</Text>
-                        <Text style={styles.subtitle}>Join Lateral Flow Scanner today</Text>
-                    </View>
-
-                    {/* Social Signup */}
-                    <View style={styles.socialButtons}>
-                        <TouchableOpacity
-                            style={[styles.socialButton, styles.googleButton]}
-                            onPress={() => handleGoogleSignup()}
-                            disabled={loading || googleLoading || facebookLoading}
-                        >
-                            {googleLoading ? (
-                                <ActivityIndicator size="small" color="#ea4335" />
-                            ) : (
-                                <>
-                                    <Icon name="google" size={20} color="#ea4335" />
-                                    <Text style={styles.googleText}>Continue with Google</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            style={[styles.socialButton, styles.facebookButton]}
-                            onPress={() => handleFacebookSignup()}
-                            disabled={loading || googleLoading || facebookLoading}
-                        >
-                            {facebookLoading ? (
-                                <ActivityIndicator size="small" color="#fff" />
-                            ) : (
-                                <>
-                                    <Icon name="facebook" size={20} color="#fff" />
-                                    <Text style={styles.facebookText}>Continue with Facebook</Text>
-                                </>
-                            )}
-                        </TouchableOpacity>
-                    </View>
-
-                    {/* Divider */}
-                    <View style={styles.divider}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>or register with email</Text>
-                        <View style={styles.dividerLine} />
-                    </View>
-
-                    {/* Registration Form */}
-                    <Card style={styles.card}>
-                        {/* Name */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Full Name</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="account-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={name}
-                                    onChangeText={setName}
-                                    placeholder="Enter your full name"
-                                    placeholderTextColor="#9ca3af"
-                                    autoCapitalize="words"
-                                    autoComplete="name"
-                                />
-                            </View>
-                        </View>
-
-                        {/* Invite Code */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Invite Code</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="ticket-confirmation-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={inviteCode}
-                                    onChangeText={setInviteCode}
-                                    placeholder="Enter your invite code"
-                                    placeholderTextColor="#9ca3af"
-                                    autoCapitalize="characters"
-                                    autoCorrect={false}
-                                />
-                            </View>
-                        </View>
-
-                        {/* Email */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Email</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    placeholder="Enter your email"
-                                    placeholderTextColor="#9ca3af"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    autoComplete="email"
-                                />
-                            </View>
-                        </View>
-
-                        {/* Password */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Password</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    placeholder="Create a strong password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showPassword}
-                                    autoCapitalize="none"
-                                />
-                                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}>
-                                    <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Password Strength Indicator */}
-                            {password.length > 0 && (
-                                <View style={styles.strengthContainer}>
-                                    <View style={styles.strengthBar}>
-                                        {[1, 2, 3, 4, 5].map((i) => (
-                                            <View
-                                                key={i}
-                                                style={[
-                                                    styles.strengthSegment,
-                                                    { backgroundColor: i <= passwordStrength.score ? passwordStrength.color : '#e5e7eb' },
-                                                ]}
-                                            />
-                                        ))}
-                                    </View>
-                                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                                        {passwordStrength.label}
-                                    </Text>
-                                </View>
-                            )}
-
-                            {/* Password Requirements */}
-                            {password.length > 0 && (
-                                <View style={styles.requirements}>
-                                    <View style={styles.requirementRow}>
-                                        <Icon
-                                            name={passwordStrength.checks.length ? 'check-circle' : 'circle-outline'}
-                                            size={14}
-                                            color={passwordStrength.checks.length ? '#10b981' : '#9ca3af'}
-                                        />
-                                        <Text style={[styles.requirementText, passwordStrength.checks.length && styles.requirementMet]}>
-                                            At least 8 characters
-                                        </Text>
-                                    </View>
-                                    <View style={styles.requirementRow}>
-                                        <Icon
-                                            name={passwordStrength.checks.uppercase ? 'check-circle' : 'circle-outline'}
-                                            size={14}
-                                            color={passwordStrength.checks.uppercase ? '#10b981' : '#9ca3af'}
-                                        />
-                                        <Text style={[styles.requirementText, passwordStrength.checks.uppercase && styles.requirementMet]}>
-                                            One uppercase letter
-                                        </Text>
-                                    </View>
-                                    <View style={styles.requirementRow}>
-                                        <Icon
-                                            name={passwordStrength.checks.lowercase ? 'check-circle' : 'circle-outline'}
-                                            size={14}
-                                            color={passwordStrength.checks.lowercase ? '#10b981' : '#9ca3af'}
-                                        />
-                                        <Text style={[styles.requirementText, passwordStrength.checks.lowercase && styles.requirementMet]}>
-                                            One lowercase letter
-                                        </Text>
-                                    </View>
-                                    <View style={styles.requirementRow}>
-                                        <Icon
-                                            name={passwordStrength.checks.number ? 'check-circle' : 'circle-outline'}
-                                            size={14}
-                                            color={passwordStrength.checks.number ? '#10b981' : '#9ca3af'}
-                                        />
-                                        <Text style={[styles.requirementText, passwordStrength.checks.number && styles.requirementMet]}>
-                                            One number
-                                        </Text>
-                                    </View>
-                                    <View style={styles.requirementRow}>
-                                        <Icon
-                                            name={passwordStrength.checks.special ? 'check-circle' : 'circle-outline'}
-                                            size={14}
-                                            color={passwordStrength.checks.special ? '#10b981' : '#9ca3af'}
-                                        />
-                                        <Text style={[styles.requirementText, passwordStrength.checks.special && styles.requirementMet]}>
-                                            One special character
-                                        </Text>
-                                    </View>
-                                </View>
-                            )}
-                        </View>
-
-                        {/* Confirm Password */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Confirm Password</Text>
-                            <View style={[
-                                styles.inputContainer,
-                                confirmPassword && password !== confirmPassword && styles.inputError
-                            ]}>
-                                <Icon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
-                                    placeholder="Confirm your password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showConfirmPassword}
-                                    autoCapitalize="none"
-                                />
-                                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.passwordToggle}>
-                                    <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
-                                </TouchableOpacity>
-                            </View>
-                            {confirmPassword && password !== confirmPassword && (
-                                <Text style={styles.errorText}>Passwords do not match</Text>
-                            )}
-                        </View>
-
-                        {/* Terms */}
-                        <TouchableOpacity
-                            style={styles.termsContainer}
-                            onPress={() => setAcceptTerms(!acceptTerms)}
-                        >
-                            <Icon
-                                name={acceptTerms ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                                size={22}
-                                color={acceptTerms ? '#3b82f6' : '#9ca3af'}
-                            />
-                            <Text style={styles.termsText}>
-                                I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                                <Text style={styles.termsLink}>Privacy Policy</Text>
-                            </Text>
-                        </TouchableOpacity>
-
-                        {/* Register Button */}
-                        <Button
-                            title="Create Account"
-                            onPress={handleRegister}
-                            loading={loading}
-                            disabled={loading || googleLoading || facebookLoading}
-                            style={styles.registerButton}
-                        />
-                    </Card>
-
-                    {/* Login Link */}
+            <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
+                {/* Header */}
+                <View style={styles.header}>
                     <TouchableOpacity
-                        style={styles.loginLink}
+                        style={styles.backButton}
                         onPress={() => navigation.goBack()}
                     >
-                        <Text style={styles.loginText}>
-                            Already have an account?{' '}
-                            <Text style={styles.loginTextBold}>Sign In</Text>
-                        </Text>
+                        <Icon name="arrow-left" size={24} color="#374151" />
+                    </TouchableOpacity>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <Text style={styles.title}>Create Account</Text>
+                    <Text style={styles.subtitle}>Join Lateral Flow Scanner today</Text>
+                </View>
+
+                {/* Social Signup */}
+                <View style={styles.socialButtons}>
+                    <TouchableOpacity
+                        style={[styles.socialButton, styles.googleButton]}
+                        onPress={() => handleGoogleSignup()}
+                        disabled={loading || googleLoading || facebookLoading}
+                    >
+                        {googleLoading ? (
+                            <ActivityIndicator size="small" color="#ea4335" />
+                        ) : (
+                            <>
+                                <Icon name="google" size={20} color="#ea4335" />
+                                <Text style={styles.googleText}>Continue with Google</Text>
+                            </>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[styles.socialButton, styles.facebookButton]}
+                        onPress={() => handleFacebookSignup()}
+                        disabled={loading || googleLoading || facebookLoading}
+                    >
+                        {facebookLoading ? (
+                            <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                            <>
+                                <Icon name="facebook" size={20} color="#fff" />
+                                <Text style={styles.facebookText}>Continue with Facebook</Text>
+                            </>
+                        )}
                     </TouchableOpacity>
                 </View>
-            </ScrollView>
+
+                {/* Divider */}
+                <View style={styles.divider}>
+                    <View style={styles.dividerLine} />
+                    <Text style={styles.dividerText}>or register with email</Text>
+                    <View style={styles.dividerLine} />
+                </View>
+
+                {/* Registration Form */}
+                <Card style={styles.card}>
+                    {/* Name */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Full Name</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="account-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={name}
+                                onChangeText={setName}
+                                placeholder="Enter your full name"
+                                placeholderTextColor="#9ca3af"
+                                autoCapitalize="words"
+                                autoComplete="name"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Invite Code */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Invite Code</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="ticket-confirmation-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={inviteCode}
+                                onChangeText={setInviteCode}
+                                placeholder="Enter your invite code"
+                                placeholderTextColor="#9ca3af"
+                                autoCapitalize="characters"
+                                autoCorrect={false}
+                            />
+                        </View>
+                    </View>
+
+                    {/* Email */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Email</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Enter your email"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                autoComplete="email"
+                            />
+                        </View>
+                    </View>
+
+                    {/* Password */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Password</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                placeholder="Create a strong password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}>
+                                <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Password Strength Indicator */}
+                        {password.length > 0 && (
+                            <View style={styles.strengthContainer}>
+                                <View style={styles.strengthBar}>
+                                    {[1, 2, 3, 4, 5].map((i) => (
+                                        <View
+                                            key={i}
+                                            style={[
+                                                styles.strengthSegment,
+                                                { backgroundColor: i <= passwordStrength.score ? passwordStrength.color : '#e5e7eb' },
+                                            ]}
+                                        />
+                                    ))}
+                                </View>
+                                <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                                    {passwordStrength.label}
+                                </Text>
+                            </View>
+                        )}
+
+                        {/* Password Requirements */}
+                        {password.length > 0 && (
+                            <View style={styles.requirements}>
+                                <View style={styles.requirementRow}>
+                                    <Icon
+                                        name={passwordStrength.checks.length ? 'check-circle' : 'circle-outline'}
+                                        size={14}
+                                        color={passwordStrength.checks.length ? '#10b981' : '#9ca3af'}
+                                    />
+                                    <Text style={[styles.requirementText, passwordStrength.checks.length && styles.requirementMet]}>
+                                        At least 8 characters
+                                    </Text>
+                                </View>
+                                <View style={styles.requirementRow}>
+                                    <Icon
+                                        name={passwordStrength.checks.uppercase ? 'check-circle' : 'circle-outline'}
+                                        size={14}
+                                        color={passwordStrength.checks.uppercase ? '#10b981' : '#9ca3af'}
+                                    />
+                                    <Text style={[styles.requirementText, passwordStrength.checks.uppercase && styles.requirementMet]}>
+                                        One uppercase letter
+                                    </Text>
+                                </View>
+                                <View style={styles.requirementRow}>
+                                    <Icon
+                                        name={passwordStrength.checks.lowercase ? 'check-circle' : 'circle-outline'}
+                                        size={14}
+                                        color={passwordStrength.checks.lowercase ? '#10b981' : '#9ca3af'}
+                                    />
+                                    <Text style={[styles.requirementText, passwordStrength.checks.lowercase && styles.requirementMet]}>
+                                        One lowercase letter
+                                    </Text>
+                                </View>
+                                <View style={styles.requirementRow}>
+                                    <Icon
+                                        name={passwordStrength.checks.number ? 'check-circle' : 'circle-outline'}
+                                        size={14}
+                                        color={passwordStrength.checks.number ? '#10b981' : '#9ca3af'}
+                                    />
+                                    <Text style={[styles.requirementText, passwordStrength.checks.number && styles.requirementMet]}>
+                                        One number
+                                    </Text>
+                                </View>
+                                <View style={styles.requirementRow}>
+                                    <Icon
+                                        name={passwordStrength.checks.special ? 'check-circle' : 'circle-outline'}
+                                        size={14}
+                                        color={passwordStrength.checks.special ? '#10b981' : '#9ca3af'}
+                                    />
+                                    <Text style={[styles.requirementText, passwordStrength.checks.special && styles.requirementMet]}>
+                                        One special character
+                                    </Text>
+                                </View>
+                            </View>
+                        )}
+                    </View>
+
+                    {/* Confirm Password */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Confirm Password</Text>
+                        <View style={[
+                            styles.inputContainer,
+                            confirmPassword && password !== confirmPassword && styles.inputError
+                        ]}>
+                            <Icon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm your password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showConfirmPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.passwordToggle}>
+                                <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
+                            </TouchableOpacity>
+                        </View>
+                        {confirmPassword && password !== confirmPassword && (
+                            <Text style={styles.errorText}>Passwords do not match</Text>
+                        )}
+                    </View>
+
+                    {/* Terms */}
+                    <TouchableOpacity
+                        style={styles.termsContainer}
+                        onPress={() => setAcceptTerms(!acceptTerms)}
+                    >
+                        <Icon
+                            name={acceptTerms ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                            size={22}
+                            color={acceptTerms ? '#3b82f6' : '#9ca3af'}
+                        />
+                        <Text style={styles.termsText}>
+                            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
+                            <Text style={styles.termsLink}>Privacy Policy</Text>
+                        </Text>
+                    </TouchableOpacity>
+
+                    {/* Register Button */}
+                    <Button
+                        title="Create Account"
+                        onPress={handleRegister}
+                        loading={loading}
+                        disabled={loading || googleLoading || facebookLoading}
+                        style={styles.registerButton}
+                    />
+                </Card>
+
+                {/* Login Link */}
+                <TouchableOpacity
+                    style={styles.loginLink}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={styles.loginText}>
+                        Already have an account?{' '}
+                        <Text style={styles.loginTextBold}>Sign In</Text>
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Invite Code Prompt Modal */}
             <Modal
@@ -563,7 +561,7 @@ export const RegisterScreen: React.FC = () => {
                     </View>
                 </View>
             </Modal>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     );
 };
 

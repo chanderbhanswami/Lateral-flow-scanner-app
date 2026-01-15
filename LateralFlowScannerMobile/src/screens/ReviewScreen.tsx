@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, Image, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, Image, TextInput, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { ReviewScreenProps } from '../types';
@@ -68,125 +69,130 @@ export const ReviewScreen: React.FC = () => {
     };
 
     return (
-        <View style={styles.container}>
-            <ScrollView contentContainerStyle={styles.scrollContent}>
-                {/* Image Preview */}
-                <Card style={styles.imageCard}>
-                    <Image
-                        source={{ uri: `file://${imageUri}` }}
-                        style={styles.image}
-                        resizeMode="contain"
-                    />
-                </Card>
+        <KeyboardAwareScrollView
+            style={styles.container}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
+        >
+            {/* Image Preview */}
+            <Card style={styles.imageCard}>
+                <Image
+                    source={{ uri: `file://${imageUri}` }}
+                    style={styles.image}
+                    resizeMode="contain"
+                />
+            </Card>
 
-                {/* Batch Selection */}
-                <Card style={styles.inputCard}>
-                    <Text style={styles.inputLabel}>Concentration Batch</Text>
-                    <TouchableOpacity
-                        style={styles.batchSelector}
-                        onPress={() => setShowBatchSelector(true)}
-                    >
-                        {selectedBatch ? (
-                            <View style={styles.selectedBatchRow}>
-                                <View style={[styles.batchColor, { backgroundColor: selectedBatch.color || '#3b82f6' }]} />
-                                <Text style={styles.batchName}>{selectedBatch.name}</Text>
-                                <Text style={styles.batchInfo}>({selectedBatch.concentration} {selectedBatch.unit})</Text>
-                            </View>
-                        ) : (
-                            <Text style={styles.placeholderText}>Select a batch...</Text>
-                        )}
-                        <Text style={styles.changeLink}>Change</Text>
-                    </TouchableOpacity>
-                </Card>
+            {/* Batch Selection */}
+            <Card style={styles.inputCard}>
+                <Text style={styles.inputLabel}>Concentration Batch</Text>
+                <TouchableOpacity
+                    style={styles.batchSelector}
+                    onPress={() => setShowBatchSelector(true)}
+                >
+                    {selectedBatch ? (
+                        <View style={styles.selectedBatchRow}>
+                            <View style={[styles.batchColor, { backgroundColor: selectedBatch.color || '#3b82f6' }]} />
+                            <Text style={styles.batchName}>{selectedBatch.name}</Text>
+                            <Text style={styles.batchInfo}>({selectedBatch.concentration} {selectedBatch.unit})</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.placeholderText}>Select a batch...</Text>
+                    )}
+                    <Text style={styles.changeLink}>Change</Text>
+                </TouchableOpacity>
+            </Card>
 
-                {/* Capture Info */}
-                <Card style={styles.infoCard}>
-                    <Text style={styles.sectionTitle}>Capture Information</Text>
+            {/* Capture Info */}
+            <Card style={styles.infoCard}>
+                <Text style={styles.sectionTitle}>Capture Information</Text>
 
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Mode:</Text>
-                        <Text style={styles.infoValue}>{captureData.captureMode}</Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Quality Score:</Text>
-                        <Text style={styles.infoValue}>
-                            {captureData.analysisData.qualityScore.toFixed(1)}/100
-                        </Text>
-                    </View>
-
-                    <View style={styles.infoRow}>
-                        <Text style={styles.infoLabel}>Timestamp:</Text>
-                        <Text style={styles.infoValue}>
-                            {new Date(captureData.timestamp).toLocaleString()}
-                        </Text>
-                    </View>
-                </Card>
-
-                {/* Concentration Input */}
-                <Card style={styles.inputCard}>
-                    <Text style={styles.inputLabel}>Concentration Value *</Text>
-                    <TextInput
-                        style={styles.input}
-                        value={concentration}
-                        onChangeText={setConcentration}
-                        placeholder="Enter concentration value (e.g. 10)"
-                        placeholderTextColor="#999"
-                    />
-                </Card>
-
-                {/* Notes Input */}
-                <Card style={styles.inputCard}>
-                    <Text style={styles.inputLabel}>Notes (Optional)</Text>
-                    <TextInput
-                        style={[styles.input, styles.notesInput]}
-                        value={notes}
-                        onChangeText={setNotes}
-                        placeholder="Add any notes..."
-                        placeholderTextColor="#999"
-                        multiline
-                        numberOfLines={4}
-                    />
-                </Card>
-
-                {/* Warnings */}
-                {captureData.analysisData.warnings.length > 0 && (
-                    <Card style={styles.warningCard}>
-                        <Text style={styles.warningTitle}>Warnings</Text>
-                        {captureData.analysisData.warnings.map((warning, index) => (
-                            <Text key={index} style={styles.warningText}>
-                                • {warning}
-                            </Text>
-                        ))}
-                    </Card>
-                )}
-
-                {/* Action Buttons */}
-                <View style={styles.buttonContainer}>
-                    <Button
-                        title="Cancel"
-                        onPress={handleCancel}
-                        variant="outline"
-                        style={styles.button}
-                        disabled={isUploading}
-                    />
-                    <Button
-                        title={isUploading ? 'Sending...' : 'Send'}
-                        onPress={handleSend}
-                        style={styles.button}
-                        disabled={isUploading || !concentration}
-                        loading={isUploading}
-                    />
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Mode:</Text>
+                    <Text style={styles.infoValue}>{captureData.captureMode}</Text>
                 </View>
-            </ScrollView>
 
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Quality Score:</Text>
+                    <Text style={styles.infoValue}>
+                        {captureData.analysisData.qualityScore.toFixed(1)}/100
+                    </Text>
+                </View>
+
+                <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>Timestamp:</Text>
+                    <Text style={styles.infoValue}>
+                        {new Date(captureData.timestamp).toLocaleString()}
+                    </Text>
+                </View>
+            </Card>
+
+            {/* Concentration Input */}
+            <Card style={styles.inputCard}>
+                <Text style={styles.inputLabel}>Concentration Value *</Text>
+                <TextInput
+                    style={styles.input}
+                    value={concentration}
+                    onChangeText={setConcentration}
+                    placeholder="Enter concentration value (e.g. 10)"
+                    placeholderTextColor="#999"
+                />
+            </Card>
+
+            {/* Notes Input */}
+            <Card style={styles.inputCard}>
+                <Text style={styles.inputLabel}>Notes (Optional)</Text>
+                <TextInput
+                    style={[styles.input, styles.notesInput]}
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Add any notes..."
+                    placeholderTextColor="#999"
+                    multiline
+                    numberOfLines={4}
+                />
+            </Card>
+
+            {/* Warnings */}
+            {captureData.analysisData.warnings.length > 0 && (
+                <Card style={styles.warningCard}>
+                    <Text style={styles.warningTitle}>Warnings</Text>
+                    {captureData.analysisData.warnings.map((warning, index) => (
+                        <Text key={index} style={styles.warningText}>
+                            • {warning}
+                        </Text>
+                    ))}
+                </Card>
+            )}
+
+            {/* Action Buttons */}
+            <View style={styles.buttonContainer}>
+                <Button
+                    title="Cancel"
+                    onPress={handleCancel}
+                    variant="outline"
+                    style={styles.button}
+                    disabled={isUploading}
+                />
+                <Button
+                    title={isUploading ? 'Sending...' : 'Send'}
+                    onPress={handleSend}
+                    style={styles.button}
+                    disabled={isUploading || !concentration}
+                    loading={isUploading}
+                />
+            </View>
             {/* Batch Selector Modal */}
             <BatchSelector
                 visible={showBatchSelector}
                 onClose={() => setShowBatchSelector(false)}
                 onSelect={handleBatchSelect}
             />
-        </View>
+        </KeyboardAwareScrollView>
     );
 };
 

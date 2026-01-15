@@ -5,11 +5,10 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     Image,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
@@ -104,172 +103,172 @@ export const ChangePasswordScreen: React.FC = () => {
     };
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <TouchableOpacity
-                            style={styles.backButton}
-                            onPress={() => navigation.goBack()}
-                        >
-                            <Icon name="arrow-left" size={24} color="#374151" />
-                        </TouchableOpacity>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
+            <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
+                {/* Header */}
+                <View style={styles.header}>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                    >
+                        <Icon name="arrow-left" size={24} color="#374151" />
+                    </TouchableOpacity>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <Text style={styles.title}>Change Password</Text>
+                    <Text style={styles.subtitle}>
+                        Update your password to keep your account secure
+                    </Text>
+                </View>
+
+                {/* Form */}
+                <Card style={styles.card}>
+                    {/* Current Password */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Current Password</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={currentPassword}
+                                onChangeText={setCurrentPassword}
+                                placeholder="Enter current password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showCurrentPassword}
+                                autoCapitalize="none"
                             />
+                            <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)} style={styles.passwordToggle}>
+                                <Icon name={showCurrentPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
+                            </TouchableOpacity>
                         </View>
-                        <Text style={styles.title}>Change Password</Text>
-                        <Text style={styles.subtitle}>
-                            Update your password to keep your account secure
-                        </Text>
                     </View>
 
-                    {/* Form */}
-                    <Card style={styles.card}>
-                        {/* Current Password */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Current Password</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={currentPassword}
-                                    onChangeText={setCurrentPassword}
-                                    placeholder="Enter current password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showCurrentPassword}
-                                    autoCapitalize="none"
-                                />
-                                <TouchableOpacity onPress={() => setShowCurrentPassword(!showCurrentPassword)} style={styles.passwordToggle}>
-                                    <Icon name={showCurrentPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
-                                </TouchableOpacity>
-                            </View>
+                    <View style={styles.divider} />
+
+                    {/* New Password */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>New Password</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="lock-plus-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={newPassword}
+                                onChangeText={setNewPassword}
+                                placeholder="Enter new password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showNewPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} style={styles.passwordToggle}>
+                                <Icon name={showNewPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
+                            </TouchableOpacity>
                         </View>
 
-                        <View style={styles.divider} />
-
-                        {/* New Password */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>New Password</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="lock-plus-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={newPassword}
-                                    onChangeText={setNewPassword}
-                                    placeholder="Enter new password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showNewPassword}
-                                    autoCapitalize="none"
-                                />
-                                <TouchableOpacity onPress={() => setShowNewPassword(!showNewPassword)} style={styles.passwordToggle}>
-                                    <Icon name={showNewPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
-                                </TouchableOpacity>
-                            </View>
-
-                            {/* Password Strength */}
-                            {newPassword.length > 0 && (
-                                <>
-                                    <View style={styles.strengthContainer}>
-                                        <View style={styles.strengthBar}>
-                                            {[1, 2, 3, 4, 5].map((i) => (
-                                                <View
-                                                    key={i}
-                                                    style={[
-                                                        styles.strengthSegment,
-                                                        { backgroundColor: i <= passwordStrength.score ? passwordStrength.color : '#e5e7eb' },
-                                                    ]}
-                                                />
-                                            ))}
-                                        </View>
-                                        <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                                            {passwordStrength.label}
-                                        </Text>
-                                    </View>
-
-                                    <View style={styles.requirements}>
-                                        {[
-                                            { key: 'length', text: 'At least 8 characters' },
-                                            { key: 'uppercase', text: 'One uppercase letter' },
-                                            { key: 'lowercase', text: 'One lowercase letter' },
-                                            { key: 'number', text: 'One number' },
-                                            { key: 'special', text: 'One special character' },
-                                        ].map(({ key, text }) => (
-                                            <View key={key} style={styles.requirementRow}>
-                                                <Icon
-                                                    name={passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? 'check-circle' : 'circle-outline'}
-                                                    size={14}
-                                                    color={passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? '#10b981' : '#9ca3af'}
-                                                />
-                                                <Text style={[
-                                                    styles.requirementText,
-                                                    passwordStrength.checks[key as keyof typeof passwordStrength.checks] && styles.requirementMet
-                                                ]}>
-                                                    {text}
-                                                </Text>
-                                            </View>
+                        {/* Password Strength */}
+                        {newPassword.length > 0 && (
+                            <>
+                                <View style={styles.strengthContainer}>
+                                    <View style={styles.strengthBar}>
+                                        {[1, 2, 3, 4, 5].map((i) => (
+                                            <View
+                                                key={i}
+                                                style={[
+                                                    styles.strengthSegment,
+                                                    { backgroundColor: i <= passwordStrength.score ? passwordStrength.color : '#e5e7eb' },
+                                                ]}
+                                            />
                                         ))}
                                     </View>
-                                </>
-                            )}
-                        </View>
+                                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                                        {passwordStrength.label}
+                                    </Text>
+                                </View>
 
-                        {/* Confirm Password */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Confirm New Password</Text>
-                            <View style={[
-                                styles.inputContainer,
-                                confirmPassword && newPassword !== confirmPassword && styles.inputError
-                            ]}>
-                                <Icon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={confirmPassword}
-                                    onChangeText={setConfirmPassword}
-                                    placeholder="Confirm new password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showConfirmPassword}
-                                    autoCapitalize="none"
-                                />
-                                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.passwordToggle}>
-                                    <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
-                                </TouchableOpacity>
-                            </View>
-                            {confirmPassword && newPassword !== confirmPassword && (
-                                <Text style={styles.errorText}>Passwords do not match</Text>
-                            )}
-                        </View>
-
-                        {/* Submit Button */}
-                        <Button
-                            title="Update Password"
-                            onPress={handleChangePassword}
-                            loading={loading}
-                            disabled={loading || !currentPassword || passwordStrength.score < 5 || newPassword !== confirmPassword}
-                            style={styles.submitButton}
-                        />
-                    </Card>
-
-                    {/* Security Note */}
-                    <View style={styles.securityNote}>
-                        <Icon name="shield-check" size={20} color="#3b82f6" />
-                        <Text style={styles.securityNoteText}>
-                            For security, you'll be asked to sign in again after changing your password.
-                        </Text>
+                                <View style={styles.requirements}>
+                                    {[
+                                        { key: 'length', text: 'At least 8 characters' },
+                                        { key: 'uppercase', text: 'One uppercase letter' },
+                                        { key: 'lowercase', text: 'One lowercase letter' },
+                                        { key: 'number', text: 'One number' },
+                                        { key: 'special', text: 'One special character' },
+                                    ].map(({ key, text }) => (
+                                        <View key={key} style={styles.requirementRow}>
+                                            <Icon
+                                                name={passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? 'check-circle' : 'circle-outline'}
+                                                size={14}
+                                                color={passwordStrength.checks[key as keyof typeof passwordStrength.checks] ? '#10b981' : '#9ca3af'}
+                                            />
+                                            <Text style={[
+                                                styles.requirementText,
+                                                passwordStrength.checks[key as keyof typeof passwordStrength.checks] && styles.requirementMet
+                                            ]}>
+                                                {text}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            </>
+                        )}
                     </View>
+
+                    {/* Confirm Password */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Confirm New Password</Text>
+                        <View style={[
+                            styles.inputContainer,
+                            confirmPassword && newPassword !== confirmPassword && styles.inputError
+                        ]}>
+                            <Icon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={confirmPassword}
+                                onChangeText={setConfirmPassword}
+                                placeholder="Confirm new password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showConfirmPassword}
+                                autoCapitalize="none"
+                            />
+                            <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.passwordToggle}>
+                                <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
+                            </TouchableOpacity>
+                        </View>
+                        {confirmPassword && newPassword !== confirmPassword && (
+                            <Text style={styles.errorText}>Passwords do not match</Text>
+                        )}
+                    </View>
+
+                    {/* Submit Button */}
+                    <Button
+                        title="Update Password"
+                        onPress={handleChangePassword}
+                        loading={loading}
+                        disabled={loading || !currentPassword || passwordStrength.score < 5 || newPassword !== confirmPassword}
+                        style={styles.submitButton}
+                    />
+                </Card>
+
+                {/* Security Note */}
+                <View style={styles.securityNote}>
+                    <Icon name="shield-check" size={20} color="#3b82f6" />
+                    <Text style={styles.securityNoteText}>
+                        For security, you'll be asked to sign in again after changing your password.
+                    </Text>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+            </View>
+        </KeyboardAwareScrollView>
     );
 };
 

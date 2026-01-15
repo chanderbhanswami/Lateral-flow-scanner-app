@@ -5,12 +5,11 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     Keyboard,
     Image,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
@@ -141,93 +140,93 @@ export const OTPVerificationScreen: React.FC = () => {
     };
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-            >
-                <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
-                    {/* Back Button */}
-                    <TouchableOpacity
-                        style={styles.backButton}
-                        onPress={() => navigation.goBack()}
-                    >
-                        <Icon name="arrow-left" size={24} color="#374151" />
-                    </TouchableOpacity>
+            <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
+                {/* Back Button */}
+                <TouchableOpacity
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Icon name="arrow-left" size={24} color="#374151" />
+                </TouchableOpacity>
 
-                    {/* Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
-                            />
-                        </View>
-                        <Text style={styles.title}>{getTitle()}</Text>
-                        <Text style={styles.subtitle}>{getSubtitle()}</Text>
-                    </View>
-
-                    {/* OTP Input */}
-                    <Card style={styles.card}>
-                        <View style={styles.otpContainer}>
-                            {otp.map((digit, index) => (
-                                <TextInput
-                                    key={index}
-                                    ref={(ref) => { inputRefs.current[index] = ref; }}
-                                    style={[
-                                        styles.otpInput,
-                                        digit && styles.otpInputFilled,
-                                    ]}
-                                    value={digit}
-                                    onChangeText={(value) => handleOtpChange(value, index)}
-                                    onKeyPress={(e) => handleKeyPress(e, index)}
-                                    keyboardType="number-pad"
-                                    maxLength={1}
-                                    selectTextOnFocus
-                                />
-                            ))}
-                        </View>
-
-                        {/* Verify Button */}
-                        <Button
-                            title="Verify"
-                            onPress={() => handleVerify()}
-                            loading={loading}
-                            disabled={loading || otp.some(d => !d)}
-                            style={styles.verifyButton}
+                {/* Header */}
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
                         />
-
-                        {/* Resend */}
-                        <View style={styles.resendContainer}>
-                            <Text style={styles.resendText}>Didn't receive the code?</Text>
-                            {countdown > 0 ? (
-                                <Text style={styles.countdownText}>
-                                    Resend in {countdown}s
-                                </Text>
-                            ) : (
-                                <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
-                                    <Text style={[styles.resendLink, resendLoading && styles.resendDisabled]}>
-                                        {resendLoading ? 'Sending...' : 'Resend Code'}
-                                    </Text>
-                                </TouchableOpacity>
-                            )}
-                        </View>
-                    </Card>
-
-                    {/* Help text */}
-                    <View style={styles.helpContainer}>
-                        <Icon name="information-outline" size={16} color="#9ca3af" />
-                        <Text style={styles.helpText}>
-                            The code will expire in 10 minutes. Check your spam folder if you don't see the email.
-                        </Text>
                     </View>
+                    <Text style={styles.title}>{getTitle()}</Text>
+                    <Text style={styles.subtitle}>{getSubtitle()}</Text>
                 </View>
-            </ScrollView>
-        </KeyboardAvoidingView>
+
+                {/* OTP Input */}
+                <Card style={styles.card}>
+                    <View style={styles.otpContainer}>
+                        {otp.map((digit, index) => (
+                            <TextInput
+                                key={index}
+                                ref={(ref) => { inputRefs.current[index] = ref; }}
+                                style={[
+                                    styles.otpInput,
+                                    digit && styles.otpInputFilled,
+                                ]}
+                                value={digit}
+                                onChangeText={(value) => handleOtpChange(value, index)}
+                                onKeyPress={(e) => handleKeyPress(e, index)}
+                                keyboardType="number-pad"
+                                maxLength={1}
+                                selectTextOnFocus
+                            />
+                        ))}
+                    </View>
+
+                    {/* Verify Button */}
+                    <Button
+                        title="Verify"
+                        onPress={() => handleVerify()}
+                        loading={loading}
+                        disabled={loading || otp.some(d => !d)}
+                        style={styles.verifyButton}
+                    />
+
+                    {/* Resend */}
+                    <View style={styles.resendContainer}>
+                        <Text style={styles.resendText}>Didn't receive the code?</Text>
+                        {countdown > 0 ? (
+                            <Text style={styles.countdownText}>
+                                Resend in {countdown}s
+                            </Text>
+                        ) : (
+                            <TouchableOpacity onPress={handleResend} disabled={resendLoading}>
+                                <Text style={[styles.resendLink, resendLoading && styles.resendDisabled]}>
+                                    {resendLoading ? 'Sending...' : 'Resend Code'}
+                                </Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                </Card>
+
+                {/* Help text */}
+                <View style={styles.helpContainer}>
+                    <Icon name="information-outline" size={16} color="#9ca3af" />
+                    <Text style={styles.helpText}>
+                        The code will expire in 10 minutes. Check your spam folder if you don't see the email.
+                    </Text>
+                </View>
+            </View>
+        </KeyboardAwareScrollView>
     );
 };
 

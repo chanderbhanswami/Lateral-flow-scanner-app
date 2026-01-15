@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, TextInput, Text } from 'react-native';
+import { View, StyleSheet, TextInput, Text, Platform } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { ConcentrationBatch } from '../../types';
 import { Button } from '../UI/Button';
 import { validateConcentrationBatch } from '../../utils/validation';
@@ -37,7 +38,13 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
     };
 
     return (
-        <View style={styles.container}>
+        <KeyboardAwareScrollView
+            style={styles.container}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
+            keyboardShouldPersistTaps="handled"
+        >
             <Text style={styles.title}>{batch ? 'Edit Batch' : 'New Batch'}</Text>
 
             <View style={styles.field}>
@@ -102,7 +109,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                 <Button title="Cancel" onPress={onCancel} variant="outline" style={styles.button} />
                 <Button title="Save" onPress={handleSubmit} style={styles.button} />
             </View>
-        </View>
+        </KeyboardAwareScrollView>
     );
 };
 

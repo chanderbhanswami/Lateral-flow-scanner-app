@@ -5,13 +5,12 @@ import {
     Text,
     TextInput,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     Image,
     ActivityIndicator,
     Modal,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import Toast from 'react-native-toast-message';
@@ -90,8 +89,10 @@ export const LoginScreen: React.FC = () => {
         try {
             await GoogleSignin.hasPlayServices();
 
-            // If retrying, we already have the token but need a new one or reused one?
-            // Simplest: Request everything again to ensure fresh token
+            // Sign out first to clear any cached session and allow account selection
+            await GoogleSignin.signOut();
+
+            // Request fresh sign-in (works for both initial and invite code retry)
             const userInfo = await GoogleSignin.signIn();
 
             if (userInfo.idToken) {
@@ -169,160 +170,159 @@ export const LoginScreen: React.FC = () => {
     };
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardAwareScrollView
             style={styles.container}
-            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            enableOnAndroid={true}
+            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            enableAutomaticScroll={true}
         >
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                keyboardShouldPersistTaps="handled"
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.content}>
-                    {/* Logo / Header */}
-                    <View style={styles.header}>
-                        <View style={styles.logoContainer}>
-                            <Image
-                                source={require('../../assets/images/icon.png')}
-                                style={styles.logo}
-                                resizeMode="contain"
+            <View style={styles.content}>
+                {/* Logo / Header */}
+                <View style={styles.header}>
+                    <View style={styles.logoContainer}>
+                        <Image
+                            source={require('../../assets/images/icon.png')}
+                            style={styles.logo}
+                            resizeMode="contain"
+                        />
+                    </View>
+                    <Text style={styles.title}>Welcome Back</Text>
+                    <Text style={styles.subtitle}>Sign in to continue to Lateral Flow Scanner</Text>
+                </View>
+
+                {/* Login Form */}
+                <Card style={styles.card}>
+                    {/* Email Input */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Email</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={email}
+                                onChangeText={setEmail}
+                                placeholder="Enter your email"
+                                placeholderTextColor="#9ca3af"
+                                keyboardType="email-address"
+                                autoCapitalize="none"
+                                autoCorrect={false}
+                                autoComplete="email"
                             />
                         </View>
-                        <Text style={styles.title}>Welcome Back</Text>
-                        <Text style={styles.subtitle}>Sign in to continue to Lateral Flow Scanner</Text>
                     </View>
 
-                    {/* Login Form */}
-                    <Card style={styles.card}>
-                        {/* Email Input */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Email</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={email}
-                                    onChangeText={setEmail}
-                                    placeholder="Enter your email"
-                                    placeholderTextColor="#9ca3af"
-                                    keyboardType="email-address"
-                                    autoCapitalize="none"
-                                    autoCorrect={false}
-                                    autoComplete="email"
-                                />
-                            </View>
-                        </View>
-
-                        {/* Password Input */}
-                        <View style={styles.field}>
-                            <Text style={styles.label}>Password</Text>
-                            <View style={styles.inputContainer}>
-                                <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
-                                <TextInput
-                                    style={styles.input}
-                                    value={password}
-                                    onChangeText={setPassword}
-                                    placeholder="Enter your password"
-                                    placeholderTextColor="#9ca3af"
-                                    secureTextEntry={!showPassword}
-                                    autoCapitalize="none"
-                                    autoComplete="password"
-                                />
-                                <TouchableOpacity
-                                    onPress={() => setShowPassword(!showPassword)}
-                                    style={styles.passwordToggle}
-                                >
-                                    <Icon
-                                        name={showPassword ? 'eye-off' : 'eye'}
-                                        size={20}
-                                        color="#9ca3af"
-                                    />
-                                </TouchableOpacity>
-                            </View>
-                        </View>
-
-                        {/* Remember Me & Forgot Password */}
-                        <View style={styles.optionsRow}>
+                    {/* Password Input */}
+                    <View style={styles.field}>
+                        <Text style={styles.label}>Password</Text>
+                        <View style={styles.inputContainer}>
+                            <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <TextInput
+                                style={styles.input}
+                                value={password}
+                                onChangeText={setPassword}
+                                placeholder="Enter your password"
+                                placeholderTextColor="#9ca3af"
+                                secureTextEntry={!showPassword}
+                                autoCapitalize="none"
+                                autoComplete="password"
+                            />
                             <TouchableOpacity
-                                style={styles.rememberMe}
-                                onPress={() => setRememberMe(!rememberMe)}
+                                onPress={() => setShowPassword(!showPassword)}
+                                style={styles.passwordToggle}
                             >
                                 <Icon
-                                    name={rememberMe ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                    name={showPassword ? 'eye-off' : 'eye'}
                                     size={20}
-                                    color={rememberMe ? '#3b82f6' : '#9ca3af'}
+                                    color="#9ca3af"
                                 />
-                                <Text style={styles.rememberMeText}>Remember me</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                onPress={() => navigation.navigate('ForgotPassword')}
-                            >
-                                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
 
-                        {/* Login Button */}
-                        <Button
-                            title="Sign In"
-                            onPress={handleLogin}
-                            loading={loading}
+                    {/* Remember Me & Forgot Password */}
+                    <View style={styles.optionsRow}>
+                        <TouchableOpacity
+                            style={styles.rememberMe}
+                            onPress={() => setRememberMe(!rememberMe)}
+                        >
+                            <Icon
+                                name={rememberMe ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                size={20}
+                                color={rememberMe ? '#3b82f6' : '#9ca3af'}
+                            />
+                            <Text style={styles.rememberMeText}>Remember me</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            onPress={() => navigation.navigate('ForgotPassword')}
+                        >
+                            <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Login Button */}
+                    <Button
+                        title="Sign In"
+                        onPress={handleLogin}
+                        loading={loading}
+                        disabled={loading || googleLoading || facebookLoading}
+                        style={styles.loginButton}
+                    />
+
+                    {/* Divider */}
+                    <View style={styles.divider}>
+                        <View style={styles.dividerLine} />
+                        <Text style={styles.dividerText}>or continue with</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Social Login Buttons */}
+                    <View style={styles.socialButtons}>
+                        <TouchableOpacity
+                            style={[styles.socialButton, styles.googleButton]}
+                            onPress={handleGoogleLogin}
                             disabled={loading || googleLoading || facebookLoading}
-                            style={styles.loginButton}
-                        />
+                        >
+                            {googleLoading ? (
+                                <ActivityIndicator size="small" color="#ea4335" />
+                            ) : (
+                                <>
+                                    <Icon name="google" size={20} color="#ea4335" />
+                                    <Text style={styles.googleButtonText}>Google</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
 
-                        {/* Divider */}
-                        <View style={styles.divider}>
-                            <View style={styles.dividerLine} />
-                            <Text style={styles.dividerText}>or continue with</Text>
-                            <View style={styles.dividerLine} />
-                        </View>
+                        <TouchableOpacity
+                            style={[styles.socialButton, styles.facebookButton]}
+                            onPress={handleFacebookLogin}
+                            disabled={loading || googleLoading || facebookLoading}
+                        >
+                            {facebookLoading ? (
+                                <ActivityIndicator size="small" color="#1877f2" />
+                            ) : (
+                                <>
+                                    <Icon name="facebook" size={20} color="#1877f2" />
+                                    <Text style={styles.facebookButtonText}>Facebook</Text>
+                                </>
+                            )}
+                        </TouchableOpacity>
+                    </View>
+                </Card>
 
-                        {/* Social Login Buttons */}
-                        <View style={styles.socialButtons}>
-                            <TouchableOpacity
-                                style={[styles.socialButton, styles.googleButton]}
-                                onPress={handleGoogleLogin}
-                                disabled={loading || googleLoading || facebookLoading}
-                            >
-                                {googleLoading ? (
-                                    <ActivityIndicator size="small" color="#ea4335" />
-                                ) : (
-                                    <>
-                                        <Icon name="google" size={20} color="#ea4335" />
-                                        <Text style={styles.googleButtonText}>Google</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                                style={[styles.socialButton, styles.facebookButton]}
-                                onPress={handleFacebookLogin}
-                                disabled={loading || googleLoading || facebookLoading}
-                            >
-                                {facebookLoading ? (
-                                    <ActivityIndicator size="small" color="#1877f2" />
-                                ) : (
-                                    <>
-                                        <Icon name="facebook" size={20} color="#1877f2" />
-                                        <Text style={styles.facebookButtonText}>Facebook</Text>
-                                    </>
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                    </Card>
-
-                    {/* Register Link */}
-                    <TouchableOpacity
-                        style={styles.registerLink}
-                        onPress={() => navigation.navigate('Register')}
-                    >
-                        <Text style={styles.registerText}>
-                            Don't have an account?{' '}
-                            <Text style={styles.registerTextBold}>Sign Up</Text>
-                        </Text>
-                    </TouchableOpacity>
-                </View>
-            </ScrollView>
+                {/* Register Link */}
+                <TouchableOpacity
+                    style={styles.registerLink}
+                    onPress={() => navigation.navigate('Register')}
+                >
+                    <Text style={styles.registerText}>
+                        Don't have an account?{' '}
+                        <Text style={styles.registerTextBold}>Sign Up</Text>
+                    </Text>
+                </TouchableOpacity>
+            </View>
 
             {/* Invite Code Prompt Modal */}
             <Modal
@@ -391,7 +391,7 @@ export const LoginScreen: React.FC = () => {
                     </View>
                 </View>
             </Modal>
-        </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
     );
 };
 
