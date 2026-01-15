@@ -14,3 +14,6 @@ export { ConcentrationManagementScreen } from './ConcentrationManagementScreen';
 export { GuideScreen } from './GuideScreen';
 export { SettingsScreen } from './SettingsScreen';
 export { HistoryScreen } from './HistoryScreen';
+export { StatisticsScreen } from './StatisticsScreen';
+export { NotificationScreen } from './NotificationScreen';
+

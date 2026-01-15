@@ -1,5 +1,24 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Core Network -->
   <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+  
+  <!-- Camera (Required for VisionCamera) -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera" android:required="true" />
+  <uses-feature android:name="android.hardware.camera.autofocus" android:required="true" />
+  <uses-feature android:name="android.hardware.camera.flash" android:required="true" />
+  
+  <!-- Notifications (Android 13+) -->
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+  
+  <!-- Vibration for haptic feedback -->
+  <uses-permission android:name="android.permission.VIBRATE" />
+  
+  <!-- Sensors (Required for device orientation/motion detection) -->
+  <uses-feature android:name="android.hardware.sensor.accelerometer" android:required="true" />
+  <uses-feature android:name="android.hardware.sensor.gyroscope" android:required="true" />
+  <uses-feature android:name="android.hardware.sensor.light" android:required="true" />
 
   <application
     android:name=".MainApplication"

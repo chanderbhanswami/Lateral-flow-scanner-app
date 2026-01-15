@@ -1,9 +1,13 @@
 import React from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, ScrollView, Image, Dimensions } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { HomeScreenProps } from '../types';
 import { Card } from '../components/UI/Card';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 380;
 
 export const HomeScreen: React.FC = () => {
     const navigation = useNavigation<HomeScreenProps['navigation']>();
@@ -38,11 +42,18 @@ export const HomeScreen: React.FC = () => {
             onPress: () => navigation.navigate('History'),
         },
         {
+            title: 'Notifications',
+            subtitle: 'View alerts & updates',
+            icon: 'bell-outline',
+            color: '#ef4444',
+            onPress: () => navigation.navigate('Notifications'),
+        },
+        {
             title: 'Settings',
-            subtitle: 'App preferences',
+            subtitle: 'App preferences & logout',
             icon: 'cog',
             color: '#6b7280',
-            onPress: () => ({}), // Placeholder until Settings screen is ready
+            onPress: () => navigation.navigate('Settings'),
         },
         {
             title: 'Statistics',
@@ -54,7 +65,7 @@ export const HomeScreen: React.FC = () => {
     ];
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container} edges={['top']}>
             <View style={styles.header}>
                 <View style={styles.headerContent}>
                     <Image
@@ -63,7 +74,9 @@ export const HomeScreen: React.FC = () => {
                         resizeMode="contain"
                     />
                     <View style={styles.headerTextContainer}>
-                        <Text style={styles.title}>Lateral Flow Scanner</Text>
+                        <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit>
+                            Lateral Flow Scanner
+                        </Text>
                         <Text style={styles.subtitle}>Professional Test Kit Analysis</Text>
                     </View>
                 </View>
@@ -74,18 +87,18 @@ export const HomeScreen: React.FC = () => {
                     <TouchableOpacity key={index} onPress={item.onPress}>
                         <Card style={styles.menuCard}>
                             <View style={[styles.iconContainer, { backgroundColor: `${item.color}20` }]}>
-                                <Icon name={item.icon} size={32} color={item.color} />
+                                <Icon name={item.icon} size={isSmallScreen ? 26 : 32} color={item.color} />
                             </View>
                             <View style={styles.menuTextContainer}>
                                 <Text style={styles.menuTitle}>{item.title}</Text>
-                                <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                                <Text style={styles.menuSubtitle} numberOfLines={1}>{item.subtitle}</Text>
                             </View>
                             <Icon name="chevron-right" size={24} color="#9ca3af" />
                         </Card>
                     </TouchableOpacity>
                 ))}
             </ScrollView>
-        </View>
+        </SafeAreaView>
     );
 };
 
@@ -95,7 +108,8 @@ const styles = StyleSheet.create({
         backgroundColor: '#f9fafb',
     },
     header: {
-        padding: 24,
+        paddingHorizontal: 16,
+        paddingVertical: 16,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
@@ -105,52 +119,53 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     logo: {
-        width: 50,
-        height: 50,
-        borderRadius: 12,
-        marginRight: 16,
+        width: isSmallScreen ? 40 : 50,
+        height: isSmallScreen ? 40 : 50,
+        borderRadius: 10,
+        marginRight: 12,
     },
     headerTextContainer: {
         flex: 1,
     },
     title: {
-        fontSize: 28,
+        fontSize: isSmallScreen ? 20 : 24,
         fontWeight: '700',
         color: '#1f2937',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     subtitle: {
-        fontSize: 16,
+        fontSize: isSmallScreen ? 13 : 15,
         color: '#6b7280',
     },
     scrollContent: {
-        padding: 16,
+        padding: 12,
+        paddingBottom: 24,
     },
     menuCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        marginBottom: 12,
+        padding: isSmallScreen ? 12 : 16,
+        marginBottom: 10,
     },
     iconContainer: {
-        width: 60,
-        height: 60,
+        width: isSmallScreen ? 48 : 56,
+        height: isSmallScreen ? 48 : 56,
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        marginRight: 16,
+        marginRight: 12,
     },
     menuTextContainer: {
         flex: 1,
     },
     menuTitle: {
-        fontSize: 18,
+        fontSize: isSmallScreen ? 15 : 17,
         fontWeight: '600',
         color: '#1f2937',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     menuSubtitle: {
-        fontSize: 14,
+        fontSize: isSmallScreen ? 12 : 14,
         color: '#6b7280',
     },
 });

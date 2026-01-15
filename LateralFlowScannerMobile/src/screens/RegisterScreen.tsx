@@ -346,7 +346,7 @@ export const RegisterScreen: React.FC = () => {
                                 style={styles.input}
                                 value={password}
                                 onChangeText={setPassword}
-                                placeholder="Create password"
+                                placeholder="Create a strong password"
                                 placeholderTextColor="#9ca3af"
                                 secureTextEntry={!showPassword}
                                 autoCapitalize="none"

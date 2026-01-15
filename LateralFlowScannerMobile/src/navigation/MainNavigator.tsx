@@ -5,6 +5,9 @@ import { CaptureScreen } from '../screens/CaptureScreen';
 import { ReviewScreen } from '../screens/ReviewScreen';
 import { ConcentrationManagementScreen } from '../screens/ConcentrationManagementScreen';
 import { GuideScreen } from '../screens/GuideScreen';
+import { HistoryScreen } from '../screens/HistoryScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
+import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { NotificationScreen } from '../screens/NotificationScreen';
 import { StatisticsScreen } from '../screens/StatisticsScreen';
 import { MainStackParamList } from './types';
@@ -38,6 +41,21 @@ const MainNavigator: React.FC = () => {
                 name="Guide"
                 component={GuideScreen}
                 options={{ title: 'Guide', headerShown: true }}
+            />
+            <Stack.Screen
+                name="History"
+                component={HistoryScreen}
+                options={{ title: 'History', headerShown: true }}
+            />
+            <Stack.Screen
+                name="Settings"
+                component={SettingsScreen}
+                options={{ title: 'Settings', headerShown: true }}
+            />
+            <Stack.Screen
+                name="ChangePassword"
+                component={ChangePasswordScreen}
+                options={{ title: 'Change Password', headerShown: true }}
             />
             <Stack.Screen
                 name="Notifications"

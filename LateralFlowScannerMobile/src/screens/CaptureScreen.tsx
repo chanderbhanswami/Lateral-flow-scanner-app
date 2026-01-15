@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { Camera } from 'react-native-vision-camera';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
 import { CaptureScreenProps } from '../types';
 import { useCamera } from '../hooks/useCamera';
@@ -59,6 +60,7 @@ export const CaptureScreen: React.FC = () => {
     const [showSensorDisplay, setShowSensorDisplay] = useState(true);
     const [showBatchSelector, setShowBatchSelector] = useState(false);
     const [autoCapturePending, setAutoCapturePending] = useState(false);
+    const [cameraError, setCameraError] = useState<string | null>(null);
 
     const autoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,7 +77,16 @@ export const CaptureScreen: React.FC = () => {
 
     // Initialize camera on mount
     useEffect(() => {
-        initializeCamera();
+        const init = async () => {
+            try {
+                await initializeCamera();
+                setCameraError(null);
+            } catch (error: any) {
+                console.error('Camera initialization error:', error);
+                setCameraError(error?.message || 'Failed to initialize camera');
+            }
+        };
+        init();
 
         return () => {
             if (autoCaptureTimeoutRef.current) {
@@ -255,10 +266,31 @@ export const CaptureScreen: React.FC = () => {
         });
     };
 
+    if (cameraError) {
+        return (
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+                <Icon name="camera-off" size={64} color="#ef4444" />
+                <Text style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 16, textAlign: 'center' }}>
+                    Camera Error
+                </Text>
+                <Text style={{ color: '#9ca3af', fontSize: 14, marginTop: 8, textAlign: 'center' }}>
+                    {cameraError}
+                </Text>
+                <TouchableOpacity
+                    style={{ marginTop: 24, backgroundColor: '#3b82f6', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
     if (!device) {
         return (
-            <View style={styles.container}>
-                <Text>Camera not available</Text>
+            <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#10b981" />
+                <Text style={{ color: '#fff', marginTop: 16 }}>Initializing camera...</Text>
             </View>
         );
     }

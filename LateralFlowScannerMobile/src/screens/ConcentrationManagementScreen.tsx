@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text } from 'react-native';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, Dimensions } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { BatchList } from '../components/ConcentrationBatch/BatchList';
 import { BatchForm } from '../components/ConcentrationBatch/BatchForm';
 import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
+
+const { width: screenWidth } = Dimensions.get('window');
+const isSmallScreen = screenWidth < 380;
 
 export const ConcentrationManagementScreen: React.FC = () => {
     const { batches, createBatch, updateBatch, deleteBatch } = useConcentrationBatch();
@@ -35,12 +38,14 @@ export const ConcentrationManagementScreen: React.FC = () => {
     return (
         <View style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.title}>Concentration Batches</Text>
-                <Button
-                    title="Add New"
+                <Text style={styles.title} numberOfLines={1}>Batches</Text>
+                <TouchableOpacity
+                    style={styles.addButton}
                     onPress={() => setShowForm(true)}
-                    icon="plus"
-                />
+                >
+                    <Icon name="plus" size={18} color="#fff" />
+                    <Text style={styles.addButtonText}>Add</Text>
+                </TouchableOpacity>
             </View>
 
             <BatchList
@@ -84,14 +89,29 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 16,
+        padding: isSmallScreen ? 12 : 16,
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
     },
     title: {
-        fontSize: 24,
+        fontSize: isSmallScreen ? 18 : 22,
         fontWeight: '700',
         color: '#1f2937',
+        flex: 1,
+    },
+    addButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#3b82f6',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 8,
+    },
+    addButtonText: {
+        color: '#fff',
+        fontWeight: '600',
+        marginLeft: 4,
+        fontSize: 14,
     },
 });
