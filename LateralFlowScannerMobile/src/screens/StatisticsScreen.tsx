@@ -1,16 +1,44 @@
-import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, Text, ScrollView, RefreshControl, Dimensions } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, StyleSheet, Text, ScrollView, RefreshControl, Dimensions, Animated, Easing } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { statisticsApi, UserStatistics, GlobalStatistics } from '../api/statistics.api';
-import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
+
+// CountUp Component
+const CountUp = ({ value, suffix = '', formatter = (v: number) => v.toString() }: { value: number, suffix?: string, formatter?: (v: number) => string }) => {
+    const [displayValue, setDisplayValue] = useState(0);
+    const animatedValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(animatedValue, {
+            toValue: value,
+            duration: 1500,
+            useNativeDriver: false, // needed for listener
+            easing: Easing.out(Easing.exp),
+        }).start();
+
+        const listener = animatedValue.addListener(({ value: v }) => {
+            setDisplayValue(Math.floor(v));
+        });
+
+        return () => {
+            animatedValue.removeAllListeners();
+        };
+    }, [value]);
+
+    return <Text style={styles.statValue}>{formatter(displayValue)}{suffix}</Text>;
+};
 
 export const StatisticsScreen: React.FC = () => {
-    const navigation = useNavigation();
     const [userStats, setUserStats] = useState<UserStatistics | null>(null);
     const [globalStats, setGlobalStats] = useState<GlobalStatistics | null>(null);
     const [loading, setLoading] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+
+    const fadeAnim = useRef(new Animated.Value(0)).current;
 
     const fetchData = async () => {
         try {
@@ -34,6 +62,12 @@ export const StatisticsScreen: React.FC = () => {
     useEffect(() => {
         setLoading(true);
         fetchData().finally(() => setLoading(false));
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
+        }).start();
     }, []);
 
     const formatStorage = (bytes: number) => {
@@ -44,115 +78,214 @@ export const StatisticsScreen: React.FC = () => {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
+    // Helper to extract numeric part for CountUp if needed, but simplified to passing raw value
+    // Since formatStorage returns string, we will just use simple text for storage
+
     return (
-        <ScrollView
-            style={styles.container}
-            refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        >
-            <View style={styles.header}>
-                <Text style={styles.title}>Statistics Dashboard</Text>
-                <Text style={styles.subtitle}>Your Usage & Global Insights</Text>
-            </View>
+        <View style={styles.mainContainer}>
+            <View style={styles.bgCircle1} />
+            <View style={styles.bgCircle2} />
 
-            {/* User Stats */}
-            <Text style={styles.sectionTitle}>Your Statistics</Text>
-            <View style={styles.grid}>
-                <Card style={styles.statCard}>
-                    <Text style={styles.statValue}>{userStats?.totalCaptures || 0}</Text>
-                    <Text style={styles.statLabel}>Total Captures</Text>
-                </Card>
-                <Card style={styles.statCard}>
-                    <Text style={styles.statValue}>{userStats?.totalUploads || 0}</Text>
-                    <Text style={styles.statLabel}>Uploads</Text>
-                </Card>
-                <Card style={styles.statCard}>
-                    <Text style={styles.statValue}>{formatStorage(userStats?.storageUsed || 0)}</Text>
-                    <Text style={styles.statLabel}>Storage Used</Text>
-                </Card>
-                <Card style={styles.statCard}>
-                    <Text style={styles.statValue}>
-                        {userStats?.lastUploadDate ? new Date(userStats.lastUploadDate).toLocaleDateString() : 'N/A'}
-                    </Text>
-                    <Text style={styles.statLabel}>Last Upload</Text>
-                </Card>
-            </View>
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#3b82f6" />}
+                >
+                    <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }}>
+                        <View style={styles.header}>
+                            <Text style={styles.headerTitle}>Statistics</Text>
+                            <Text style={styles.headerSubtitle}>Insights & usage metrics</Text>
+                        </View>
 
-            {/* Global Stats */}
-            <Text style={styles.sectionTitle}>Global Community</Text>
-            <View style={styles.grid}>
-                <Card style={[styles.statCard, styles.globalCard]}>
-                    <Text style={styles.statValue}>{globalStats?.totalUsers || 0}</Text>
-                    <Text style={styles.statLabel}>Total Users</Text>
-                </Card>
-                <Card style={[styles.statCard, styles.globalCard]}>
-                    <Text style={styles.statValue}>{globalStats?.totalCaptures || 0}</Text>
-                    <Text style={styles.statLabel}>Total Scans</Text>
-                </Card>
-                <Card style={[styles.statCard, styles.globalCard]}>
-                    <Text style={styles.statValue}>{globalStats?.activeUsers7Days || 0}</Text>
-                    <Text style={styles.statLabel}>Active (7d)</Text>
-                </Card>
-                <Card style={[styles.statCard, styles.globalCard]}>
-                    <Text style={styles.statValue}>{formatStorage(globalStats?.totalStorageUsed || 0)}</Text>
-                    <Text style={styles.statLabel}>Global Data</Text>
-                </Card>
-            </View>
+                        {/* User Stats Section */}
+                        <View style={styles.sectionHeader}>
+                            <Icon name="account-circle-outline" size={24} color="#3b82f6" />
+                            <Text style={styles.sectionTitle}>Your Activity</Text>
+                        </View>
 
-            <View style={{ height: 20 }} />
-        </ScrollView>
+                        <View style={styles.grid}>
+                            <LinearGradient colors={['#eff6ff', '#ffffff']} style={styles.statCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                                <View style={styles.iconBox}>
+                                    <Icon name="camera-iris" size={24} color="#3b82f6" />
+                                </View>
+                                <CountUp value={userStats?.totalCaptures || 0} />
+                                <Text style={styles.statLabel}>Total Scans</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#eff6ff', '#ffffff']} style={styles.statCard}>
+                                <View style={styles.iconBox}>
+                                    <Icon name="cloud-upload" size={24} color="#3b82f6" />
+                                </View>
+                                <CountUp value={userStats?.totalUploads || 0} />
+                                <Text style={styles.statLabel}>Uploads</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#eff6ff', '#ffffff']} style={styles.statCard}>
+                                <View style={styles.iconBox}>
+                                    <Icon name="database" size={24} color="#3b82f6" />
+                                </View>
+                                {/* Storage is text, so no CountUp */}
+                                <Text style={styles.statValue}>{formatStorage(userStats?.storageUsed || 0)}</Text>
+                                <Text style={styles.statLabel}>Storage</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#eff6ff', '#ffffff']} style={styles.statCard}>
+                                <View style={styles.iconBox}>
+                                    <Icon name="calendar-clock" size={24} color="#3b82f6" />
+                                </View>
+                                <Text style={styles.statValueSmall}>
+                                    {userStats?.lastUploadDate ? new Date(userStats.lastUploadDate).toLocaleDateString() : 'N/A'}
+                                </Text>
+                                <Text style={styles.statLabel}>Last Activity</Text>
+                            </LinearGradient>
+                        </View>
+
+                        {/* Global Stats Section */}
+                        <View style={styles.sectionHeader}>
+                            <Icon name="earth" size={24} color="#8b5cf6" />
+                            <Text style={styles.sectionTitle}>Global Community</Text>
+                        </View>
+
+                        <View style={styles.grid}>
+                            <LinearGradient colors={['#f5f3ff', '#ffffff']} style={[styles.statCard, styles.globalCard]}>
+                                <CountUp value={globalStats?.totalUsers || 0} />
+                                <Text style={styles.statLabel}>Users</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#f5f3ff', '#ffffff']} style={[styles.statCard, styles.globalCard]}>
+                                <CountUp value={globalStats?.totalCaptures || 0} />
+                                <Text style={styles.statLabel}>Total Scans</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#f5f3ff', '#ffffff']} style={[styles.statCard, styles.globalCard]}>
+                                <CountUp value={globalStats?.activeUsers7Days || 0} />
+                                <Text style={styles.statLabel}>Active (7d)</Text>
+                            </LinearGradient>
+
+                            <LinearGradient colors={['#f5f3ff', '#ffffff']} style={[styles.statCard, styles.globalCard]}>
+                                <Text style={styles.statValue}>{formatStorage(globalStats?.totalStorageUsed || 0)}</Text>
+                                <Text style={styles.statLabel}>Data Stored</Text>
+                            </LinearGradient>
+                        </View>
+                    </Animated.View>
+                </ScrollView>
+            </SafeAreaView>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
+    mainContainer: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    bgCircle1: {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: 300,
+        backgroundColor: '#f1f5f9',
+        borderBottomRightRadius: 150,
+        opacity: 0.6,
+    },
+    bgCircle2: {
+        position: 'absolute',
+        bottom: 0,
+        right: 0,
+        width: 200,
+        height: 200,
+        borderRadius: 100,
+        backgroundColor: '#e0e7ff',
+        opacity: 0.4,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#f3f4f6',
-        padding: 16,
+    },
+    scrollContent: {
+        padding: 24,
     },
     header: {
-        marginBottom: 24,
+        marginBottom: 32,
     },
-    title: {
-        fontSize: 28,
-        fontWeight: 'bold',
-        color: '#1f2937',
+    headerTitle: {
+        fontSize: 32,
+        fontWeight: '800',
+        color: '#1e293b',
+        letterSpacing: -1,
     },
-    subtitle: {
+    headerSubtitle: {
         fontSize: 16,
-        color: '#6b7280',
+        color: '#64748b',
         marginTop: 4,
+        fontWeight: '500',
+    },
+    sectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 16,
+        gap: 8,
     },
     sectionTitle: {
         fontSize: 20,
-        fontWeight: '600',
-        color: '#374151',
-        marginBottom: 12,
-        marginTop: 8,
+        fontWeight: '700',
+        color: '#334155',
     },
     grid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 32,
     },
     statCard: {
         width: '48%',
         marginBottom: 16,
+        borderRadius: 20,
+        padding: 16,
+        shadowColor: '#64748b',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        elevation: 4,
         alignItems: 'center',
-        paddingVertical: 20,
+        borderWidth: 1,
+        borderColor: '#fff',
     },
     globalCard: {
-        backgroundColor: '#e0f2fe',
-        borderColor: '#bae6fd',
+        borderColor: '#ede9fe',
+    },
+    iconBox: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#fff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        shadowColor: '#94a3b8',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+        elevation: 2,
     },
     statValue: {
         fontSize: 24,
-        fontWeight: 'bold',
-        color: '#111827',
+        fontWeight: '800',
+        color: '#1e293b',
         marginBottom: 4,
+        textAlign: 'center',
+    },
+    statValueSmall: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#1e293b',
+        marginBottom: 4,
+        textAlign: 'center',
     },
     statLabel: {
-        fontSize: 14,
-        color: '#6b7280',
+        fontSize: 13,
+        color: '#64748b',
+        fontWeight: '600',
+        textAlign: 'center',
     },
 });

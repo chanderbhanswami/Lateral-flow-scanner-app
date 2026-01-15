@@ -9,6 +9,7 @@ import {
     ActivityIndicator,
     Image,
     Modal,
+    Dimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
@@ -23,7 +24,12 @@ import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useAuthStore } from '../store/authStore';
 import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
+import { TermsModal } from '../components/Modals/TermsModal';
+import { PrivacyModal } from '../components/Modals/PrivacyModal';
 import { AuthStackParamList } from '../navigation/types';
+
+const { width } = Dimensions.get('window');
+const isSmallScreen = width < 380;
 
 interface PasswordStrength {
     score: number;
@@ -74,9 +80,13 @@ export const RegisterScreen: React.FC = () => {
     const [facebookLoading, setFacebookLoading] = useState(false);
     const [acceptTerms, setAcceptTerms] = useState(false);
     const [passwordStrength, setPasswordStrength] = useState<PasswordStrength>(checkPasswordStrength(''));
+    const [focusedField, setFocusedField] = useState<string | null>(null);
 
     const [showInviteCodePrompt, setShowInviteCodePrompt] = useState(false);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
+    const [inviteError, setInviteError] = useState<string | null>(null);
+    const [showTermsModal, setShowTermsModal] = useState(false);
+    const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [pendingOAuth, setPendingOAuth] = useState<{ provider: 'google' | 'facebook', token: string } | null>(null);
 
     useEffect(() => {
@@ -304,16 +314,21 @@ export const RegisterScreen: React.FC = () => {
                     {/* Invite Code */}
                     <View style={styles.field}>
                         <Text style={styles.label}>Invite Code</Text>
-                        <View style={styles.inputContainer}>
-                            <Icon name="ticket-confirmation-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            focusedField === 'inviteCode' && styles.inputContainerFocused
+                        ]}>
+                            <Icon name="ticket-confirmation-outline" size={20} color={focusedField === 'inviteCode' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={inviteCode}
-                                onChangeText={setInviteCode}
+                                onChangeText={(text) => setInviteCode(text.replace(/\s/g, '').toUpperCase())}
                                 placeholder="Enter your invite code"
                                 placeholderTextColor="#9ca3af"
                                 autoCapitalize="characters"
                                 autoCorrect={false}
+                                onFocus={() => setFocusedField('inviteCode')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
                     </View>
@@ -321,8 +336,11 @@ export const RegisterScreen: React.FC = () => {
                     {/* Email */}
                     <View style={styles.field}>
                         <Text style={styles.label}>Email</Text>
-                        <View style={styles.inputContainer}>
-                            <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            focusedField === 'email' && styles.inputContainerFocused
+                        ]}>
+                            <Icon name="email-outline" size={20} color={focusedField === 'email' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={email}
@@ -333,6 +351,8 @@ export const RegisterScreen: React.FC = () => {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 autoComplete="email"
+                                onFocus={() => setFocusedField('email')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
                     </View>
@@ -340,8 +360,11 @@ export const RegisterScreen: React.FC = () => {
                     {/* Password */}
                     <View style={styles.field}>
                         <Text style={styles.label}>Password</Text>
-                        <View style={styles.inputContainer}>
-                            <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            focusedField === 'password' && styles.inputContainerFocused
+                        ]}>
+                            <Icon name="lock-outline" size={20} color={focusedField === 'password' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={password}
@@ -350,6 +373,8 @@ export const RegisterScreen: React.FC = () => {
                                 placeholderTextColor="#9ca3af"
                                 secureTextEntry={!showPassword}
                                 autoCapitalize="none"
+                                onFocus={() => setFocusedField('password')}
+                                onBlur={() => setFocusedField(null)}
                             />
                             <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.passwordToggle}>
                                 <Icon name={showPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
@@ -438,9 +463,10 @@ export const RegisterScreen: React.FC = () => {
                         <Text style={styles.label}>Confirm Password</Text>
                         <View style={[
                             styles.inputContainer,
+                            focusedField === 'confirmPassword' && styles.inputContainerFocused,
                             confirmPassword && password !== confirmPassword && styles.inputError
                         ]}>
-                            <Icon name="lock-check-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                            <Icon name="lock-check-outline" size={20} color={focusedField === 'confirmPassword' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={confirmPassword}
@@ -449,6 +475,8 @@ export const RegisterScreen: React.FC = () => {
                                 placeholderTextColor="#9ca3af"
                                 secureTextEntry={!showConfirmPassword}
                                 autoCapitalize="none"
+                                onFocus={() => setFocusedField('confirmPassword')}
+                                onBlur={() => setFocusedField(null)}
                             />
                             <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.passwordToggle}>
                                 <Icon name={showConfirmPassword ? 'eye-off' : 'eye'} size={20} color="#9ca3af" />
@@ -460,20 +488,30 @@ export const RegisterScreen: React.FC = () => {
                     </View>
 
                     {/* Terms */}
-                    <TouchableOpacity
-                        style={styles.termsContainer}
-                        onPress={() => setAcceptTerms(!acceptTerms)}
-                    >
-                        <Icon
-                            name={acceptTerms ? 'checkbox-marked' : 'checkbox-blank-outline'}
-                            size={22}
-                            color={acceptTerms ? '#3b82f6' : '#9ca3af'}
-                        />
-                        <Text style={styles.termsText}>
-                            I agree to the <Text style={styles.termsLink}>Terms of Service</Text> and{' '}
-                            <Text style={styles.termsLink}>Privacy Policy</Text>
-                        </Text>
-                    </TouchableOpacity>
+                    <View style={styles.termsContainer}>
+                        <TouchableOpacity
+                            onPress={() => setAcceptTerms(!acceptTerms)}
+                            style={{ padding: 4 }}
+                        >
+                            <Icon
+                                name={acceptTerms ? 'checkbox-marked' : 'checkbox-blank-outline'}
+                                size={24}
+                                color={acceptTerms ? '#3b82f6' : '#9ca3af'}
+                            />
+                        </TouchableOpacity>
+                        <View style={{ flex: 1, marginLeft: 8 }}>
+                            <Text style={styles.termsText}>
+                                I agree to the{' '}
+                                <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>
+                                    Terms of Service
+                                </Text>
+                                {' '}and{' '}
+                                <Text style={styles.termsLink} onPress={() => setShowPrivacyModal(true)}>
+                                    Privacy Policy
+                                </Text>
+                            </Text>
+                        </View>
+                    </View>
 
                     {/* Register Button */}
                     <Button
@@ -516,14 +554,28 @@ export const RegisterScreen: React.FC = () => {
                         </Text>
 
                         <TextInput
-                            style={styles.modalInput}
+                            style={[
+                                styles.modalInput,
+                                inviteError ? styles.modalInputError : null,
+                                focusedField === 'modalInvite' && styles.modalInputFocused
+                            ]}
                             value={inviteCodeInput}
-                            onChangeText={setInviteCodeInput}
-                            placeholder="Enter Invite Code"
+                            onChangeText={(text) => {
+                                setInviteCodeInput(text.replace(/\s/g, '').toUpperCase());
+                                setInviteError(null);
+                            }}
+                            placeholder="INVITE-CODE"
                             placeholderTextColor="#9ca3af"
                             autoCapitalize="characters"
                             autoCorrect={false}
+                            textAlign="center"
+                            onFocus={() => setFocusedField('modalInvite')}
+                            onBlur={() => setFocusedField(null)}
                         />
+
+                        {inviteError && (
+                            <Text style={styles.modalErrorText}>{inviteError}</Text>
+                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -532,6 +584,7 @@ export const RegisterScreen: React.FC = () => {
                                     setShowInviteCodePrompt(false);
                                     setPendingOAuth(null);
                                     setInviteCodeInput('');
+                                    setInviteError(null);
                                 }}
                             >
                                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -541,9 +594,13 @@ export const RegisterScreen: React.FC = () => {
                                 style={[styles.modalButton, styles.submitButton]}
                                 onPress={() => {
                                     if (!inviteCodeInput.trim()) {
-                                        Toast.show({ type: 'error', text1: 'Required', text2: 'Please enter a code' });
+                                        setInviteError('Please enter a code');
                                         return;
                                     }
+
+                                    // Don't close modal yet, wait for API or just assume valid format here
+                                    // Logic: proceed with auth, if it fails, authService should handle it
+                                    // But here we are just passing it
                                     setShowInviteCodePrompt(false);
 
                                     if (pendingOAuth?.provider === 'google') {
@@ -561,6 +618,9 @@ export const RegisterScreen: React.FC = () => {
                     </View>
                 </View>
             </Modal>
+
+            <TermsModal isVisible={showTermsModal} onClose={() => setShowTermsModal(false)} />
+            <PrivacyModal isVisible={showPrivacyModal} onClose={() => setShowPrivacyModal(false)} />
         </KeyboardAwareScrollView>
     );
 };
@@ -588,6 +648,7 @@ const styles = StyleSheet.create({
     field: { marginBottom: 16 },
     label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
     inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, backgroundColor: '#fff' },
+    inputContainerFocused: { borderColor: '#3b82f6', borderWidth: 1.5 },
     inputError: { borderColor: '#ef4444' },
     inputIcon: { paddingLeft: 14 },
     input: { flex: 1, padding: 14, fontSize: 16, color: '#1f2937' },
@@ -601,9 +662,10 @@ const styles = StyleSheet.create({
     requirementText: { fontSize: 12, color: '#9ca3af' },
     requirementMet: { color: '#10b981' },
     errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
-    termsContainer: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20, gap: 10 },
-    termsText: { flex: 1, fontSize: 13, color: '#6b7280', lineHeight: 20 },
+    termsContainer: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 20 },
+    termsText: { fontSize: 13, color: '#6b7280', lineHeight: 20 },
     termsLink: { color: '#3b82f6', fontWeight: '500' },
+
     registerButton: { marginTop: 4 },
     loginLink: { alignItems: 'center', paddingBottom: 20 },
     loginText: { color: '#6b7280', fontSize: 15 },
@@ -645,8 +707,20 @@ const styles = StyleSheet.create({
         padding: 14,
         fontSize: 16,
         color: '#1f2937',
-        marginBottom: 20,
+        marginBottom: 8,
         textAlign: 'center',
+    },
+    modalInputFocused: {
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+    },
+    modalInputError: {
+        borderColor: '#ef4444',
+    },
+    modalErrorText: {
+        color: '#ef4444',
+        fontSize: 14,
+        marginBottom: 16,
     },
     modalButtons: {
         flexDirection: 'row',

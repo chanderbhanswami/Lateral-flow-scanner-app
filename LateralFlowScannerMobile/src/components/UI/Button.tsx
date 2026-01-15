@@ -1,5 +1,5 @@
-import React from 'react';
-import { TouchableOpacity, Text, StyleSheet, ActivityIndicator, ViewStyle, TextStyle, StyleProp } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { TouchableOpacity, Text, StyleSheet, ViewStyle, TextStyle, StyleProp, Animated, Easing } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 interface ButtonProps {
@@ -25,6 +25,31 @@ export const Button: React.FC<ButtonProps> = ({
     style,
     textStyle,
 }) => {
+    const spinValue = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        if (loading) {
+            spinValue.setValue(0);
+            Animated.loop(
+                Animated.timing(spinValue, {
+                    toValue: 1,
+                    duration: 1000,
+                    easing: Easing.linear,
+                    useNativeDriver: true,
+                })
+            ).start();
+        } else {
+            spinValue.stopAnimation();
+        }
+    }, [loading]);
+
+    const spin = spinValue.interpolate({
+        inputRange: [0, 1],
+        outputRange: ['0deg', '360deg'],
+    });
+
+    const textColor = variant === 'primary' ? '#fff' : '#3b82f6';
+
     return (
         <TouchableOpacity
             style={[
@@ -38,15 +63,15 @@ export const Button: React.FC<ButtonProps> = ({
             disabled={disabled || loading}
         >
             {loading ? (
-                <ActivityIndicator color={variant === 'primary' ? '#fff' : '#3b82f6'} />
+                <Animated.View style={{ transform: [{ rotate: spin }], marginRight: 8 }}>
+                    <Icon name="loading" size={20} color={textColor} />
+                </Animated.View>
             ) : (
-                <>
-                    {icon && <Icon name={icon} size={20} color={variant === 'primary' ? '#fff' : '#3b82f6'} style={styles.icon} />}
-                    <Text style={[styles.baseText, styles[`${variant}Text`], styles[`${size}Text`], textStyle]}>
-                        {title}
-                    </Text>
-                </>
+                icon && <Icon name={icon} size={20} color={textColor} style={styles.icon} />
             )}
+            <Text style={[styles.baseText, styles[`${variant}Text`], styles[`${size}Text`], textStyle]}>
+                {loading ? 'Processing...' : title}
+            </Text>
         </TouchableOpacity>
     );
 };

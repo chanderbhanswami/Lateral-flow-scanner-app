@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet, ScrollView, Text, Switch, TouchableOpacity, Alert, Image } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, Switch, TouchableOpacity, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
 import { useAuthStore } from '../store/authStore';
 import { Card } from '../components/UI/Card';
 import { Button } from '../components/UI/Button';
+import { CustomDialog } from '../components/UI/CustomDialog';
 import { storageService } from '../services/storage.service';
 import Toast from 'react-native-toast-message';
 
@@ -16,6 +17,16 @@ export const SettingsScreen: React.FC = () => {
     const [showSensorData, setShowSensorData] = useState(true);
     const [enableVibration, setEnableVibration] = useState(true);
     const [highQualityMode, setHighQualityMode] = useState(true);
+
+    const [dialogConfig, setDialogConfig] = useState<{
+        visible: boolean;
+        title: string;
+        message: string;
+        type: 'info' | 'success' | 'warning' | 'error';
+        onConfirm?: () => void;
+        showCancel?: boolean;
+        confirmText?: string;
+    }>({ visible: false, title: '', message: '', type: 'info' });
 
     // Load settings from async storage on mount
     useEffect(() => {
@@ -42,45 +53,41 @@ export const SettingsScreen: React.FC = () => {
     };
 
     const handleLogout = () => {
-        Alert.alert(
-            'Logout',
-            'Are you sure you want to logout?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Logout',
-                    style: 'destructive',
-                    onPress: async () => {
-                        await logout();
-                        Toast.show({
-                            type: 'success',
-                            text1: 'Logged out successfully',
-                        });
-                    },
-                },
-            ]
-        );
+        setDialogConfig({
+            visible: true,
+            title: 'Logout',
+            message: 'Are you sure you want to logout?',
+            type: 'warning',
+            showCancel: true,
+            confirmText: 'Logout',
+            onConfirm: async () => {
+                setDialogConfig(prev => ({ ...prev, visible: false }));
+                await logout();
+                Toast.show({
+                    type: 'success',
+                    text1: 'Logged out successfully',
+                });
+            }
+        });
     };
 
     const handleClearCache = () => {
-        Alert.alert(
-            'Clear Cache',
-            'This will clear all cached data. Continue?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Clear',
-                    style: 'destructive',
-                    onPress: () => {
-                        // Clear cache logic
-                        Toast.show({
-                            type: 'success',
-                            text1: 'Cache cleared',
-                        });
-                    },
-                },
-            ]
-        );
+        setDialogConfig({
+            visible: true,
+            title: 'Clear Cache',
+            message: 'This will clear all cached data. Continue?',
+            type: 'warning',
+            showCancel: true,
+            confirmText: 'Clear',
+            onConfirm: async () => {
+                setDialogConfig(prev => ({ ...prev, visible: false }));
+                // Clear cache logic placeholder
+                Toast.show({
+                    type: 'success',
+                    text1: 'Cache cleared',
+                });
+            }
+        });
     };
 
     return (
@@ -233,6 +240,17 @@ export const SettingsScreen: React.FC = () => {
                 />
                 <Text style={styles.footerText}>© 2024 Lateral Flow Scanner</Text>
             </View>
+            {/* Shared Custom Dialog */}
+            <CustomDialog
+                visible={dialogConfig.visible}
+                title={dialogConfig.title}
+                message={dialogConfig.message}
+                type={dialogConfig.type}
+                showCancel={dialogConfig.showCancel}
+                confirmText={dialogConfig.confirmText}
+                onConfirm={dialogConfig.onConfirm}
+                onClose={() => setDialogConfig(prev => ({ ...prev, visible: false }))}
+            />
         </ScrollView>
     );
 };

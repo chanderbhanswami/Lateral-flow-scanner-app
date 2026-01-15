@@ -14,6 +14,7 @@ import { useCapture } from '../hooks/useCapture';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { useCaptureStore } from '../store/captureStore';
 import { CameraOverlay } from '../components/Camera/CameraOverlay';
+import { Loading } from '../components/UI/Loading';
 import { BorderGuide } from '../components/Camera/BorderGuide';
 import { CameraControls } from '../components/Camera/CameraControls';
 import { SensorDisplay } from '../components/Sensors/SensorDisplay';
@@ -311,6 +312,7 @@ export const CaptureScreen: React.FC = () => {
                 lowLightBoost={config.lowLightBoost}
                 photoQualityBalance={config.photoQualityBalance}
                 frameProcessor={frameProcessor}
+
             />
 
             {/* Border Guide */}
@@ -383,12 +385,11 @@ export const CaptureScreen: React.FC = () => {
             )}
 
             {/* Processing overlay */}
-            {isProcessing && (
-                <View style={styles.processingOverlay}>
-                    <ActivityIndicator size="large" color="#fff" />
-                    <Text style={styles.processingText}>Processing...</Text>
-                </View>
-            )}
+            <Loading
+                visible={isProcessing}
+                overlay={true}
+                text="Processing..."
+            />
         </View>
     );
 };

@@ -8,12 +8,27 @@ interface InputProps extends TextInputProps {
 }
 
 export const Input: React.FC<InputProps> = ({ label, error, helperText, style, ...props }) => {
+    const [isFocused, setIsFocused] = React.useState(false);
+
     return (
         <View style={styles.container}>
             {label && <Text style={styles.label}>{label}</Text>}
             <TextInput
-                style={[styles.input, error && styles.inputError, style]}
+                style={[
+                    styles.input,
+                    isFocused && styles.inputFocused,
+                    error && styles.inputError,
+                    style
+                ]}
                 placeholderTextColor="#9ca3af"
+                onFocus={(e) => {
+                    setIsFocused(true);
+                    props.onFocus?.(e);
+                }}
+                onBlur={(e) => {
+                    setIsFocused(false);
+                    props.onBlur?.(e);
+                }}
                 {...props}
             />
             {error && <Text style={styles.errorText}>{error}</Text>}
@@ -40,6 +55,10 @@ const styles = StyleSheet.create({
         fontSize: 16,
         color: '#1f2937',
         backgroundColor: '#fff',
+    },
+    inputFocused: {
+        borderColor: '#3b82f6',
+        borderWidth: 1.5,
     },
     inputError: {
         borderColor: '#ef4444',

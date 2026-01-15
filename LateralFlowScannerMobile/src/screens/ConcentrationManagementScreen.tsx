@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, FlatList, TouchableOpacity, Text, Dimensions } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, StyleSheet, FlatList, TouchableOpacity, Text, Dimensions, Animated, Easing } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import LinearGradient from 'react-native-linear-gradient';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { BatchList } from '../components/ConcentrationBatch/BatchList';
 import { BatchForm } from '../components/ConcentrationBatch/BatchForm';
-import { Button } from '../components/UI/Button';
 import { Modal } from '../components/UI/Modal';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isSmallScreen = screenWidth < 380;
@@ -14,6 +15,18 @@ export const ConcentrationManagementScreen: React.FC = () => {
     const { batches, createBatch, updateBatch, deleteBatch } = useConcentrationBatch();
     const [showForm, setShowForm] = useState(false);
     const [editingBatch, setEditingBatch] = useState<any>(null);
+
+    // Animation
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 600,
+            useNativeDriver: true,
+            easing: Easing.out(Easing.cubic),
+        }).start();
+    }, []);
 
     const handleCreate = async (data: any) => {
         await createBatch(data);
@@ -36,82 +49,135 @@ export const ConcentrationManagementScreen: React.FC = () => {
     };
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.title} numberOfLines={1}>Batches</Text>
+        <View style={styles.mainContainer}>
+            {/* Background Decoration */}
+            <View style={styles.bgCircle1} />
+            <View style={styles.bgCircle2} />
+
+            <SafeAreaView style={styles.container} edges={['top']}>
+                <View style={styles.header}>
+                    <Text style={styles.title}>Batches</Text>
+                    <Text style={styles.subtitle}>{batches.length} item{batches.length !== 1 ? 's' : ''}</Text>
+                </View>
+
+                <Animated.View style={[styles.content, { opacity: fadeAnim, transform: [{ translateY: fadeAnim.interpolate({ inputRange: [0, 1], outputRange: [20, 0] }) }] }]}>
+                    <BatchList
+                        batches={batches}
+                        onEdit={handleEdit}
+                        onDelete={handleDelete}
+                    />
+                </Animated.View>
+
+                {/* Floating Action Button */}
                 <TouchableOpacity
-                    style={styles.addButton}
+                    style={styles.fabContainer}
+                    activeOpacity={0.8}
                     onPress={() => setShowForm(true)}
                 >
-                    <Icon name="plus" size={18} color="#fff" />
-                    <Text style={styles.addButtonText}>Add</Text>
+                    <LinearGradient
+                        colors={['#3b82f6', '#2563eb']}
+                        style={styles.fab}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                    >
+                        <Icon name="plus" size={28} color="#fff" />
+                    </LinearGradient>
                 </TouchableOpacity>
-            </View>
 
-            <BatchList
-                batches={batches}
-                onEdit={handleEdit}
-                onDelete={handleDelete}
-            />
-
-            <Modal
-                visible={showForm}
-                onClose={() => {
-                    setShowForm(false);
-                    setEditingBatch(null);
-                }}
-            >
-                <BatchForm
-                    batch={editingBatch}
-                    onSubmit={(data) => {
-                        if (editingBatch) {
-                            handleUpdate(editingBatch.id, data);
-                        } else {
-                            handleCreate(data);
-                        }
-                    }}
-                    onCancel={() => {
+                <Modal
+                    visible={showForm}
+                    onClose={() => {
                         setShowForm(false);
                         setEditingBatch(null);
                     }}
-                />
-            </Modal>
+                >
+                    <BatchForm
+                        batch={editingBatch}
+                        onSubmit={(data) => {
+                            if (editingBatch) {
+                                handleUpdate(editingBatch.id, data);
+                            } else {
+                                handleCreate(data);
+                            }
+                        }}
+                        onCancel={() => {
+                            setShowForm(false);
+                            setEditingBatch(null);
+                        }}
+                    />
+                </Modal>
+            </SafeAreaView>
         </View>
     );
 };
 
 const styles = StyleSheet.create({
+    mainContainer: {
+        flex: 1,
+        backgroundColor: '#f8fafc',
+    },
+    bgCircle1: {
+        position: 'absolute',
+        top: -50,
+        left: -50,
+        width: 250,
+        height: 250,
+        borderRadius: 125,
+        backgroundColor: '#dbeafe', // Very light blue
+        opacity: 0.5,
+    },
+    bgCircle2: {
+        position: 'absolute',
+        bottom: 50,
+        right: -50,
+        width: 300,
+        height: 300,
+        borderRadius: 150,
+        backgroundColor: '#f3e8ff', // Very light purple
+        opacity: 0.5,
+    },
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: isSmallScreen ? 12 : 16,
-        backgroundColor: '#fff',
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        paddingBottom: 8,
+        backgroundColor: 'rgba(255,255,255,0.6)',
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: 'rgba(255,255,255,0.5)',
     },
     title: {
-        fontSize: isSmallScreen ? 18 : 22,
-        fontWeight: '700',
-        color: '#1f2937',
-        flex: 1,
+        fontSize: 28,
+        fontWeight: '800',
+        color: '#1e293b',
+        letterSpacing: -0.5,
     },
-    addButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#3b82f6',
-        paddingHorizontal: 12,
-        paddingVertical: 8,
-        borderRadius: 8,
-    },
-    addButtonText: {
-        color: '#fff',
-        fontWeight: '600',
-        marginLeft: 4,
+    subtitle: {
         fontSize: 14,
+        color: '#64748b',
+        marginTop: 4,
+        fontWeight: '500',
+    },
+    content: {
+        flex: 1,
+        paddingTop: 16,
+    },
+    fabContainer: {
+        position: 'absolute',
+        bottom: 32,
+        right: 24,
+        shadowColor: '#2563eb',
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.3,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    fab: {
+        width: 64,
+        height: 64,
+        borderRadius: 32,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });

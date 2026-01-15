@@ -7,6 +7,7 @@ import { ReviewScreenProps } from '../types';
 import { useCapture } from '../hooks/useCapture';
 import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
+import { Input } from '../components/UI/Input';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
 
@@ -133,27 +134,25 @@ export const ReviewScreen: React.FC = () => {
 
             {/* Concentration Input */}
             <Card style={styles.inputCard}>
-                <Text style={styles.inputLabel}>Concentration Value *</Text>
-                <TextInput
-                    style={styles.input}
+                <Input
+                    label="Concentration Value *"
                     value={concentration}
                     onChangeText={setConcentration}
                     placeholder="Enter concentration value (e.g. 10)"
-                    placeholderTextColor="#999"
+                    keyboardType="numeric"
                 />
             </Card>
 
             {/* Notes Input */}
             <Card style={styles.inputCard}>
-                <Text style={styles.inputLabel}>Notes (Optional)</Text>
-                <TextInput
-                    style={[styles.input, styles.notesInput]}
+                <Input
+                    label="Notes (Optional)"
                     value={notes}
                     onChangeText={setNotes}
                     placeholder="Add any notes..."
-                    placeholderTextColor="#999"
                     multiline
                     numberOfLines={4}
+                    style={styles.notesInput}
                 />
             </Card>
 

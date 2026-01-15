@@ -29,10 +29,17 @@ export const useCustomFrameProcessor = (
             const gray = cv.createObject(cv.Mat);
 
             // 2. Convert to Grayscale
+            // Android VisionCamera frames are typically YUV (NV21/420). iOS is BGRA.
+            // Safety: Ensure cv object has constants or use raw values.
+            // YUV2GRAY_NV21 = 21, BGR2GRAY = 6, BGRA2GRAY = 11
             if (Platform.OS === 'android') {
-                cv.invoke('cvtColor', src, gray, cv.COLOR_BGR2GRAY);
+                // If the frame is YUV, we can use code 21. 
+                // However, checking for cv.COLOR_YUV2GRAY_NV21 availability is good practice.
+                const code = cv.COLOR_YUV2GRAY_NV21 || 21;
+                cv.invoke('cvtColor', src, gray, code);
             } else {
-                cv.invoke('cvtColor', src, gray, cv.COLOR_BGRA2GRAY);
+                const code = cv.COLOR_BGRA2GRAY || 11;
+                cv.invoke('cvtColor', src, gray, code);
             }
 
             // 3. Blur (reduce noise)

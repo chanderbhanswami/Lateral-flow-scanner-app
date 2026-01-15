@@ -9,6 +9,7 @@ import {
     Image,
     ActivityIndicator,
     Modal,
+    Dimensions,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation } from '@react-navigation/native';
@@ -37,9 +38,11 @@ export const LoginScreen: React.FC = () => {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [facebookLoading, setFacebookLoading] = useState(false);
     const [rememberMe, setRememberMe] = useState(true);
+    const [focusedField, setFocusedField] = useState<string | null>(null);
 
     const [showInviteCodePrompt, setShowInviteCodePrompt] = useState(false);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
+    const [inviteError, setInviteError] = useState<string | null>(null);
     const [pendingOAuth, setPendingOAuth] = useState<{ provider: 'google' | 'facebook', token: string } | null>(null);
 
     React.useEffect(() => {
@@ -125,7 +128,7 @@ export const LoginScreen: React.FC = () => {
                     // No, "Alert.prompt" is iOS only.
                     // I will inject a "showInviteCodePrompt" state to show a simple modal.
                     setShowInviteCodePrompt(true);
-                    setPendingOAuth({ provider: 'google' });
+                    setPendingOAuth({ provider: 'google', token: '' });
                 } else {
                     Toast.show({ type: 'error', text1: 'Google Login Failed', text2: errorMessage });
                 }
@@ -198,8 +201,11 @@ export const LoginScreen: React.FC = () => {
                     {/* Email Input */}
                     <View style={styles.field}>
                         <Text style={styles.label}>Email</Text>
-                        <View style={styles.inputContainer}>
-                            <Icon name="email-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            focusedField === 'email' && styles.inputContainerFocused
+                        ]}>
+                            <Icon name="email-outline" size={20} color={focusedField === 'email' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={email}
@@ -210,6 +216,8 @@ export const LoginScreen: React.FC = () => {
                                 autoCapitalize="none"
                                 autoCorrect={false}
                                 autoComplete="email"
+                                onFocus={() => setFocusedField('email')}
+                                onBlur={() => setFocusedField(null)}
                             />
                         </View>
                     </View>
@@ -217,8 +225,11 @@ export const LoginScreen: React.FC = () => {
                     {/* Password Input */}
                     <View style={styles.field}>
                         <Text style={styles.label}>Password</Text>
-                        <View style={styles.inputContainer}>
-                            <Icon name="lock-outline" size={20} color="#9ca3af" style={styles.inputIcon} />
+                        <View style={[
+                            styles.inputContainer,
+                            focusedField === 'password' && styles.inputContainerFocused
+                        ]}>
+                            <Icon name="lock-outline" size={20} color={focusedField === 'password' ? '#3b82f6' : '#9ca3af'} style={styles.inputIcon} />
                             <TextInput
                                 style={styles.input}
                                 value={password}
@@ -228,6 +239,8 @@ export const LoginScreen: React.FC = () => {
                                 secureTextEntry={!showPassword}
                                 autoCapitalize="none"
                                 autoComplete="password"
+                                onFocus={() => setFocusedField('password')}
+                                onBlur={() => setFocusedField(null)}
                             />
                             <TouchableOpacity
                                 onPress={() => setShowPassword(!showPassword)}
@@ -282,7 +295,7 @@ export const LoginScreen: React.FC = () => {
                     <View style={styles.socialButtons}>
                         <TouchableOpacity
                             style={[styles.socialButton, styles.googleButton]}
-                            onPress={handleGoogleLogin}
+                            onPress={() => handleGoogleLogin()}
                             disabled={loading || googleLoading || facebookLoading}
                         >
                             {googleLoading ? (
@@ -297,7 +310,7 @@ export const LoginScreen: React.FC = () => {
 
                         <TouchableOpacity
                             style={[styles.socialButton, styles.facebookButton]}
-                            onPress={handleFacebookLogin}
+                            onPress={() => handleFacebookLogin()}
                             disabled={loading || googleLoading || facebookLoading}
                         >
                             {facebookLoading ? (
@@ -343,14 +356,28 @@ export const LoginScreen: React.FC = () => {
                         </Text>
 
                         <TextInput
-                            style={styles.modalInput}
+                            style={[
+                                styles.modalInput,
+                                inviteError ? styles.modalInputError : null,
+                                focusedField === 'modalInvite' && styles.modalInputFocused
+                            ]}
                             value={inviteCodeInput}
-                            onChangeText={setInviteCodeInput}
-                            placeholder="Enter Invite Code"
+                            onChangeText={(text) => {
+                                setInviteCodeInput(text.replace(/\s/g, '').toUpperCase());
+                                setInviteError(null);
+                            }}
+                            placeholder="INVITE-CODE"
                             placeholderTextColor="#9ca3af"
                             autoCapitalize="characters"
                             autoCorrect={false}
+                            textAlign="center"
+                            onFocus={() => setFocusedField('modalInvite')}
+                            onBlur={() => setFocusedField(null)}
                         />
+
+                        {inviteError && (
+                            <Text style={styles.modalErrorText}>{inviteError}</Text>
+                        )}
 
                         <View style={styles.modalButtons}>
                             <TouchableOpacity
@@ -359,6 +386,7 @@ export const LoginScreen: React.FC = () => {
                                     setShowInviteCodePrompt(false);
                                     setPendingOAuth(null);
                                     setInviteCodeInput('');
+                                    setInviteError(null);
                                 }}
                             >
                                 <Text style={styles.cancelButtonText}>Cancel</Text>
@@ -368,21 +396,20 @@ export const LoginScreen: React.FC = () => {
                                 style={[styles.modalButton, styles.submitButton]}
                                 onPress={() => {
                                     if (!inviteCodeInput.trim()) {
-                                        Toast.show({ type: 'error', text1: 'Required', text2: 'Please enter a code' });
+                                        setInviteError('Please enter a code');
                                         return;
                                     }
+
                                     setShowInviteCodePrompt(false);
-                                    // Retry the pending OAuth action with the code
+
                                     if (pendingOAuth?.provider === 'google') {
-                                        // We need to re-trigger the flow but with the code.
-                                        // Ideally we reused the token, but for now re-triggering is safer/easier flow-wise
-                                        // Wait, we need to pass it to handleGoogleLogin
                                         handleGoogleLogin(inviteCodeInput.trim());
                                     } else if (pendingOAuth?.provider === 'facebook') {
                                         handleFacebookLogin(inviteCodeInput.trim());
                                     }
                                     setPendingOAuth(null);
                                     setInviteCodeInput('');
+                                    setInviteError(null);
                                 }}
                             >
                                 <Text style={styles.submitButtonText}>Submit</Text>
@@ -456,6 +483,10 @@ const styles = StyleSheet.create({
         borderColor: '#e5e7eb',
         borderRadius: 12,
         backgroundColor: '#fff',
+    },
+    inputContainerFocused: {
+        borderColor: '#3b82f6',
+        borderWidth: 1.5,
     },
     inputIcon: {
         paddingLeft: 14,
@@ -589,8 +620,20 @@ const styles = StyleSheet.create({
         padding: 14,
         fontSize: 16,
         color: '#1f2937',
-        marginBottom: 20,
+        marginBottom: 8,
         textAlign: 'center',
+    },
+    modalInputFocused: {
+        borderColor: '#3b82f6',
+        borderWidth: 2,
+    },
+    modalInputError: {
+        borderColor: '#ef4444',
+    },
+    modalErrorText: {
+        color: '#ef4444',
+        fontSize: 14,
+        marginBottom: 16,
     },
     modalButtons: {
         flexDirection: 'row',

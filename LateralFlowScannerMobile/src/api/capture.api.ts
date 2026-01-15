@@ -23,12 +23,13 @@ export const captureApi = {
         return response.data!;
     },
 
-    async listCaptures(page: number = 1, pageSize: number = 20): Promise<PaginatedResponse<CaptureData>> {
+    async listCaptures(page: number = 1, pageSize: number = 20, search?: string): Promise<PaginatedResponse<CaptureData>> {
+        const params: any = { page, pageSize };
+        if (search) params.search = search;
+
         const response = await apiClient.get<ApiResponse<PaginatedResponse<CaptureData>>>(
             API_ENDPOINTS.CAPTURE.LIST,
-            {
-                params: { page, pageSize },
-            }
+            { params }
         );
         return response.data!;
     },
