@@ -9,8 +9,8 @@ export const setupInterceptors = () => {
 
     // Request interceptor
     axiosInstance.interceptors.request.use(
-        (config: InternalAxiosRequestConfig) => {
-            const token = storageService.getAccessToken();
+        async (config: InternalAxiosRequestConfig) => {
+            const token = await storageService.getAccessToken();
             if (token && config.headers) {
                 config.headers.Authorization = `Bearer ${token}`;
             }
@@ -34,7 +34,7 @@ export const setupInterceptors = () => {
                 originalRequest._retry = true;
 
                 try {
-                    const refreshToken = storageService.getRefreshToken();
+                    const refreshToken = await storageService.getRefreshToken();
                     if (refreshToken) {
                         const response = await apiClient.post<{ accessToken: string }>('/auth/refresh', {
                             refreshToken,

@@ -90,7 +90,7 @@ class NotificationService {
 
             // Only sync token if user is authenticated (has access token)
             // Otherwise, we'd get 401 errors that show confusing network toasts
-            const accessToken = storageService.getAccessToken();
+            const accessToken = await storageService.getAccessToken();
             if (!accessToken) {
                 console.log('[NotificationService] Skipping FCM sync - user not authenticated');
                 return;

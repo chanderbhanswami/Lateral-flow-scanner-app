@@ -117,7 +117,7 @@ class AuthService {
     // ==========================================
     async logout(): Promise<void> {
         try {
-            const refreshToken = storageService.getRefreshToken();
+            const refreshToken = await storageService.getRefreshToken();
             await authApi.logout(refreshToken || undefined);
         } catch (error) {
             logger.error('Logout error', error);
@@ -165,7 +165,7 @@ class AuthService {
     }
 
     private async performTokenRefresh(): Promise<string> {
-        const refreshToken = storageService.getRefreshToken();
+        const refreshToken = await storageService.getRefreshToken();
 
         if (!refreshToken) {
             throw new Error('No refresh token available');
@@ -185,7 +185,7 @@ class AuthService {
     // Auth State
     // ==========================================
     async isAuthenticated(): Promise<boolean> {
-        const accessToken = storageService.getAccessToken();
+        const accessToken = await storageService.getAccessToken();
         return !!accessToken;
     }
 

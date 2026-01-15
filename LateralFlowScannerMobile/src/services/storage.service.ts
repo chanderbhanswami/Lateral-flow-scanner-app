@@ -1,41 +1,35 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { MMKV } from 'react-native-mmkv';
 import { CaptureData } from '../types';
 
-// Lazy initialization to avoid issues during module loading
-let storage: MMKV | null = null;
-
-function getStorage(): MMKV {
-    if (!storage) {
-        storage = new MMKV({ id: 'default' });
-    }
-    return storage;
-}
+// Token keys
+const ACCESS_TOKEN_KEY = 'accessToken';
+const REFRESH_TOKEN_KEY = 'refreshToken';
 
 class StorageService {
-    // Token management
+    // Token management - using AsyncStorage for reliability
     async saveTokens(accessToken: string, refreshToken: string): Promise<void> {
-        getStorage().set('accessToken', accessToken);
-        getStorage().set('refreshToken', refreshToken);
+        await AsyncStorage.multiSet([
+            [ACCESS_TOKEN_KEY, accessToken],
+            [REFRESH_TOKEN_KEY, refreshToken],
+        ]);
     }
 
-    getAccessToken(): string | undefined {
-        return getStorage().getString('accessToken');
+    async getAccessToken(): Promise<string | null> {
+        return await AsyncStorage.getItem(ACCESS_TOKEN_KEY);
     }
 
-    getRefreshToken(): string | undefined {
-        return getStorage().getString('refreshToken');
+    async getRefreshToken(): Promise<string | null> {
+        return await AsyncStorage.getItem(REFRESH_TOKEN_KEY);
     }
 
     async clearTokens(): Promise<void> {
-        getStorage().delete('accessToken');
-        getStorage().delete('refreshToken');
+        await AsyncStorage.multiRemove([ACCESS_TOKEN_KEY, REFRESH_TOKEN_KEY]);
     }
 
     // Capture management
     async saveCaptureLocally(captureData: CaptureData): Promise<void> {
         const key = `capture_${captureData.id}`;
-        getStorage().set(key, JSON.stringify(captureData));
+        await AsyncStorage.setItem(key, JSON.stringify(captureData));
     }
 
     async savePendingCapture(captureData: CaptureData, imageUri: string): Promise<void> {
@@ -60,11 +54,11 @@ class StorageService {
 
     // Settings
     async saveSetting(key: string, value: any): Promise<void> {
-        getStorage().set(key, JSON.stringify(value));
+        await AsyncStorage.setItem(key, JSON.stringify(value));
     }
 
-    getSetting(key: string): any {
-        const value = getStorage().getString(key);
+    async getSetting(key: string): Promise<any> {
+        const value = await AsyncStorage.getItem(key);
         return value ? JSON.parse(value) : null;
     }
 }

@@ -19,7 +19,7 @@ class ApiClient {
                 try {
                     // Dynamically import storageService to avoid circular dependency if any
                     const { storageService } = require('../services/storage.service');
-                    const token = storageService.getAccessToken();
+                    const token = await storageService.getAccessToken();
                     if (token) {
                         config.headers.Authorization = `Bearer ${token}`;
                     }

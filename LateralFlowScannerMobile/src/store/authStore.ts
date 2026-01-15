@@ -97,7 +97,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     logout: async () => {
         try {
-            const refreshToken = storageService.getRefreshToken();
+            const refreshToken = await storageService.getRefreshToken();
             await authApi.logout(refreshToken || undefined);
         } catch (error) {
             console.error('Logout error:', error);
@@ -147,7 +147,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     checkAuth: async () => {
         try {
             set({ isLoading: true });
-            const token = storageService.getAccessToken();
+            const token = await storageService.getAccessToken();
             if (token) {
                 try {
                     const user = await authApi.getCurrentUser();
@@ -159,7 +159,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
                     });
                 } catch {
                     // Token invalid, try refresh
-                    const refreshToken = storageService.getRefreshToken();
+                    const refreshToken = await storageService.getRefreshToken();
                     if (refreshToken) {
                         try {
                             const tokens = await authApi.refreshToken(refreshToken);

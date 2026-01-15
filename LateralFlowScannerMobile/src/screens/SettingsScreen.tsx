@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Text, Switch, TouchableOpacity, Alert, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -12,21 +12,29 @@ export const SettingsScreen: React.FC = () => {
     const navigation = useNavigation();
     const { user, logout } = useAuthStore();
 
-    const [autoCapture, setAutoCapture] = useState(
-        storageService.getSetting('autoCapture') ?? true
-    );
-    const [showSensorData, setShowSensorData] = useState(
-        storageService.getSetting('showSensorData') ?? true
-    );
-    const [enableVibration, setEnableVibration] = useState(
-        storageService.getSetting('enableVibration') ?? true
-    );
-    const [highQualityMode, setHighQualityMode] = useState(
-        storageService.getSetting('highQualityMode') ?? true
-    );
+    const [autoCapture, setAutoCapture] = useState(true);
+    const [showSensorData, setShowSensorData] = useState(true);
+    const [enableVibration, setEnableVibration] = useState(true);
+    const [highQualityMode, setHighQualityMode] = useState(true);
 
-    const handleSettingChange = (key: string, value: boolean) => {
-        storageService.saveSetting(key, value);
+    // Load settings from async storage on mount
+    useEffect(() => {
+        const loadSettings = async () => {
+            const savedAutoCapture = await storageService.getSetting('autoCapture');
+            const savedShowSensorData = await storageService.getSetting('showSensorData');
+            const savedEnableVibration = await storageService.getSetting('enableVibration');
+            const savedHighQualityMode = await storageService.getSetting('highQualityMode');
+
+            setAutoCapture(savedAutoCapture ?? true);
+            setShowSensorData(savedShowSensorData ?? true);
+            setEnableVibration(savedEnableVibration ?? true);
+            setHighQualityMode(savedHighQualityMode ?? true);
+        };
+        loadSettings();
+    }, []);
+
+    const handleSettingChange = async (key: string, value: boolean) => {
+        await storageService.saveSetting(key, value);
         Toast.show({
             type: 'success',
             text1: 'Setting Updated',
