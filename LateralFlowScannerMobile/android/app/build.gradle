@@ -4,6 +4,12 @@ apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 apply plugin: "io.sentry.android.gradle"
 
+sentry {
+    // Auto-upload is enabled by default if plugin is applied
+    // autoUploadProguardMapping = true
+    // uploadNativeSymbols = true
+}
+
 // Dynamic .env selection based on ENVIRONMENT variable (default: development)
 def selectedEnv = System.getenv("ENVIRONMENT") ?: "development"
 def envFile = ".env.${selectedEnv}"
@@ -87,6 +93,7 @@ def enableProguardInReleaseBuilds = true
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+apply from: "../../node_modules/@sentry/react-native/sentry.gradle"
 android {
     ndkVersion rootProject.ext.ndkVersion
     buildToolsVersion rootProject.ext.buildToolsVersion

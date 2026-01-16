@@ -17,3 +17,16 @@
 -keep interface com.mrousavy.camera.** { *; }
 -keep class com.visioncameraresizeplugin.** { *; }
 
+# Sentry
+-dontwarn io.sentry.**
+-keep class io.sentry.** { *; }
+-keep interface io.sentry.** { *; }
+-keep class io.sentry.android.sqlite.** { *; }
+
+# CameraX extensions (VisionCamera dependency)
+-dontwarn androidx.camera.extensions.**
+-keep class androidx.camera.extensions.** { *; }
+
+# General Safety
+-dontwarn sun.misc.Unsafe
+-dontwarn com.google.common.util.concurrent.ListenableFuture

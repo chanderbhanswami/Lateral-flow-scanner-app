@@ -1,5 +1,9 @@
 const { getDefaultConfig, mergeConfig } = require('@react-native/metro-config');
 
+const {
+    withSentryConfig
+} = require("@sentry/react-native/metro");
+
 const config = {
     transformer: {
         babelTransformerPath: require.resolve('react-native-svg-transformer'),
@@ -13,4 +17,4 @@ const config = {
 };
 
 
-module.exports = mergeConfig(getDefaultConfig(__dirname), config);
+module.exports = withSentryConfig(mergeConfig(getDefaultConfig(__dirname), config));
