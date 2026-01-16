@@ -60,6 +60,9 @@ class MainApplication : Application(), ReactApplication {
         })
 
         packages.add(com.lateralflowscannermobile.modules.DepthSensorModulePackage())
+        
+        // Manual linking for VisionCamera (Autolinking disabled for this package)
+        packages.add(com.mrousavy.camera.react.CameraPackage())
 
         return packages
       }
