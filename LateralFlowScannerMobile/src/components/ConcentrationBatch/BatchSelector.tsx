@@ -79,6 +79,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: 20,
+        paddingRight: 60, // Extra padding to avoid overlap with Modal close button
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
     },

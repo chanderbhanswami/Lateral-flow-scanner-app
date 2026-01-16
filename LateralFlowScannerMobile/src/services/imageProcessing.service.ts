@@ -12,7 +12,15 @@ import {
 } from '@lateralflowscanner/shared';
 import { QUALITY_THRESHOLDS } from '../constants';
 import { obstructionDetectionService } from './obstructionDetection.service';
-import { calculateHistogramStats } from '../utils/camera/histogram';
+
+// Import analysis utilities
+import { analyzeBlurWorklet } from '../utils/analysis/blur';
+import { analyzeExposureWorklet } from '../utils/analysis/exposure';
+import { analyzeBorderWorklet } from '../utils/analysis/border';
+import { detectShadowsDetailedJS } from '../utils/analysis/shadow';
+import { detectReflectionsDetailedJS } from '../utils/analysis/reflection';
+import { calculateHistogramStatsWorklet, normalizeHistogramWorklet } from '../utils/camera/histogram';
+import { assessImageQualityWorklet } from '../utils/image/quality';
 
 
 const { OpenCVModule } = NativeModules;
@@ -119,7 +127,7 @@ class ImageProcessingService {
         // Populate a simple bell curves or flat line for testing if needed, 
         // but for now keeping it safe with zeros or minimal values to avoid errors.
 
-        const redStats = calculateHistogramStats(neutralHistogram);
+        const redStats = calculateHistogramStatsWorklet(neutralHistogram, 1);
 
         return {
             red: neutralHistogram,
@@ -177,24 +185,12 @@ class ImageProcessingService {
     async analyzeBlur(imageData: string): Promise<BlurAnalysis> {
         if (OpenCVModule && OpenCVModule.calculateLaplacianVariance) {
             const variance = await OpenCVModule.calculateLaplacianVariance(imageData);
-            const isBlurry = variance < QUALITY_THRESHOLDS.BLUR.ACCEPTABLE;
-
-            return {
-                isBlurry,
-                blurScore: variance,
-                laplacianVariance: variance,
-                edgeStrength: variance / QUALITY_THRESHOLDS.BLUR.EXCELLENT,
-                focusQuality: Math.min(variance / QUALITY_THRESHOLDS.BLUR.EXCELLENT, 1),
-            };
+            // Use utility for analysis
+            return analyzeBlurWorklet(variance);
         }
 
-        return {
-            isBlurry: false,
-            blurScore: 100,
-            laplacianVariance: 100,
-            edgeStrength: 1,
-            focusQuality: 1,
-        };
+        // Fallback using utility with default value
+        return analyzeBlurWorklet(100);
     }
 
     async calculateLaplacianVariance(imageData: string): Promise<number> {
@@ -250,29 +246,18 @@ class ImageProcessingService {
     }
 
     analyzeBorderDetection(corners: Array<{ x: number; y: number }>): BorderDetection {
-        // Logic moved to detectBordersFromImage or kept as helper if needed
-        // ... (existing helper logic can remain if used elsewhere)
-        if (corners.length !== 4) {
-            return {
-                detected: false,
-                confidence: 0,
-                corners: [],
-                area: 0,
-                aspectRatio: 0,
-                isAligned: false,
-                isCentered: false,
-                distanceFromCenter: 0,
-            };
-        }
+        // Use utility for border analysis
+        const analysis = analyzeBorderWorklet(corners, 640, 480);
+
         return {
-            detected: true,
-            confidence: 1,
-            corners,
-            area: 100,
-            aspectRatio: 1,
-            isAligned: true,
-            isCentered: true,
-            distanceFromCenter: 0
+            detected: analysis.detected,
+            confidence: analysis.confidence,
+            corners: analysis.corners,
+            area: analysis.area,
+            aspectRatio: analysis.aspectRatio,
+            isAligned: analysis.isAligned,
+            isCentered: analysis.isCentered,
+            distanceFromCenter: 0,
         };
     }
 

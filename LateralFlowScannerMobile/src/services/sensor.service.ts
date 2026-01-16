@@ -2,6 +2,10 @@ import { NativeModules, NativeEventEmitter } from 'react-native';
 import { AllSensorData, OrientationData, AlignmentAnalysis } from '@lateralflowscanner/shared';
 import { SENSOR_CONSTANTS, ALIGNMENT_THRESHOLDS } from '../constants';
 
+// Import utilities
+import { analyzeAlignmentWorklet } from '../utils/analysis/alignment';
+import { getOrientationFromAccelWorklet } from '../utils/sensors/accelerometer';
+
 const { SensorModule } = NativeModules;
 const sensorEmitter = new NativeEventEmitter(SensorModule);
 
@@ -33,23 +37,26 @@ class SensorService {
         const { accelerometer, magnetometer } = sensorData;
         if (!accelerometer || !magnetometer) return null;
 
-        // Calculate orientation from accelerometer and magnetometer
-        const pitch = Math.atan2(accelerometer.y, Math.sqrt(accelerometer.x ** 2 + accelerometer.z ** 2));
-        const roll = Math.atan2(accelerometer.x, Math.sqrt(accelerometer.y ** 2 + accelerometer.z ** 2));
+        // Use utility for orientation from accelerometer
+        const orientResult = getOrientationFromAccelWorklet(
+            accelerometer.x,
+            accelerometer.y,
+            accelerometer.z
+        );
+
+        // Calculate azimuth from magnetometer
         const azimuth = Math.atan2(magnetometer.y, magnetometer.x);
 
         return {
-            pitch: (pitch * 180) / Math.PI,
-            roll: (roll * 180) / Math.PI,
+            pitch: orientResult.tiltAngle,
+            roll: Math.atan2(accelerometer.x, Math.sqrt(accelerometer.y ** 2 + accelerometer.z ** 2)) * (180 / Math.PI),
             azimuth: (azimuth * 180) / Math.PI,
             timestamp: Date.now(),
         };
     }
 
     calculateAlignment(sensorData: AllSensorData | null): AlignmentAnalysis {
-        const orientation = this.calculateOrientation(sensorData);
-
-        if (!orientation) {
+        if (!sensorData || !sensorData.accelerometer) {
             return {
                 isAligned: false,
                 pitch: 0,
@@ -60,32 +67,26 @@ class SensorService {
             };
         }
 
-        const { pitch, roll, azimuth } = orientation;
+        const { accelerometer } = sensorData;
 
-        const isPitchAligned = Math.abs(pitch) <= ALIGNMENT_THRESHOLDS.PITCH.ACCEPTABLE[1];
-        const isRollAligned = Math.abs(roll) <= ALIGNMENT_THRESHOLDS.ROLL.ACCEPTABLE[1];
-        const isAligned = isPitchAligned && isRollAligned;
+        // Use utility for alignment analysis
+        const alignResult = analyzeAlignmentWorklet(
+            accelerometer.x,
+            accelerometer.y,
+            accelerometer.z
+        );
 
-        let recommendation = '';
-        if (!isPitchAligned) {
-            recommendation += pitch > 0 ? 'Tilt device down. ' : 'Tilt device up. ';
-        }
-        if (!isRollAligned) {
-            recommendation += roll > 0 ? 'Rotate device left. ' : 'Rotate device right. ';
-        }
-        if (isAligned) {
-            recommendation = 'Device is properly aligned';
-        }
-
-        const levelness = 1 - Math.min(Math.abs(pitch) + Math.abs(roll), 90) / 90;
+        // Get orientation for yaw if magnetometer available
+        const orientation = this.calculateOrientation(sensorData);
+        const yaw = orientation?.azimuth || 0;
 
         return {
-            isAligned,
-            pitch,
-            roll,
-            yaw: azimuth,
-            levelness,
-            recommendation,
+            isAligned: alignResult.isLevel,
+            pitch: alignResult.tiltY,
+            roll: alignResult.tiltX,
+            yaw,
+            levelness: alignResult.alignmentScore,
+            recommendation: alignResult.recommendation,
         };
     }
 

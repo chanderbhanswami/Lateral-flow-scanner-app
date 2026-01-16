@@ -1,75 +1,86 @@
-import ImageResizer from 'react-native-image-resizer';
+/**
+ * Image Compression Utilities - JS Only
+ * These work with file system and cannot run in Worklets
+ */
 
-export const compressImage = async (
-    uri: string,
-    options: {
-        maxWidth?: number;
-        maxHeight?: number;
-        quality?: number;
-        format?: 'JPEG' | 'PNG';
-    } = {}
-): Promise<string> => {
-    const {
-        maxWidth = 2048,
-        maxHeight = 2048,
-        quality = 90,
-        format = 'JPEG',
-    } = options;
+// Inline types
+interface CompressionOptions {
+    quality: number;       // 0-100
+    maxWidth: number;
+    maxHeight: number;
+    format: 'jpeg' | 'png';
+}
 
-    try {
-        const result = await ImageResizer.createResizedImage(
-            uri,
-            maxWidth,
-            maxHeight,
-            format,
-            quality,
-            0,
-            undefined,
-            false,
-            { mode: 'contain' }
-        );
+interface CompressionResult {
+    width: number;
+    height: number;
+    size: number;
+    path: string;
+}
 
-        return result.uri;
-    } catch (error) {
-        console.error('Image compression error:', error);
-        return uri;
-    }
-};
-
-export const getImageDimensions = (uri: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve, reject) => {
-        const Image = require('react-native').Image;
-        Image.getSize(
-            uri,
-            (width: number, height: number) => resolve({ width, height }),
-            (error: any) => reject(error)
-        );
-    });
-};
-
-export const calculateOptimalDimensions = (
-    currentWidth: number,
-    currentHeight: number,
-    maxWidth: number = 2048,
-    maxHeight: number = 2048
-): { width: number; height: number } => {
-    const aspectRatio = currentWidth / currentHeight;
-
-    let width = currentWidth;
-    let height = currentHeight;
-
-    if (width > maxWidth) {
-        width = maxWidth;
-        height = width / aspectRatio;
+/**
+ * Calculate optimal dimensions while maintaining aspect ratio (JS)
+ */
+export function calculateResizeDimensions(
+    originalWidth: number,
+    originalHeight: number,
+    maxWidth: number,
+    maxHeight: number
+): { width: number; height: number; scale: number } {
+    if (originalWidth <= maxWidth && originalHeight <= maxHeight) {
+        return { width: originalWidth, height: originalHeight, scale: 1 };
     }
 
-    if (height > maxHeight) {
-        height = maxHeight;
-        width = height * aspectRatio;
-    }
+    const widthRatio = maxWidth / originalWidth;
+    const heightRatio = maxHeight / originalHeight;
+    const scale = Math.min(widthRatio, heightRatio);
 
     return {
-        width: Math.round(width),
-        height: Math.round(height),
+        width: Math.round(originalWidth * scale),
+        height: Math.round(originalHeight * scale),
+        scale
     };
-};
+}
+
+/**
+ * Estimate compressed file size (JS)
+ */
+export function estimateCompressedSize(
+    width: number,
+    height: number,
+    quality: number,
+    format: 'jpeg' | 'png' = 'jpeg'
+): number {
+    const pixelCount = width * height;
+
+    // Rough estimates based on typical compression ratios
+    if (format === 'png') {
+        // PNG is lossless, roughly 3-5 bytes per pixel depending on content
+        return pixelCount * 4;
+    }
+
+    // JPEG compression varies with quality
+    // Quality 100 ≈ 2 bytes/pixel, Quality 50 ≈ 0.3 bytes/pixel
+    const bpp = 0.3 + (quality / 100) * 1.7;
+    return Math.round(pixelCount * bpp);
+}
+
+/**
+ * Get recommended quality based on target file size (JS)
+ */
+export function getRecommendedQuality(
+    width: number,
+    height: number,
+    targetSizeBytes: number
+): number {
+    const pixelCount = width * height;
+    const targetBpp = targetSizeBytes / pixelCount;
+
+    // Reverse the estimation formula
+    // bpp = 0.3 + (quality / 100) * 1.7
+    // quality = (bpp - 0.3) * 100 / 1.7
+    const quality = ((targetBpp - 0.3) * 100) / 1.7;
+
+    // Clamp to valid range
+    return Math.max(10, Math.min(100, Math.round(quality)));
+}

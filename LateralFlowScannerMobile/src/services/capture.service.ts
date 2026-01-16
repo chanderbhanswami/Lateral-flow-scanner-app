@@ -3,8 +3,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { CaptureData } from '@lateralflowscanner/shared';
 import { metadataService } from './metadata.service';
 import { useAuthStore } from '../store/authStore';
-import RNFS from 'react-native-fs';
 import { NativeModules } from 'react-native';
+
+// Import utilities
+import { getFileInfo, deleteFile, DIRECTORIES } from '../utils/filesystem';
+import { logger } from '../utils/logger';
+import { generateUUID } from '../utils/helpers';
 
 class CaptureService {
     async createCaptureData(
@@ -18,8 +22,8 @@ class CaptureService {
         const userId = useAuthStore.getState().user?.id || '';
         const timestamp = new Date().toISOString();
 
-        // Get image info
-        const imageInfo = await RNFS.stat(imageUri);
+        // Get image info using utility
+        const imageInfo = await getFileInfo(imageUri);
 
         const captureData: CaptureData = {
             id: captureId,
@@ -124,7 +128,9 @@ class CaptureService {
             if (OpenCVModule.cropImage) {
                 croppedPath = await OpenCVModule.cropImage(filePath, targetCorners);
             } else if (OpenCVModule.perspectiveCorrection) {
-                console.warn('Using legacy Base64 crop - update native module!');
+                // Fallback to legacy Base64 method - requires RNFS for file I/O
+                logger.warn('Using legacy Base64 crop - update native module!');
+                const RNFS = require('react-native-fs').default;
                 const base64Image = await RNFS.readFile(imageUri, 'base64');
                 const resultBase64 = await OpenCVModule.perspectiveCorrection(base64Image, targetCorners);
                 if (resultBase64) {
@@ -134,11 +140,11 @@ class CaptureService {
                 }
             }
 
-            console.log('Capture cropped successfully:', croppedPath);
+            logger.info('Capture cropped successfully', { path: croppedPath });
             return typeof croppedPath === 'string' ? `file://${croppedPath}` : imageUri;
 
         } catch (e) {
-            console.error('Crop failed, using original:', e);
+            logger.error('Crop failed, using original', e);
             return imageUri;
         }
     }

@@ -1,95 +1,137 @@
-import { HSVData } from '../../types';
+/**
+ * Color Analysis Utilities - Worklet Compatible
+ * Analyzes color distribution and white balance
+ */
+
+// Inline types
+interface ColorAnalysis {
+    dominantColor: { r: number; g: number; b: number };
+    colorTemperature: number;
+    saturation: number;
+    whiteBalanceOffset: { r: number; g: number; b: number };
+    isNeutral: boolean;
+    recommendation: string;
+}
+
+// Inline thresholds
+const COLOR_THRESHOLDS = {
+    NEUTRAL_TOLERANCE: 0.1,
+    SATURATION_LOW: 0.2,
+    SATURATION_HIGH: 0.8
+};
 
 /**
- * Convert RGB to HSV
+ * Quick color analysis from histogram data (Worklet-safe)
  */
-export const rgbToHsv = (r: number, g: number, b: number): [number, number, number] => {
-    r /= 255;
-    g /= 255;
-    b /= 255;
+export function analyzeColorWorklet(
+    redHist: number[],
+    greenHist: number[],
+    blueHist: number[],
+    pixelCount: number
+): ColorAnalysis {
+    'worklet';
 
-    const max = Math.max(r, g, b);
-    const min = Math.min(r, g, b);
-    const delta = max - min;
+    // Calculate mean RGB
+    let sumR = 0, sumG = 0, sumB = 0;
+    for (let i = 0; i < 256; i++) {
+        sumR += i * (redHist[i] || 0);
+        sumG += i * (greenHist[i] || 0);
+        sumB += i * (blueHist[i] || 0);
+    }
 
-    let h = 0;
-    let s = max === 0 ? 0 : delta / max;
-    let v = max;
+    const meanR = sumR / pixelCount;
+    const meanG = sumG / pixelCount;
+    const meanB = sumB / pixelCount;
 
-    if (delta !== 0) {
-        if (max === r) {
-            h = ((g - b) / delta + (g < b ? 6 : 0)) / 6;
-        } else if (max === g) {
-            h = ((b - r) / delta + 2) / 6;
-        } else {
-            h = ((r - g) / delta + 4) / 6;
+    // Dominant color (simplified - just using means)
+    const dominantColor = {
+        r: Math.round(meanR),
+        g: Math.round(meanG),
+        b: Math.round(meanB)
+    };
+
+    // White balance offset (how far from gray)
+    const gray = (meanR + meanG + meanB) / 3;
+    const whiteBalanceOffset = {
+        r: (meanR - gray) / 255,
+        g: (meanG - gray) / 255,
+        b: (meanB - gray) / 255
+    };
+
+    // Check if neutral (balanced RGB)
+    const maxOffset = Math.max(
+        Math.abs(whiteBalanceOffset.r),
+        Math.abs(whiteBalanceOffset.g),
+        Math.abs(whiteBalanceOffset.b)
+    );
+    const isNeutral = maxOffset < COLOR_THRESHOLDS.NEUTRAL_TOLERANCE;
+
+    // Estimate color temperature (simplified)
+    // Higher R/B ratio = warmer, lower = cooler
+    const rbRatio = meanB > 0 ? meanR / meanB : 1;
+    let colorTemperature = 6500; // Neutral daylight
+    if (rbRatio > 1.2) {
+        colorTemperature = 3500; // Warm/tungsten
+    } else if (rbRatio < 0.8) {
+        colorTemperature = 8500; // Cool/shade
+    }
+
+    // Calculate saturation (simplified from RGB)
+    const maxC = Math.max(meanR, meanG, meanB);
+    const minC = Math.min(meanR, meanG, meanB);
+    const saturation = maxC > 0 ? (maxC - minC) / maxC : 0;
+
+    // Recommendation
+    let recommendation = 'Color balance is good';
+    if (!isNeutral) {
+        if (whiteBalanceOffset.r > 0.1) {
+            recommendation = 'Image is too warm (reddish)';
+        } else if (whiteBalanceOffset.b > 0.1) {
+            recommendation = 'Image is too cool (bluish)';
+        } else if (whiteBalanceOffset.g > 0.1) {
+            recommendation = 'Image has green tint';
         }
     }
 
-    return [h * 360, s * 100, v * 100];
-};
-
-/**
- * Calculate HSV histogram from image data
- */
-export const calculateHSV = (
-    pixels: Uint8ClampedArray,
-    width: number,
-    height: number
-): HSVData => {
-    const hue = new Array(360).fill(0);
-    const saturation = new Array(100).fill(0);
-    const value = new Array(100).fill(0);
-
-    let sumH = 0, sumS = 0, sumV = 0;
-    const totalPixels = width * height;
-
-    for (let i = 0; i < pixels.length; i += 4) {
-        const r = pixels[i];
-        const g = pixels[i + 1];
-        const b = pixels[i + 2];
-
-        const [h, s, v] = rgbToHsv(r, g, b);
-
-        hue[Math.floor(h)]++;
-        saturation[Math.floor(s)]++;
-        value[Math.floor(v)]++;
-
-        sumH += h;
-        sumS += s;
-        sumV += v;
-    }
-
     return {
-        hue,
+        dominantColor,
+        colorTemperature,
         saturation,
-        value,
-        meanHue: sumH / totalPixels,
-        meanSaturation: sumS / totalPixels,
-        meanValue: sumV / totalPixels,
+        whiteBalanceOffset,
+        isNeutral,
+        recommendation
     };
-};
+}
 
 /**
- * Detect color cast
+ * Convert RGB to HSL (Worklet-safe helper)
  */
-export const detectColorCast = (histogram: any): string | null => {
-    const rMean = histogram.red.reduce((sum: number, val: number, i: number) => sum + val * i, 0) /
-        histogram.red.reduce((a: number, b: number) => a + b, 0);
-    const gMean = histogram.green.reduce((sum: number, val: number, i: number) => sum + val * i, 0) /
-        histogram.green.reduce((a: number, b: number) => a + b, 0);
-    const bMean = histogram.blue.reduce((sum: number, val: number, i: number) => sum + val * i, 0) /
-        histogram.blue.reduce((a: number, b: number) => a + b, 0);
+export function rgbToHslWorklet(r: number, g: number, b: number): { h: number; s: number; l: number } {
+    'worklet';
 
-    const threshold = 10;
+    const rn = r / 255;
+    const gn = g / 255;
+    const bn = b / 255;
 
-    if (rMean > gMean + threshold && rMean > bMean + threshold) {
-        return 'red';
-    } else if (gMean > rMean + threshold && gMean > bMean + threshold) {
-        return 'green';
-    } else if (bMean > rMean + threshold && bMean > gMean + threshold) {
-        return 'blue';
+    const max = Math.max(rn, gn, bn);
+    const min = Math.min(rn, gn, bn);
+    const l = (max + min) / 2;
+
+    if (max === min) {
+        return { h: 0, s: 0, l };
     }
 
-    return null;
-};
+    const d = max - min;
+    const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+
+    let h = 0;
+    if (max === rn) {
+        h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
+    } else if (max === gn) {
+        h = ((bn - rn) / d + 2) / 6;
+    } else {
+        h = ((rn - gn) / d + 4) / 6;
+    }
+
+    return { h: h * 360, s, l };
+}

@@ -1,88 +1,134 @@
 import { useState, useEffect } from 'react';
-import { Platform } from 'react-native';
-import { check, request, PERMISSIONS, RESULTS, Permission } from 'react-native-permissions';
+import { Platform, Alert, Linking } from 'react-native';
+import { check, request, PERMISSIONS, RESULTS, Permission, openSettings } from 'react-native-permissions';
+import { logger } from '../utils/logger';
+
+// Permission statuses
+type PermissionStatus = 'granted' | 'denied' | 'blocked' | 'unavailable' | 'limited' | 'unknown';
 
 export const usePermissions = () => {
-    const [cameraPermission, setCameraPermission] = useState<string>('unknown');
-    const [microphonePermission, setMicrophonePermission] = useState<string>('unknown');
-    const [locationPermission, setLocationPermission] = useState<string>('unknown');
-    const [motionPermission, setMotionPermission] = useState<string>('unknown');
+    const [cameraPermission, setCameraPermission] = useState<PermissionStatus>('unknown');
+    const [microphonePermission, setMicrophonePermission] = useState<PermissionStatus>('unknown');
+    const [locationPermission, setLocationPermission] = useState<PermissionStatus>('unknown');
+    const [motionPermission, setMotionPermission] = useState<PermissionStatus>('unknown');
+    const [isChecking, setIsChecking] = useState(false);
+
+    const mapStatus = (result: string): PermissionStatus => {
+        if (result === RESULTS.GRANTED) return 'granted';
+        if (result === RESULTS.DENIED) return 'denied';
+        if (result === RESULTS.BLOCKED) return 'blocked';
+        if (result === RESULTS.UNAVAILABLE) return 'unavailable';
+        if (result === RESULTS.LIMITED) return 'limited';
+        return 'unknown';
+    };
 
     const checkPermissions = async () => {
-        const camera = Platform.select({
-            ios: PERMISSIONS.IOS.CAMERA,
-            android: PERMISSIONS.ANDROID.CAMERA,
-        }) as Permission;
+        setIsChecking(true);
+        try {
+            const camera = Platform.select({
+                ios: PERMISSIONS.IOS.CAMERA,
+                android: PERMISSIONS.ANDROID.CAMERA,
+            }) as Permission;
 
-        const microphone = Platform.select({
-            ios: PERMISSIONS.IOS.MICROPHONE,
-            android: PERMISSIONS.ANDROID.RECORD_AUDIO,
-        }) as Permission;
+            const microphone = Platform.select({
+                ios: PERMISSIONS.IOS.MICROPHONE,
+                android: PERMISSIONS.ANDROID.RECORD_AUDIO,
+            }) as Permission;
 
-        const location = Platform.select({
-            ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
-            android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
-        }) as Permission;
+            const location = Platform.select({
+                ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
+                android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
+            }) as Permission;
 
-        const motion = Platform.select({
-            ios: PERMISSIONS.IOS.MOTION,
-            android: null,
-        }) as Permission | null;
+            const motion = Platform.select({
+                ios: PERMISSIONS.IOS.MOTION,
+                android: null,
+            }) as Permission | null;
 
-        const [cameraStatus, micStatus, locStatus, motionStatus] = await Promise.all([
-            check(camera),
-            check(microphone),
-            check(location),
-            motion ? check(motion) : Promise.resolve(RESULTS.GRANTED),
-        ]);
+            const [cameraStatus, micStatus, locStatus, motionStatus] = await Promise.all([
+                check(camera),
+                check(microphone),
+                check(location),
+                motion ? check(motion) : Promise.resolve(RESULTS.GRANTED),
+            ]);
 
-        setCameraPermission(cameraStatus);
-        setMicrophonePermission(micStatus);
-        setLocationPermission(locStatus);
-        setMotionPermission(motionStatus);
+            setCameraPermission(mapStatus(cameraStatus));
+            setMicrophonePermission(mapStatus(micStatus));
+            setLocationPermission(mapStatus(locStatus));
+            setMotionPermission(mapStatus(motionStatus));
+
+            logger.debug('Permissions checked', { camera: cameraStatus, microphone: micStatus, location: locStatus });
+        } finally {
+            setIsChecking(false);
+        }
     };
 
-    const requestCameraPermission = async () => {
+    const requestCameraPermission = async (): Promise<boolean> => {
         const permission = Platform.select({
             ios: PERMISSIONS.IOS.CAMERA,
             android: PERMISSIONS.ANDROID.CAMERA,
         }) as Permission;
 
         const result = await request(permission);
-        setCameraPermission(result);
+        setCameraPermission(mapStatus(result));
+
+        if (result === RESULTS.BLOCKED) {
+            showSettingsAlert('Camera');
+        }
+
         return result === RESULTS.GRANTED;
     };
 
-    const requestMicrophonePermission = async () => {
+    const requestMicrophonePermission = async (): Promise<boolean> => {
         const permission = Platform.select({
             ios: PERMISSIONS.IOS.MICROPHONE,
             android: PERMISSIONS.ANDROID.RECORD_AUDIO,
         }) as Permission;
 
         const result = await request(permission);
-        setMicrophonePermission(result);
+        setMicrophonePermission(mapStatus(result));
+
+        if (result === RESULTS.BLOCKED) {
+            showSettingsAlert('Microphone');
+        }
+
         return result === RESULTS.GRANTED;
     };
 
-    const requestLocationPermission = async () => {
+    const requestLocationPermission = async (): Promise<boolean> => {
         const permission = Platform.select({
             ios: PERMISSIONS.IOS.LOCATION_WHEN_IN_USE,
             android: PERMISSIONS.ANDROID.ACCESS_FINE_LOCATION,
         }) as Permission;
 
         const result = await request(permission);
-        setLocationPermission(result);
+        setLocationPermission(mapStatus(result));
+
+        if (result === RESULTS.BLOCKED) {
+            showSettingsAlert('Location');
+        }
+
         return result === RESULTS.GRANTED;
     };
 
-    const requestAllPermissions = async () => {
+    const requestAllPermissions = async (): Promise<boolean> => {
         const results = await Promise.all([
             requestCameraPermission(),
             requestMicrophonePermission(),
-            requestLocationPermission(),
         ]);
 
         return results.every(result => result);
+    };
+
+    const showSettingsAlert = (permissionName: string) => {
+        Alert.alert(
+            `${permissionName} Permission Required`,
+            `Please enable ${permissionName.toLowerCase()} permission in settings to use this feature.`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Open Settings', onPress: () => openSettings() },
+            ]
+        );
     };
 
     useEffect(() => {
@@ -94,13 +140,17 @@ export const usePermissions = () => {
         microphonePermission,
         locationPermission,
         motionPermission,
+        isChecking,
         requestCameraPermission,
         requestMicrophonePermission,
         requestLocationPermission,
         requestAllPermissions,
         checkPermissions,
+        openSettings: () => openSettings(),
+        hasCameraPermission: cameraPermission === 'granted',
+        hasMicrophonePermission: microphonePermission === 'granted',
         hasAllPermissions:
-            cameraPermission === RESULTS.GRANTED &&
-            microphonePermission === RESULTS.GRANTED,
+            cameraPermission === 'granted' &&
+            microphonePermission === 'granted',
     };
 };

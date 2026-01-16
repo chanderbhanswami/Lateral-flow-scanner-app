@@ -7,10 +7,12 @@ import LinearGradient from 'react-native-linear-gradient';
 import { HomeScreenProps } from '../types';
 import { Card } from '../components/UI/Card';
 import { useAuthStore } from '../store/authStore';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { apiClient } from '../api/client';
 import { colors } from '../theme/colors';
 import { captureApi } from '../api/capture.api';
 import { formatDistanceToNow } from 'date-fns';
+import { logger } from '../utils/logger';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isSmallScreen = screenWidth < 380;
@@ -18,6 +20,7 @@ const isSmallScreen = screenWidth < 380;
 export const HomeScreen: React.FC = () => {
     const navigation = useNavigation<HomeScreenProps['navigation']>();
     const { user } = useAuthStore();
+    const { isConnected, connectionQuality, isGoodConnection } = useNetworkStatus();
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentCaptures, setRecentCaptures] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);

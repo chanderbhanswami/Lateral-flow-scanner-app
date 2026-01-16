@@ -1,35 +1,70 @@
-export const determineLightingCondition = (illuminance: number): string => {
-    if (illuminance < 10) {
-        return 'Very Dark';
-    } else if (illuminance < 50) {
-        return 'Dark';
-    } else if (illuminance < 200) {
-        return 'Dim';
-    } else if (illuminance < 400) {
-        return 'Normal Indoor';
-    } else if (illuminance < 1000) {
-        return 'Bright Indoor';
-    } else if (illuminance < 10000) {
-        return 'Overcast Outdoor';
-    } else if (illuminance < 25000) {
-        return 'Daylight';
-    } else {
-        return 'Bright Sunlight';
-    }
-};
+/**
+ * Light Sensor Utilities - Worklet Compatible
+ */
 
-export const recommendExposureAdjustment = (illuminance: number): number => {
-    if (illuminance < 100) {
-        return 1.5; // Increase exposure
-    } else if (illuminance < 400) {
-        return 0.5;
-    } else if (illuminance > 10000) {
-        return -1.0; // Decrease exposure
-    } else {
-        return 0; // No adjustment needed
-    }
-};
+/**
+ * Analyze ambient light level (Worklet-safe)
+ */
+export function analyzeLightLevelWorklet(
+    luxValue: number
+): { level: 'very-dark' | 'dark' | 'dim' | 'normal' | 'bright' | 'very-bright'; isAdequate: boolean; recommendation: string } {
+    'worklet';
 
-export const isLightingAdequate = (illuminance: number): boolean => {
-    return illuminance >= 100 && illuminance <= 25000;
-};
+    let level: 'very-dark' | 'dark' | 'dim' | 'normal' | 'bright' | 'very-bright';
+    let recommendation: string;
+    let isAdequate: boolean;
+
+    if (luxValue < 10) {
+        level = 'very-dark';
+        isAdequate = false;
+        recommendation = 'Move to brighter area or use flash';
+    } else if (luxValue < 50) {
+        level = 'dark';
+        isAdequate = false;
+        recommendation = 'Increase lighting for better results';
+    } else if (luxValue < 200) {
+        level = 'dim';
+        isAdequate = true;
+        recommendation = 'Lighting acceptable but could be better';
+    } else if (luxValue < 1000) {
+        level = 'normal';
+        isAdequate = true;
+        recommendation = 'Lighting is good';
+    } else if (luxValue < 10000) {
+        level = 'bright';
+        isAdequate = true;
+        recommendation = 'Good lighting conditions';
+    } else {
+        level = 'very-bright';
+        isAdequate = true;
+        recommendation = 'Bright light - watch for reflections';
+    }
+
+    return { level, isAdequate, recommendation };
+}
+
+/**
+ * Check if flash is recommended (Worklet-safe)
+ */
+export function shouldUseFlashWorklet(luxValue: number): boolean {
+    'worklet';
+    return luxValue < 50;
+}
+
+/**
+ * Estimate EV adjustment needed for lighting (Worklet-safe)
+ */
+export function estimateEvAdjustmentForLightWorklet(luxValue: number): number {
+    'worklet';
+
+    // Target is around 300 lux (indoor office lighting)
+    const targetLux = 300;
+
+    if (luxValue <= 0) return 2;  // Max increase
+
+    // log2(targetLux / currentLux) gives EV adjustment
+    const adjustment = Math.log2(targetLux / luxValue);
+
+    // Clamp to reasonable range
+    return Math.max(-2, Math.min(2, adjustment));
+}

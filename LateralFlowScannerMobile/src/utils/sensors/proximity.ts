@@ -1,19 +1,42 @@
-export const isObjectNearCamera = (distance: number): boolean => {
-    return distance < 5; // cm
-};
+/**
+ * Proximity Sensor Utilities - Worklet Compatible
+ */
 
-export const detectCameraObstruction = (
-    distance: number,
-    brightness: number
-): boolean => {
-    // If proximity sensor shows something close AND brightness drops
-    return distance < 3 && brightness < 50;
-};
+/**
+ * Check if something is too close to camera (Worklet-safe)
+ */
+export function checkProximityWorklet(
+    isNear: boolean,
+    distanceCm: number | null
+): { blocked: boolean; warning: string | null } {
+    'worklet';
 
-export const calculateObstructionPercentage = (
-    distance: number,
-    maxDistance: number = 5
-): number => {
-    if (distance >= maxDistance) return 0;
-    return ((maxDistance - distance) / maxDistance) * 100;
-};
+    if (isNear) {
+        return {
+            blocked: true,
+            warning: 'Object too close to camera - move device back'
+        };
+    }
+
+    if (distanceCm !== null && distanceCm < 5) {
+        return {
+            blocked: true,
+            warning: 'Object very close to camera lens'
+        };
+    }
+
+    return { blocked: false, warning: null };
+}
+
+/**
+ * Estimate if camera might be covered (Worklet-safe)
+ */
+export function isCameraCoveredWorklet(
+    isNear: boolean,
+    lightLux: number
+): boolean {
+    'worklet';
+
+    // If proximity sensor detects something near AND light is very low
+    return isNear && lightLux < 5;
+}

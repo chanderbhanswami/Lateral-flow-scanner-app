@@ -1,66 +1,114 @@
-export const assessImageQuality = (analysis: {
-    blurScore: number;
-    exposureLevel: number;
-    borderDetected: boolean;
-    shadowCoverage: number;
-    reflectionIntensity: number;
-}): {
-    score: number;
-    grade: 'excellent' | 'good' | 'fair' | 'poor';
+/**
+ * Image Quality Assessment Utilities - Worklet Compatible
+ */
+
+// Inline types
+interface QualityAssessment {
+    overallScore: number;
+    isAcceptable: boolean;
     issues: string[];
-} => {
-    let score = 100;
+    recommendation: string;
+}
+
+/**
+ * Assess overall image quality (Worklet-safe)
+ */
+export function assessImageQualityWorklet(
+    isBlurry: boolean,
+    blurScore: number,
+    isUnderexposed: boolean,
+    isOverexposed: boolean,
+    hasShadow: boolean,
+    hasReflection: boolean,
+    isCentered: boolean,
+    isAligned: boolean
+): QualityAssessment {
+    'worklet';
+
     const issues: string[] = [];
+    let score = 100;
 
-    // Blur assessment
-    if (analysis.blurScore < 500) {
-        score -= 30;
-        issues.push('Image is very blurry');
-    } else if (analysis.blurScore < 1000) {
-        score -= 15;
-        issues.push('Image has some blur');
+    // Blur penalty
+    if (isBlurry) {
+        issues.push('Image is blurry');
+        score -= blurScore < 30 ? 40 : 20;
     }
 
-    // Exposure assessment
-    if (analysis.exposureLevel < 0.3 || analysis.exposureLevel > 0.7) {
-        score -= 20;
-        issues.push('Poor exposure');
-    } else if (analysis.exposureLevel < 0.35 || analysis.exposureLevel > 0.65) {
-        score -= 10;
-        issues.push('Suboptimal exposure');
-    }
-
-    // Border detection
-    if (!analysis.borderDetected) {
+    // Exposure penalty
+    if (isUnderexposed) {
+        issues.push('Image is underexposed');
         score -= 25;
-        issues.push('Object border not detected');
+    }
+    if (isOverexposed) {
+        issues.push('Image is overexposed');
+        score -= 25;
     }
 
-    // Shadow assessment
-    if (analysis.shadowCoverage > 0.3) {
+    // Shadow penalty
+    if (hasShadow) {
+        issues.push('Shadow detected');
         score -= 15;
-        issues.push('Significant shadows present');
-    } else if (analysis.shadowCoverage > 0.1) {
-        score -= 5;
-        issues.push('Minor shadows present');
     }
 
-    // Reflection assessment
-    if (analysis.reflectionIntensity > 0.5) {
-        score -= 15;
-        issues.push('Strong reflections present');
-    } else if (analysis.reflectionIntensity > 0.2) {
-        score -= 5;
-        issues.push('Minor reflections present');
+    // Reflection penalty
+    if (hasReflection) {
+        issues.push('Reflection/glare detected');
+        score -= 20;
     }
 
-    score = Math.max(0, Math.min(100, score));
+    // Position penalties
+    if (!isCentered) {
+        issues.push('Subject not centered');
+        score -= 10;
+    }
+    if (!isAligned) {
+        issues.push('Subject not aligned');
+        score -= 10;
+    }
 
-    let grade: 'excellent' | 'good' | 'fair' | 'poor';
-    if (score >= 90) grade = 'excellent';
-    else if (score >= 75) grade = 'good';
-    else if (score >= 60) grade = 'fair';
-    else grade = 'poor';
+    // Clamp score
+    const finalScore = score < 0 ? 0 : (score > 100 ? 100 : score);
 
-    return { score, grade, issues };
-};
+    // Determine recommendation
+    let recommendation: string;
+    if (finalScore >= 80) {
+        recommendation = 'Image quality is excellent';
+    } else if (finalScore >= 60) {
+        recommendation = 'Image quality is acceptable';
+    } else if (finalScore >= 40) {
+        recommendation = 'Consider retaking the photo';
+    } else {
+        recommendation = 'Please retake the photo';
+    }
+
+    return {
+        overallScore: finalScore,
+        isAcceptable: finalScore >= 60,
+        issues,
+        recommendation
+    };
+}
+
+/**
+ * Calculate sharpness from edge strength (Worklet-safe)
+ */
+export function calculateSharpnessWorklet(laplacianVariance: number): number {
+    'worklet';
+
+    // Normalize to 0-100 scale
+    // Typical range: 0-500, with 100+ being acceptable
+    const normalized = (laplacianVariance / 500) * 100;
+    return normalized > 100 ? 100 : normalized;
+}
+
+/**
+ * Calculate contrast score (Worklet-safe)
+ */
+export function calculateContrastScoreWorklet(histogramStd: number): number {
+    'worklet';
+
+    // Higher std = more contrast
+    // Typical range: 0-80, with 30+ being good
+    const normalized = (histogramStd / 80) * 100;
+    return normalized > 100 ? 100 : normalized;
+}

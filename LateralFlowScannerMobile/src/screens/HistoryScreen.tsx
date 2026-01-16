@@ -7,6 +7,8 @@ import { captureApi } from '../api/capture.api';
 import { Loading } from '../components/UI/Loading';
 import { formatDistanceToNow } from 'date-fns';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useDebounce } from '../hooks/useDebounce';
+import { usePrevious } from '../hooks/usePrevious';
 
 import { PaginatedResponse, CaptureData } from '@lateralflowscanner/shared';
 
@@ -14,18 +16,21 @@ export const HistoryScreen: React.FC = () => {
     const navigation = useNavigation();
     const [page, setPage] = useState(1);
     const [searchQuery, setSearchQuery] = useState('');
-    const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Use useDebounce hook instead of inline setTimeout
+    const debouncedSearch = useDebounce(searchQuery, 500);
+
+    // Use usePrevious to detect search changes and reset page
+    const prevSearch = usePrevious(debouncedSearch);
+
     const fadeAnim = useRef(new Animated.Value(0)).current;
 
-    // Debounce search input
+    // Reset to first page when search changes
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setDebouncedSearch(searchQuery);
-            setPage(1); // Reset to first page on new search
-        }, 500);
-
-        return () => clearTimeout(timer);
-    }, [searchQuery]);
+        if (prevSearch !== undefined && prevSearch !== debouncedSearch) {
+            setPage(1);
+        }
+    }, [debouncedSearch, prevSearch]);
 
     const { data, isLoading, refetch, isRefetching } = useQuery<PaginatedResponse<CaptureData>>({
         queryKey: ['captures', page, debouncedSearch],

@@ -7,12 +7,15 @@ import LinearGradient from 'react-native-linear-gradient';
 import Toast from 'react-native-toast-message';
 
 import { useAuthStore } from '../store/authStore';
+import { useAuth } from '../hooks/useAuth';
 import { CustomDialog } from '../components/UI/CustomDialog';
 import { storageService } from '../services/storage.service';
+import { logger } from '../utils/logger';
 
 export const SettingsScreen: React.FC = () => {
     const navigation = useNavigation();
-    const { user, logout } = useAuthStore();
+    const { user } = useAuthStore();
+    const { logout: handleLogout } = useAuth(); // Use useAuth for logout with navigation
 
     // Settings State
     const [autoCapture, setAutoCapture] = useState(true);
@@ -36,15 +39,15 @@ export const SettingsScreen: React.FC = () => {
     useEffect(() => {
         // Load settings
         const loadSettings = async () => {
-            const savedAutoCapture = await storageService.getSetting('autoCapture');
-            const savedShowSensorData = await storageService.getSetting('showSensorData');
-            const savedEnableVibration = await storageService.getSetting('enableVibration');
-            const savedHighQualityMode = await storageService.getSetting('highQualityMode');
+            const savedAutoCapture = await storageService.getSetting<boolean>('autoCapture');
+            const savedShowSensorData = await storageService.getSetting<boolean>('showSensorData');
+            const savedEnableVibration = await storageService.getSetting<boolean>('enableVibration');
+            const savedHighQualityMode = await storageService.getSetting<boolean>('highQualityMode');
 
-            setAutoCapture(savedAutoCapture ?? true);
-            setShowSensorData(savedShowSensorData ?? true);
-            setEnableVibration(savedEnableVibration ?? true);
-            setHighQualityMode(savedHighQualityMode ?? true);
+            setAutoCapture(savedAutoCapture === true || savedAutoCapture === null ? true : false);
+            setShowSensorData(savedShowSensorData === true || savedShowSensorData === null ? true : false);
+            setEnableVibration(savedEnableVibration === true || savedEnableVibration === null ? true : false);
+            setHighQualityMode(savedHighQualityMode === true || savedHighQualityMode === null ? true : false);
         };
         loadSettings();
 
@@ -66,7 +69,7 @@ export const SettingsScreen: React.FC = () => {
         });
     };
 
-    const handleLogout = () => {
+    const showLogoutDialog = () => {
         setDialogConfig({
             visible: true,
             title: 'Logout',
@@ -76,7 +79,7 @@ export const SettingsScreen: React.FC = () => {
             confirmText: 'Logout',
             onConfirm: async () => {
                 setDialogConfig(prev => ({ ...prev, visible: false }));
-                await logout();
+                await handleLogout(); // Uses useAuth hook's logout with navigation
             }
         });
     };

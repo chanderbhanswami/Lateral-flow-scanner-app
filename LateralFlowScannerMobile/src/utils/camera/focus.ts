@@ -1,41 +1,88 @@
-import { CameraDevice } from 'react-native-vision-camera';
+/**
+ * Camera Focus Utilities - Worklet Compatible
+ * Helps with focus point calculations
+ */
 
-export const calculateFocusDistance = (
-    subjectDistance: number,
-    device: CameraDevice
-): number => {
-    // Calculate optimal focus distance
-    // Normalized distance (0 = closest, 1 = infinity)
+// Inline types
+interface FocusPoint {
+    x: number;
+    y: number;
+    normalized: { x: number; y: number };
+}
 
-    if (subjectDistance < 0.3) {
-        return 0.1; // Close focus
-    } else if (subjectDistance < 1.0) {
-        return 0.3; // Medium focus
-    } else {
-        return 1.0; // Far focus
+interface FocusAnalysis {
+    shouldRefocus: boolean;
+    focusConfidence: number;
+    recommendation: string;
+}
+
+/**
+ * Normalize touch coordinates to 0-1 range (Worklet-safe)
+ */
+export function normalizeFocusPointWorklet(
+    touchX: number,
+    touchY: number,
+    frameWidth: number,
+    frameHeight: number
+): FocusPoint {
+    'worklet';
+
+    return {
+        x: touchX,
+        y: touchY,
+        normalized: {
+            x: touchX / frameWidth,
+            y: touchY / frameHeight
+        }
+    };
+}
+
+/**
+ * Analyze if refocus is needed based on blur score (Worklet-safe)
+ */
+export function analyzeFocusNeedWorklet(
+    laplacianVariance: number,
+    threshold: number = 100
+): FocusAnalysis {
+    'worklet';
+
+    const isBlurry = laplacianVariance < threshold;
+    const focusConfidence = Math.min(laplacianVariance / 500, 1);
+
+    let recommendation = 'Focus is sharp';
+    if (isBlurry) {
+        if (laplacianVariance < 30) {
+            recommendation = 'Very blurry - tap to refocus';
+        } else {
+            recommendation = 'Slightly blurry - consider refocusing';
+        }
     }
-};
 
-export const isFocusStable = (
-    currentFocus: number,
-    targetFocus: number,
-    threshold: number = 0.05
-): boolean => {
-    return Math.abs(currentFocus - targetFocus) < threshold;
-};
+    return {
+        shouldRefocus: isBlurry,
+        focusConfidence,
+        recommendation
+    };
+}
 
-export const estimateSubjectDistance = (
-    blurScore: number,
-    focusDistance: number
-): number => {
-    // Estimate subject distance based on blur score and focus
-    // This is a simplified estimation
+/**
+ * Calculate focus region of interest (Worklet-safe)
+ * Returns a rect around the focus point
+ */
+export function calculateFocusRegionWorklet(
+    focusX: number,
+    focusY: number,
+    frameWidth: number,
+    frameHeight: number,
+    regionSize: number = 0.2 // 20% of frame
+): { x: number; y: number; width: number; height: number } {
+    'worklet';
 
-    if (blurScore > 1500) {
-        return focusDistance;
-    } else if (blurScore > 1000) {
-        return focusDistance * 1.2;
-    } else {
-        return focusDistance * 1.5;
-    }
-};
+    const regionWidth = frameWidth * regionSize;
+    const regionHeight = frameHeight * regionSize;
+
+    const x = Math.max(0, Math.min(frameWidth - regionWidth, focusX - regionWidth / 2));
+    const y = Math.max(0, Math.min(frameHeight - regionHeight, focusY - regionHeight / 2));
+
+    return { x, y, width: regionWidth, height: regionHeight };
+}

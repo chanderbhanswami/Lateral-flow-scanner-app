@@ -1,37 +1,51 @@
-import { GyroscopeData } from '../../types';
+/**
+ * Gyroscope Utilities - Worklet Compatible
+ */
 
-export const calculateRotationRate = (data: GyroscopeData): number => {
-    return Math.sqrt(data.x * data.x + data.y * data.y + data.z * data.z);
-};
+/**
+ * Check if device is stable (not rotating) (Worklet-safe)
+ */
+export function detectStabilityWorklet(
+    gyroX: number,
+    gyroY: number,
+    gyroZ: number,
+    threshold: number = 0.1  // rad/s
+): { isStable: boolean; rotationSpeed: number } {
+    'worklet';
 
-export const isDeviceRotating = (data: GyroscopeData, threshold: number = 0.5): boolean => {
-    const rate = calculateRotationRate(data);
-    return rate > threshold;
-};
+    const rotationSpeed = Math.sqrt(gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ);
+    const isStable = rotationSpeed < threshold;
 
-export const calculateAngularVelocity = (data: GyroscopeData): {
-    pitch: number;
-    roll: number;
-    yaw: number;
-} => {
-    return {
-        pitch: data.x * (180 / Math.PI),
-        roll: data.y * (180 / Math.PI),
-        yaw: data.z * (180 / Math.PI),
-    };
-};
+    return { isStable, rotationSpeed };
+}
 
-export const integrateRotation = (
-    readings: GyroscopeData[],
+/**
+ * Calculate rotation angle from gyroscope over time (Worklet-safe)
+ */
+export function integrateGyroWorklet(
+    gyroValue: number,
+    deltaTime: number  // seconds
+): number {
+    'worklet';
+
+    // Integrate angular velocity to get angle change
+    return gyroValue * deltaTime * (180 / Math.PI);  // degrees
+}
+
+/**
+ * Estimate cumulative rotation (Worklet-safe)
+ */
+export function estimateTotalRotationWorklet(
+    gyroX: number,
+    gyroY: number,
+    gyroZ: number,
     deltaTime: number
-): { x: number; y: number; z: number } => {
-    let x = 0, y = 0, z = 0;
+): { rotationX: number; rotationY: number; rotationZ: number } {
+    'worklet';
 
-    for (const reading of readings) {
-        x += reading.x * deltaTime;
-        y += reading.y * deltaTime;
-        z += reading.z * deltaTime;
-    }
-
-    return { x, y, z };
-};
+    return {
+        rotationX: gyroX * deltaTime * (180 / Math.PI),
+        rotationY: gyroY * deltaTime * (180 / Math.PI),
+        rotationZ: gyroZ * deltaTime * (180 / Math.PI)
+    };
+}

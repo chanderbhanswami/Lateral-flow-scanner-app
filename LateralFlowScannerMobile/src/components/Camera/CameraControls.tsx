@@ -28,6 +28,7 @@ interface CameraControlsProps {
     exposure: number;
     onExposureChange: (value: number) => void;
     supportsExposure: boolean;
+    isSensorDisplayVisible: boolean;
 }
 
 export const CameraControls: React.FC<CameraControlsProps> = ({
@@ -41,6 +42,7 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
     exposure,
     onExposureChange,
     supportsExposure,
+    isSensorDisplayVisible,
 }) => {
     const [showExposure, setShowExposure] = React.useState(false);
 
@@ -66,8 +68,15 @@ export const CameraControls: React.FC<CameraControlsProps> = ({
                     </TouchableOpacity>
                 )}
 
-                <TouchableOpacity style={styles.iconButton} onPress={onToggleSensorDisplay}>
-                    <Icon name="information" size={28} color="#fff" />
+                <TouchableOpacity
+                    style={[styles.iconButton, isSensorDisplayVisible ? styles.iconButtonActive : null]}
+                    onPress={onToggleSensorDisplay}
+                >
+                    <Icon
+                        name={isSensorDisplayVisible ? "information" : "information-off"}
+                        size={28}
+                        color={isSensorDisplayVisible ? "#fff" : "#9ca3af"}
+                    />
                 </TouchableOpacity>
             </View>
 

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent } from 'react-native';
 import { Camera } from 'react-native-vision-camera';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -12,17 +12,23 @@ import { useBorderDetection } from '../hooks/useBorderDetection';
 import { useImageAnalysis } from '../hooks/useImageAnalysis';
 import { useCapture } from '../hooks/useCapture';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
+import { usePermissions } from '../hooks/usePermissions';
+import { useThrottle } from '../hooks/useThrottle';
 import { useCaptureStore } from '../store/captureStore';
 import { CameraOverlay } from '../components/Camera/CameraOverlay';
 import { Loading } from '../components/UI/Loading';
 import { BorderGuide } from '../components/Camera/BorderGuide';
 import { CameraControls } from '../components/Camera/CameraControls';
+import { FocusIndicator } from '../components/Camera/FocusIndicator';
 import { SensorDisplay } from '../components/Sensors/SensorDisplay';
+import { AlignmentIndicator } from '../components/Sensors/AlignmentIndicator';
 import { WarningBanner } from '../components/Guides/WarningBanner';
+import { GuideOverlay } from '../components/Guides/GuideOverlay';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
 import { HistogramDisplay } from '../components/Camera/HistogramDisplay';
 import { ExposureMeter } from '../components/Camera/ExposureMeter';
 import { AUTO_CAPTURE_CONDITIONS } from '../constants';
+import { logger } from '../utils/logger';
 
 const { width, height } = Dimensions.get('window');
 
@@ -44,7 +50,7 @@ export const CaptureScreen: React.FC = () => {
         setFocusMode,
     } = useCamera();
 
-    const { sensorData, isShaking, lightLevel, getAlignment } = useSensors();
+    const { sensorData, isShaking, lightLevel, getAlignment, alignment } = useSensors();
     const { borderData, guideColor, updateBorderDetection } = useBorderDetection();
     const { analysis, analyzeImage } = useImageAnalysis();
     const { processCapture, isProcessing } = useCapture();
@@ -62,6 +68,11 @@ export const CaptureScreen: React.FC = () => {
     const [showBatchSelector, setShowBatchSelector] = useState(false);
     const [autoCapturePending, setAutoCapturePending] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
+
+    // New state for additional components
+    const [focusPoint, setFocusPoint] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
+    const [showGuide, setShowGuide] = useState(false);
+    const [showAlignmentIndicator, setShowAlignmentIndicator] = useState(true);
 
     const autoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -149,12 +160,12 @@ export const CaptureScreen: React.FC = () => {
     const updateWarnings = (frameAnalysis: any) => {
         const newWarnings: string[] = [];
 
-        // Border warnings
-        if (!borderData.detected) {
+        // Border warnings - use optional chaining for safety
+        if (!borderData?.detected) {
             newWarnings.push('Cassette not detected');
-        } else if (!borderData.isAligned) {
+        } else if (!borderData?.isAligned) {
             newWarnings.push('Align cassette with guide frame');
-        } else if (!borderData.isCentered) {
+        } else if (!borderData?.isCentered) {
             newWarnings.push('Center cassette in frame');
         }
 
@@ -215,42 +226,76 @@ export const CaptureScreen: React.FC = () => {
         try {
             setIsCapturing(true);
 
+            // Validate camera is ready before attempting capture
+            if (!device) {
+                throw new Error('No camera device available');
+            }
+
+            if (!config.isActive) {
+                throw new Error('Camera is not active - please wait for initialization');
+            }
+
             // Lock exposure (use manual value if set, otherwise auto/config)
-            await lockExposure(manualExposure !== 0 ? manualExposure : config.exposure);
-            await lockWhiteBalance();
+            try {
+                await lockExposure(manualExposure !== 0 ? manualExposure : config.exposure);
+                await lockWhiteBalance();
+            } catch (lockError) {
+                logger.warn('Could not lock exposure/white balance', lockError);
+                // Continue anyway - not critical
+            }
 
             // Capture photo
             Toast.show({
                 type: 'info',
                 text1: 'Capturing...',
+                visibilityTime: 1500,
             });
 
             const photo = await capturePhoto();
 
+            if (!photo || !photo.path) {
+                throw new Error('Photo capture returned empty result');
+            }
+
+            // Prepare metadata with fallbacks
+            const captureMetadata = {
+                ...metadata,
+                width: photo.width || 0,
+                height: photo.height || 0,
+            };
+
+            // Prepare analysis data with fallbacks
+            const analysisData = {
+                ...analysis,
+                borderCorners: borderData?.detected ? borderData.corners : null,
+            };
+
             // Process capture
-            const captureData = await processCapture(
+            const capturedData = await processCapture(
                 photo.path,
-                { ...metadata, width: photo.width, height: photo.height },
-                sensorData,
-                { ...analysis, borderCorners: borderData.detected ? borderData.corners : null }
+                captureMetadata,
+                sensorData || {},
+                analysisData
             );
 
-            if (captureData) {
-                captureData.captureMode = mode;
-                captureData.concentrationBatchId = selectedBatch?.id || '';
+            if (capturedData) {
+                capturedData.captureMode = mode;
+                capturedData.concentrationBatchId = selectedBatch?.id || '';
 
                 // Navigate to review screen
                 navigation.navigate('Review', {
-                    captureData,
+                    captureData: capturedData,
                     imageUri: photo.path,
                 });
+            } else {
+                throw new Error('Processing capture returned no data');
             }
-        } catch (error) {
-            console.error('Capture error:', error);
+        } catch (error: any) {
+            logger.error('Capture error', error);
             Toast.show({
                 type: 'error',
                 text1: 'Capture failed',
-                text2: String(error),
+                text2: error?.message || String(error),
             });
         } finally {
             setIsCapturing(false);
@@ -296,36 +341,58 @@ export const CaptureScreen: React.FC = () => {
         );
     }
 
+    // Tap-to-Focus Handler
+    const handleTapToFocus = useCallback(async (event: GestureResponderEvent) => {
+        try {
+            if (!cameraRef.current) return;
+
+            const { locationX, locationY } = event.nativeEvent;
+            console.log(`[Focus] Tapping at (${locationX}, ${locationY})`);
+
+            // Call the camera's focus method
+            await cameraRef.current.focus({ x: locationX, y: locationY });
+            console.log('[Focus] Focus set successfully');
+        } catch (e) {
+            console.warn('[Focus] Could not focus:', e);
+        }
+    }, [cameraRef]);
+
     return (
         <View style={styles.container}>
-            <Camera
-                ref={cameraRef}
+            {/* Tap-to-Focus Wrapper */}
+            <Pressable
                 style={StyleSheet.absoluteFill}
-                device={device}
-                isActive={config.isActive}
-                photo={true}
-                format={format}
-                pixelFormat="yuv"
-                fps={config.fps}
-                zoom={config.zoom}
-                exposure={config.exposure}
-                torch={config.torch}
-                lowLightBoost={config.lowLightBoost}
-                photoQualityBalance={config.photoQualityBalance}
-                frameProcessor={frameProcessor}
-                onInitialized={() => {
-                    console.log('Camera initialized!');
-                }}
-                onError={(e) => {
-                    console.error('Camera Runtime Error:', e);
-                    setCameraError(`Camera Error: ${e.message} (${e.code})`);
-                    Toast.show({
-                        type: 'error',
-                        text1: 'Camera Failed',
-                        text2: e.message
-                    });
-                }}
-            />
+                onPress={handleTapToFocus}
+            >
+                <Camera
+                    ref={cameraRef}
+                    style={StyleSheet.absoluteFill}
+                    device={device}
+                    isActive={config.isActive}
+                    photo={true}
+                    format={format}
+                    pixelFormat="yuv"
+                    fps={config.fps}
+                    zoom={config.zoom}
+                    exposure={config.exposure}
+                    torch={config.torch}
+                    lowLightBoost={config.lowLightBoost}
+                    photoQualityBalance={config.photoQualityBalance}
+                    frameProcessor={frameProcessor}
+                    onInitialized={() => {
+                        console.log('Camera initialized!');
+                    }}
+                    onError={(e) => {
+                        console.error('Camera Runtime Error:', e);
+                        setCameraError(`Camera Error: ${e.message} (${e.code})`);
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Camera Failed',
+                            text2: e.message
+                        });
+                    }}
+                />
+            </Pressable>
 
             {/* Border Guide */}
             <BorderGuide
@@ -375,6 +442,7 @@ export const CaptureScreen: React.FC = () => {
                 exposure={manualExposure}
                 onExposureChange={handleExposureChange}
                 supportsExposure={true} // Assuming device supports it or treating as "has slider"
+                isSensorDisplayVisible={showSensorDisplay}
             />
 
             {/* Batch Selector Modal */}
@@ -385,6 +453,34 @@ export const CaptureScreen: React.FC = () => {
                     onSelect={handleBatchSelect}
                 />
             )}
+
+            {/* Focus Indicator - shows tap-to-focus feedback */}
+            <FocusIndicator
+                x={focusPoint.x}
+                y={focusPoint.y}
+                visible={focusPoint.visible}
+            />
+
+            {/* Alignment Indicator - visual level indicator */}
+            {showAlignmentIndicator && alignment && (
+                <View style={styles.alignmentContainer}>
+                    <AlignmentIndicator alignment={alignment} />
+                </View>
+            )}
+
+            {/* Guide Overlay - help modal */}
+            <GuideOverlay
+                visible={showGuide}
+                onClose={() => setShowGuide(false)}
+            />
+
+            {/* Help Button */}
+            <TouchableOpacity
+                style={styles.helpButton}
+                onPress={() => setShowGuide(true)}
+            >
+                <Icon name="help-circle-outline" size={24} color="#fff" />
+            </TouchableOpacity>
 
             {/* Auto-capture indicator */}
             {autoCapturePending && (
@@ -450,5 +546,23 @@ const styles = StyleSheet.create({
     },
     spacer: {
         height: 10,
+    },
+    alignmentContainer: {
+        position: 'absolute',
+        bottom: 200,
+        left: 20,
+        zIndex: 10,
+    },
+    helpButton: {
+        position: 'absolute',
+        top: 50,
+        right: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
     },
 });

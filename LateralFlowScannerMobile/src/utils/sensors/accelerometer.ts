@@ -1,32 +1,67 @@
-import { AccelerometerData } from '../../types';
+/**
+ * Accelerometer Utilities - Worklet Compatible
+ */
 
-export const calculateMagnitude = (data: AccelerometerData): number => {
-    return Math.sqrt(data.x * data.x + data.y * data.y + data.z * data.z);
-};
+/**
+ * Check if device is shaking (Worklet-safe)
+ */
+export function detectShakeWorklet(
+    accelX: number,
+    accelY: number,
+    accelZ: number,
+    threshold: number = 2.5  // m/s² above gravity
+): { isShaking: boolean; magnitude: number } {
+    'worklet';
 
-export const isDeviceShaking = (data: AccelerometerData, threshold: number = 2.5): boolean => {
-    const magnitude = calculateMagnitude(data);
-    return magnitude > threshold;
-};
+    // Calculate total acceleration magnitude
+    const magnitude = Math.sqrt(accelX * accelX + accelY * accelY + accelZ * accelZ);
 
-export const calculateTilt = (data: AccelerometerData): { pitch: number; roll: number } => {
-    const pitch = Math.atan2(data.y, Math.sqrt(data.x * data.x + data.z * data.z)) * (180 / Math.PI);
-    const roll = Math.atan2(data.x, Math.sqrt(data.y * data.y + data.z * data.z)) * (180 / Math.PI);
+    // Subtract gravity (~9.81) to get movement acceleration
+    const movement = Math.abs(magnitude - 9.81);
+    const isShaking = movement > threshold;
 
-    return { pitch, roll };
-};
+    return { isShaking, magnitude: movement };
+}
 
-export const isDeviceStable = (
-    readings: AccelerometerData[],
-    threshold: number = 0.1
-): boolean => {
-    if (readings.length < 5) return false;
+/**
+ * Calculate device orientation from accelerometer (Worklet-safe)
+ */
+export function getOrientationFromAccelWorklet(
+    accelX: number,
+    accelY: number,
+    accelZ: number
+): { orientation: 'portrait' | 'landscape-left' | 'landscape-right' | 'upside-down' | 'face-up' | 'face-down'; tiltAngle: number } {
+    'worklet';
 
-    const recent = readings.slice(-5);
-    const magnitudes = recent.map(calculateMagnitude);
+    // Determine primary orientation
+    const absX = Math.abs(accelX);
+    const absY = Math.abs(accelY);
+    const absZ = Math.abs(accelZ);
 
-    const mean = magnitudes.reduce((a, b) => a + b, 0) / magnitudes.length;
-    const variance = magnitudes.reduce((sum, mag) => sum + Math.pow(mag - mean, 2), 0) / magnitudes.length;
+    let orientation: 'portrait' | 'landscape-left' | 'landscape-right' | 'upside-down' | 'face-up' | 'face-down';
 
-    return variance < threshold;
-};
+    if (absZ > absX && absZ > absY) {
+        orientation = accelZ < 0 ? 'face-up' : 'face-down';
+    } else if (absY > absX) {
+        orientation = accelY < 0 ? 'portrait' : 'upside-down';
+    } else {
+        orientation = accelX < 0 ? 'landscape-left' : 'landscape-right';
+    }
+
+    // Calculate tilt angle from vertical
+    const tiltAngle = Math.atan2(Math.sqrt(accelX * accelX + accelZ * accelZ), -accelY) * (180 / Math.PI);
+
+    return { orientation, tiltAngle };
+}
+
+/**
+ * Smooth accelerometer readings with low-pass filter (Worklet-safe)
+ */
+export function lowPassFilterWorklet(
+    currentValue: number,
+    previousValue: number,
+    alpha: number = 0.8  // Higher = more smoothing
+): number {
+    'worklet';
+    return alpha * previousValue + (1 - alpha) * currentValue;
+}

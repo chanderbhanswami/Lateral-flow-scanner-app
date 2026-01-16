@@ -1,42 +1,66 @@
-import { CameraDevice } from 'react-native-vision-camera';
+/**
+ * Camera Exposure Utilities - Worklet Compatible
+ * Helps calculate and recommend exposure settings
+ */
 
-export const calculateOptimalExposure = (
-    device: CameraDevice,
-    currentBrightness: number
-): number => {
-    // Calculate optimal exposure based on current brightness
-    const targetBrightness = 0.5; // 50% brightness
-    const difference = targetBrightness - currentBrightness;
+// Inline types
+interface ExposureSettings {
+    suggestedEV: number;
+    shouldAutoExpose: boolean;
+    recommendation: string;
+}
 
-    // Clamp to device capabilities
-    const minExposure = device.minExposure || -2;
-    const maxExposure = device.maxExposure || 2;
+/**
+ * Calculate suggested exposure value from current brightness (Worklet-safe)
+ */
+export function calculateExposureAdjustmentWorklet(
+    meanBrightness: number,
+    currentEV: number = 0
+): ExposureSettings {
+    'worklet';
 
-    let exposure = difference * 2; // Scale factor
-    exposure = Math.max(minExposure, Math.min(maxExposure, exposure));
+    // Target brightness (normalized 0-255)
+    const targetBrightness = 128;
+    const tolerance = 30;
 
-    return exposure;
-};
+    // Calculate how far we are from target
+    const delta = targetBrightness - meanBrightness;
+    const needsAdjustment = Math.abs(delta) > tolerance;
 
-export const calculateExposureCompensation = (
-    histogram: number[],
-    targetMean: number = 128
-): number => {
-    // Calculate mean brightness from histogram
-    let sum = 0;
-    let count = 0;
+    // Estimate EV adjustment needed
+    // Roughly: 1 EV = 2x brightness, so delta/128 ≈ EV change needed
+    const evAdjustment = (delta / 128) * 2;
+    const suggestedEV = currentEV + evAdjustment;
 
-    for (let i = 0; i < histogram.length; i++) {
-        sum += histogram[i] * i;
-        count += histogram[i];
+    // Clamp to typical range
+    const clampedEV = Math.max(-2, Math.min(2, suggestedEV));
+
+    let recommendation = 'Exposure is good';
+    if (meanBrightness < 80) {
+        recommendation = 'Increase exposure or add lighting';
+    } else if (meanBrightness > 200) {
+        recommendation = 'Decrease exposure or reduce lighting';
     }
 
-    const mean = count > 0 ? sum / count : 0;
-    const compensation = (targetMean - mean) / 128;
+    return {
+        suggestedEV: clampedEV,
+        shouldAutoExpose: !needsAdjustment,
+        recommendation
+    };
+}
 
-    return Math.max(-2, Math.min(2, compensation));
-};
+/**
+ * Convert EV to brightness multiplier (Worklet-safe)
+ */
+export function evToBrightnessMultiplierWorklet(ev: number): number {
+    'worklet';
+    return Math.pow(2, ev);
+}
 
-export const isExposureLocked = (exposure: number, targetExposure: number): boolean => {
-    return Math.abs(exposure - targetExposure) < 0.1;
-};
+/**
+ * Convert brightness multiplier to EV (Worklet-safe)
+ */
+export function brightnessMultiplierToEvWorklet(multiplier: number): number {
+    'worklet';
+    return Math.log2(multiplier);
+}

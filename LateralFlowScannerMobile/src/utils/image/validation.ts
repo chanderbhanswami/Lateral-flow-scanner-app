@@ -1,60 +1,140 @@
-import RNFS from 'react-native-fs';
-import { VALIDATION_CONSTANTS } from '../../constants';
+/**
+ * Image Validation Utilities - Mixed Worklet/JS
+ */
 
-export const validateImageFile = async (uri: string): Promise<{
-    valid: boolean;
+// Inline types
+interface ValidationResult {
+    isValid: boolean;
     errors: string[];
-}> => {
-    const errors: string[] = [];
+    warnings: string[];
+}
 
-    try {
-        // Check if file exists
-        const exists = await RNFS.exists(uri);
-        if (!exists) {
-            errors.push('Image file does not exist');
-            return { valid: false, errors };
-        }
-
-        // Check file size
-        const stat = await RNFS.stat(uri);
-        const sizeInMB = stat.size / (1024 * 1024);
-
-        if (sizeInMB > VALIDATION_CONSTANTS.IMAGE.MAX_SIZE_MB) {
-            errors.push(`Image size exceeds ${VALIDATION_CONSTANTS.IMAGE.MAX_SIZE_MB}MB`);
-        }
-
-        // Check file extension
-        const extension = uri.split('.').pop()?.toLowerCase();
-        if (extension && !VALIDATION_CONSTANTS.IMAGE.ALLOWED_FORMATS.includes(extension)) {
-            errors.push('Invalid image format');
-        }
-
-        return {
-            valid: errors.length === 0,
-            errors,
-        };
-    } catch (error) {
-        errors.push('Failed to validate image file');
-        return { valid: false, errors };
-    }
-};
-
-export const validateImageDimensions = (
+/**
+ * Validate image dimensions (Worklet-safe)
+ */
+export function validateDimensionsWorklet(
     width: number,
-    height: number
-): { valid: boolean; errors: string[] } => {
-    const errors: string[] = [];
+    height: number,
+    minWidth: number = 640,
+    minHeight: number = 480,
+    maxWidth: number = 8000,
+    maxHeight: number = 8000
+): { valid: boolean; error?: string } {
+    'worklet';
 
-    if (width < VALIDATION_CONSTANTS.IMAGE.MIN_WIDTH) {
-        errors.push(`Image width must be at least ${VALIDATION_CONSTANTS.IMAGE.MIN_WIDTH}px`);
+    if (width < minWidth || height < minHeight) {
+        return { valid: false, error: `Image too small: ${width}x${height}` };
     }
 
-    if (height < VALIDATION_CONSTANTS.IMAGE.MIN_HEIGHT) {
-        errors.push(`Image height must be at least ${VALIDATION_CONSTANTS.IMAGE.MIN_HEIGHT}px`);
+    if (width > maxWidth || height > maxHeight) {
+        return { valid: false, error: `Image too large: ${width}x${height}` };
+    }
+
+    return { valid: true };
+}
+
+/**
+ * Validate aspect ratio for cassette (Worklet-safe)
+ */
+export function validateAspectRatioWorklet(
+    width: number,
+    height: number,
+    targetRatio: number = 3.5,
+    tolerance: number = 1.0
+): { valid: boolean; actualRatio: number; error?: string } {
+    'worklet';
+
+    const actualRatio = height > width ? height / width : width / height;
+    const diff = Math.abs(actualRatio - targetRatio);
+
+    if (diff > tolerance) {
+        return {
+            valid: false,
+            actualRatio,
+            error: `Aspect ratio ${actualRatio.toFixed(2)} differs from expected ${targetRatio}`
+        };
+    }
+
+    return { valid: true, actualRatio };
+}
+
+/**
+ * Full image validation (JS context)
+ */
+export function validateImageJS(
+    width: number,
+    height: number,
+    fileSize: number,
+    format: string
+): ValidationResult {
+    const errors: string[] = [];
+    const warnings: string[] = [];
+
+    // Check dimensions
+    if (width < 640 || height < 480) {
+        errors.push('Resolution too low for accurate analysis');
+    }
+
+    // Check file size
+    if (fileSize < 10000) {
+        errors.push('File too small - may be corrupted');
+    }
+    if (fileSize > 50 * 1024 * 1024) {
+        warnings.push('Large file size - may slow processing');
+    }
+
+    // Check format
+    const validFormats = ['jpg', 'jpeg', 'png', 'heic', 'heif'];
+    if (!validFormats.includes(format.toLowerCase())) {
+        errors.push(`Unsupported format: ${format}`);
+    }
+
+    // Check aspect ratio
+    const ratio = Math.max(width, height) / Math.min(width, height);
+    if (ratio > 5) {
+        warnings.push('Unusual aspect ratio detected');
     }
 
     return {
-        valid: errors.length === 0,
+        isValid: errors.length === 0,
         errors,
+        warnings
     };
-};
+}
+
+/**
+ * Validate capture conditions (Worklet-safe)
+ */
+export function validateCaptureConditionsWorklet(
+    isBlurry: boolean,
+    isUnderexposed: boolean,
+    isOverexposed: boolean,
+    hasShadow: boolean,
+    hasReflection: boolean,
+    isBorderDetected: boolean
+): { canCapture: boolean; blockingIssues: string[] } {
+    'worklet';
+
+    const blockingIssues: string[] = [];
+
+    if (isBlurry) {
+        blockingIssues.push('Image is too blurry');
+    }
+
+    if (isUnderexposed) {
+        blockingIssues.push('Image is underexposed');
+    }
+
+    if (isOverexposed) {
+        blockingIssues.push('Image is overexposed');
+    }
+
+    // These are warnings but don't block capture
+    // if (hasShadow) blockingIssues.push('Shadow detected');
+    // if (hasReflection) blockingIssues.push('Reflection detected');
+
+    return {
+        canCapture: blockingIssues.length === 0,
+        blockingIssues
+    };
+}

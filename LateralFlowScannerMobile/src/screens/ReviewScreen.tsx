@@ -1,15 +1,17 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, Text, Image, TextInput, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
 import { ReviewScreenProps } from '../types';
 import { useCapture } from '../hooks/useCapture';
+import { useMetadata } from '../hooks/useMetadata';
 import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { Input } from '../components/UI/Input';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
+import { logger } from '../utils/logger';
 
 export const ReviewScreen: React.FC = () => {
     const navigation = useNavigation<ReviewScreenProps['navigation']>();
@@ -17,10 +19,16 @@ export const ReviewScreen: React.FC = () => {
     const { captureData, imageUri } = route.params;
 
     const { uploadCapture, isUploading } = useCapture();
-    const { batches } = useConcentrationBatch(); // Get all batches to find the selected one
+    const { batches } = useConcentrationBatch();
+    const { extractExif, formatMetadata, exifData, isLoading: isMetadataLoading } = useMetadata();
 
     const [concentration, setConcentration] = useState(captureData.concentration || '');
     const [notes, setNotes] = useState(captureData.notes || '');
+
+    // Extract EXIF on mount
+    useEffect(() => {
+        extractExif(imageUri);
+    }, [imageUri]);
 
     // Manage batch selection
     const initialBatch = batches.find(b => b.id === captureData.concentrationBatchId);
@@ -32,8 +40,9 @@ export const ReviewScreen: React.FC = () => {
             const updatedData = {
                 ...captureData,
                 concentration,
-                concentrationBatchId: selectedBatch?.id || undefined, // Ensure updated batch ID is sent
+                concentrationBatchId: selectedBatch?.id || undefined,
                 notes,
+                exifData: exifData || captureData.exifData, // Include extracted EXIF
             };
 
             await uploadCapture(updatedData, imageUri);
@@ -44,10 +53,9 @@ export const ReviewScreen: React.FC = () => {
                 text2: 'Capture has been saved',
             });
 
-            // Navigate back to capture screen
             navigation.navigate('Capture');
         } catch (error) {
-            console.error('Upload error:', error);
+            logger.error('Upload error', error);
             Toast.show({
                 type: 'error',
                 text1: 'Upload failed',
