@@ -12,6 +12,5 @@ const config = {
     },
 };
 
-const { wrapWithSentryConfig } = require('@sentry/react-native/metro');
 
-module.exports = wrapWithSentryConfig(mergeConfig(getDefaultConfig(__dirname), config));
+module.exports = mergeConfig(getDefaultConfig(__dirname), config);
