@@ -230,9 +230,9 @@ export const CaptureScreen: React.FC = () => {
             // Process capture
             const captureData = await processCapture(
                 photo.path,
-                metadata,
+                { ...metadata, width: photo.width, height: photo.height },
                 sensorData,
-                analysis
+                { ...analysis, borderCorners: borderData.detected ? borderData.corners : null }
             );
 
             if (captureData) {
@@ -313,7 +313,18 @@ export const CaptureScreen: React.FC = () => {
                 lowLightBoost={config.lowLightBoost}
                 photoQualityBalance={config.photoQualityBalance}
                 frameProcessor={frameProcessor}
-
+                onInitialized={() => {
+                    console.log('Camera initialized!');
+                }}
+                onError={(e) => {
+                    console.error('Camera Runtime Error:', e);
+                    setCameraError(`Camera Error: ${e.message} (${e.code})`);
+                    Toast.show({
+                        type: 'error',
+                        text1: 'Camera Failed',
+                        text2: e.message
+                    });
+                }}
             />
 
             {/* Border Guide */}

@@ -417,7 +417,7 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void perspectiveCorrection(String base64Image, WritableArray corners, Promise promise) {
+    public void cropImage(String imagePath, WritableArray corners, Promise promise) {
         try {
             if (!openCVInitialized) {
                 promise.reject("OPENCV_ERROR", "OpenCV not initialized");
@@ -429,8 +429,12 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
                 return;
             }
 
-            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
-            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+            // Read directly from file path
+            Bitmap bitmap = BitmapFactory.decodeFile(imagePath);
+            if (bitmap == null) {
+                promise.reject("ERROR", "Could not decode file: " + imagePath);
+                return;
+            }
 
             Mat mat = new Mat();
             Utils.bitmapToMat(bitmap, mat);
@@ -474,11 +478,19 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
                     Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(corrected, correctedBitmap);
 
-            // Convert to base64
-            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-            correctedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, byteArrayOutputStream);
-            byte[] byteArray = byteArrayOutputStream.toByteArray();
-            String encoded = Base64.encodeToString(byteArray, Base64.DEFAULT);
+            // Save to new file path
+            String outputPath = imagePath.replace(".jpg", "_cropped.jpg");
+            // Handle if extension wasn't .jpg
+            if (outputPath.equals(imagePath)) {
+                outputPath = imagePath + "_cropped.jpg";
+            }
+
+            java.io.File file = new java.io.File(outputPath);
+            java.io.FileOutputStream fOut = new java.io.FileOutputStream(file);
+
+            correctedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fOut);
+            fOut.flush();
+            fOut.close();
 
             // Cleanup
             mat.release();
@@ -487,7 +499,9 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             dstMat.release();
             transform.release();
 
-            promise.resolve(encoded);
+            // Return the new file path
+            promise.resolve(outputPath);
+
         } catch (Exception e) {
             promise.reject("ERROR", e.getMessage());
         }

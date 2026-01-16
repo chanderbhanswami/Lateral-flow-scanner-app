@@ -28,8 +28,18 @@ export const useCapture = () => {
     ) => {
         setIsProcessing(true);
         try {
-            const capture = await captureService.createCaptureData(
+            // 1. Perform Crop
+            const corners = analysis.borderCorners || null;
+            const croppedUri = await captureService.cropCapture(
                 imageUri,
+                corners,
+                metadata.width,
+                metadata.height
+            );
+
+            // 2. Create Data with Cropped Image
+            const capture = await captureService.createCaptureData(
+                croppedUri,
                 metadata,
                 sensorData,
                 analysis

@@ -8,10 +8,15 @@ export const useCustomFrameProcessor = (
     onBorderDetected: (corners: Array<{ x: number; y: number }>) => void,
     onQualityAnalysis: (analysis: any) => void
 ) => {
-    // Create worklet-callable version of callback using worklets-core
+    // Create worklet-callable version of callbacks using worklets-core
     const runOnJsBorderDetected = useMemo(
         () => Worklets.createRunOnJS(onBorderDetected),
         [onBorderDetected]
+    );
+
+    const runOnJsQualityAnalysis = useMemo(
+        () => Worklets.createRunOnJS(onQualityAnalysis),
+        [onQualityAnalysis]
     );
 
     // Get the resize plugin instance
@@ -49,7 +54,89 @@ export const useCustomFrameProcessor = (
             const gray = cv.createObject(cv.ObjectType.Mat);
             cv.invoke('cvtColor', src, gray, cv.COLOR_RGBA2GRAY);
 
-            // 4. Blur (reduce noise)
+            // --- Quality Analysis ---
+
+            // 1. Blur Detection (Laplacian Variance)
+            const laplacian = cv.createObject(cv.ObjectType.Mat);
+            cv.invoke('Laplacian', gray, laplacian, cv.CV_8U);
+
+            const meanStdDevMean = cv.createObject(cv.ObjectType.Mat);
+            const meanStdDevStd = cv.createObject(cv.ObjectType.Mat);
+            cv.invoke('meanStdDev', laplacian, meanStdDevMean, meanStdDevStd);
+
+            // Extract variance (stdDev^2)
+            const stdDevVal = cv.toJSValue(meanStdDevStd);
+            const stdDev = (stdDevVal.val && stdDevVal.val[0]) ? stdDevVal.val[0] : 0;
+            const laplacianVariance = stdDev * stdDev;
+            const isBlurry = laplacianVariance < 50;
+
+            // 2. Histogram & Exposure (Manual Loop for Control)
+            const width = 640;
+            const height = 480;
+            const brightnessHist = new Array(256).fill(0);
+            const redHist = new Array(256).fill(0);
+            const greenHist = new Array(256).fill(0);
+            const blueHist = new Array(256).fill(0);
+
+            let sumBrightness = 0;
+            let pixelCount = 0;
+            const step = 8; // Sampling for speed
+
+            for (let i = 0; i < resized.length; i += step) {
+                const r = resized[i];
+                const g = resized[i + 1];
+                const b = resized[i + 2];
+                const br = Math.round((r + g + b) / 3);
+
+                redHist[r]++;
+                greenHist[g]++;
+                blueHist[b]++;
+                brightnessHist[br]++;
+
+                sumBrightness += br;
+                pixelCount++;
+            }
+
+            const meanBrightness = sumBrightness / pixelCount;
+
+            // Exposure Checks
+            const isUnderexposed = meanBrightness < 80;
+            const isOverexposed = meanBrightness > 200;
+
+            // Reflection: Significant pixels in 250-255 range
+            let highLightPixels = 0;
+            for (let i = 240; i < 256; i++) highLightPixels += brightnessHist[i];
+            const hasReflection = (highLightPixels / pixelCount) > 0.05;
+
+            // Shadow: Significant pixels in 0-20 range
+            let shadowPixels = 0;
+            for (let i = 0; i < 20; i++) shadowPixels += brightnessHist[i];
+            const hasShadow = (shadowPixels / pixelCount) > 0.15;
+
+            const analysisResult = {
+                blurAnalysis: {
+                    isBlurry: isBlurry,
+                    blurScore: laplacianVariance
+                },
+                exposureAnalysis: {
+                    isUnderexposed: isUnderexposed,
+                    isOverexposed: isOverexposed,
+                    exposureValue: meanBrightness
+                },
+                shadowAnalysis: { hasShadow: hasShadow },
+                reflectionAnalysis: { hasReflection: hasReflection },
+                histogram: {
+                    brightness: brightnessHist,
+                    red: redHist,
+                    green: greenHist,
+                    blue: blueHist
+                }
+            };
+
+            runOnJsQualityAnalysis(analysisResult);
+
+
+            // 4. Blur for edge detection (Pre-processing for Canny)
             cv.invoke('GaussianBlur', gray, gray, { width: 5, height: 5 }, 0);
 
             // 5. Canny Edge Detection
@@ -80,7 +167,6 @@ export const useCustomFrameProcessor = (
                 // Convert to JS object to get properties
                 const rectData = cv.toJSValue(rotatedRect);
 
-                // Extract properties - handle different possible structures
                 const center = rectData.center || { x: rectData.centerX, y: rectData.centerY };
                 const size = rectData.size || { width: rectData.width, height: rectData.height };
                 const ang = rectData.angle !== undefined ? rectData.angle : 0;
@@ -94,7 +180,6 @@ export const useCustomFrameProcessor = (
                 if (rectArea > maxArea) {
                     maxArea = rectArea;
 
-                    // Calculate 4 corners from Rotated Rect properties
                     const angleRad = ang * (Math.PI / 180);
                     const cosA = Math.cos(angleRad);
                     const sinA = Math.sin(angleRad);
@@ -120,15 +205,13 @@ export const useCustomFrameProcessor = (
             // Clean up OpenCV memory
             cv.clearBuffers();
 
-            if (bestCorners) {
-                runOnJsBorderDetected(bestCorners);
-            }
+            // Always update detection state - pass empty array if null
+            runOnJsBorderDetected(bestCorners || []);
 
         } catch (error) {
-            // Silently ignore errors to prevent crashing the camera
-            // console.error('Frame processor error:', error);
+            console.error('Frame processor error:', error);
         }
-    }, [runOnJsBorderDetected]);
+    }, [runOnJsBorderDetected, runOnJsQualityAnalysis, resize]);
 
     return frameProcessor;
 };

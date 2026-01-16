@@ -172,6 +172,9 @@ dependencies {
     implementation("com.facebook.react:react-android")
     
     // Note: VisionCamera and other React Native libraries are auto-linked
+    
+    // VisionCamera: Manual implementation because we disabled autolinking to fix build loop
+    implementation project(':react-native-vision-camera')
 
     // OpenCV - commented out as it requires manual setup
     // OpenCV (via QuickBirdStudios wrapper for easy integration)
