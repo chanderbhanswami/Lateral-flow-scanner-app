@@ -11,27 +11,39 @@ class Logger {
         if (__DEV__) {
             console.info(`[INFO] ${message}`, data);
         }
-        Sentry.addBreadcrumb({
-            category: 'info',
-            message,
-            data,
-            level: 'info',
-        });
+        try {
+            Sentry.addBreadcrumb({
+                category: 'info',
+                message,
+                data,
+                level: 'info',
+            });
+        } catch (e) {
+            // Sentry might not be initialized or native module missing
+        }
     }
 
     warn(message: string, data?: any) {
         console.warn(`[WARN] ${message}`, data);
-        Sentry.addBreadcrumb({
-            category: 'warning',
-            message,
-            data,
-            level: 'warning',
-        });
+        try {
+            Sentry.addBreadcrumb({
+                category: 'warning',
+                message,
+                data,
+                level: 'warning',
+            });
+        } catch (e) {
+            // Sentry error
+        }
     }
 
     error(message: string, error?: any) {
         console.error(`[ERROR] ${message}`, error);
-        Sentry.captureException(error || new Error(message));
+        try {
+            Sentry.captureException(error || new Error(message));
+        } catch (e) {
+            // Sentry error
+        }
     }
 }
 
