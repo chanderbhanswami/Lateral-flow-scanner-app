@@ -1,4 +1,8 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
 buildscript {
+    // Shorten build paths to avoid Windows 260 char limit
+    ext.buildRoot = "D:/rn-build" 
     ext {
         buildToolsVersion = "36.0.0"
         minSdkVersion = 24
@@ -59,6 +63,14 @@ subprojects {
                 cmake {
                     arguments "-Dhermes-engine_DIR=${rootDir}/app/cmake"
                 }
+            }
+        }
+        
+        // Configure externalNativeBuild outside of defaultConfig
+        project.android.externalNativeBuild {
+            cmake {
+                // Force short build path for CMake to avoid Windows 260 limit
+                buildStagingDirectory "D:/rn-build/cxx/${project.name}"
             }
         }
     }

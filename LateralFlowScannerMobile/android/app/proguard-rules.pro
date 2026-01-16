@@ -9,3 +9,11 @@
 
 # Add any project specific keep options here:
 -keep class com.lateralflowscannermobile.BuildConfig { *; }
+
+# VisionCamera Resize Plugin Compatibility
+# Workaround for compileOnly dependency to avoid R8 errors
+-dontwarn com.mrousavy.camera.**
+-keep class com.mrousavy.camera.** { *; }
+-keep interface com.mrousavy.camera.** { *; }
+-keep class com.visioncameraresizeplugin.** { *; }
+
