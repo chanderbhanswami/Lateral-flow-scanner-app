@@ -38,20 +38,38 @@ export const useCustomFrameProcessor = (
     const frameProcessor = useFrameProcessor((frame) => {
         'worklet';
 
-        const cv = OpenCV as any;
-
         try {
-            if (!cv) return;
+            const cv = OpenCV as any;
+
+            // Defensive check: Skip if OpenCV is not ready
+            if (!cv || !cv.frameBufferToMat) {
+                return;
+            }
+
+            // Defensive check: Skip if resize is not available
+            if (!resize) {
+                return;
+            }
 
             // 1. Resize frame for better performance (smaller = faster processing)
-            const resized = resize(frame, {
-                scale: {
-                    width: 640,
-                    height: 480,
-                },
-                pixelFormat: 'rgba',
-                dataType: 'uint8',
-            });
+            let resized;
+            try {
+                resized = resize(frame, {
+                    scale: {
+                        width: 640,
+                        height: 480,
+                    },
+                    pixelFormat: 'rgba',
+                    dataType: 'uint8',
+                });
+            } catch (resizeError) {
+                // Silently skip this frame if resize fails
+                return;
+            }
+
+            if (!resized) {
+                return;
+            }
 
             const frameWidth = 640;
             const frameHeight = 480;

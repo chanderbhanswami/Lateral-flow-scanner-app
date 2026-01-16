@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, StyleSheet, Dimensions } from 'react-native';
 import Svg, { Rect, Line, Path } from 'react-native-svg';
 import {
@@ -58,12 +59,12 @@ export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDete
 
                         {/* Sample Well (Circle/Oval at bottom) */}
                         <Rect
-                            x={GUIDE_X + (CASSETTE_WIDTH / 2) - SAMPLE_WELL_radius}
+                            x={GUIDE_X + (CASSETTE_WIDTH / 2) - SAMPLE_WELL_RADIUS}
                             y={GUIDE_Y + SAMPLE_WELL_Y_OFFSET}
-                            width={SAMPLE_WELL_radius * 2}
-                            height={SAMPLE_WELL_radius * 2}
-                            rx={SAMPLE_WELL_radius}
-                            ry={SAMPLE_WELL_radius}
+                            width={SAMPLE_WELL_RADIUS * 2}
+                            height={SAMPLE_WELL_RADIUS * 2}
+                            rx={SAMPLE_WELL_RADIUS}
+                            ry={SAMPLE_WELL_RADIUS}
                             stroke={color}
                             strokeWidth={2}
                             fill="none"

@@ -37,17 +37,24 @@ export const SettingsScreen: React.FC = () => {
     }>({ visible: false, title: '', message: '', type: 'info' });
 
     useEffect(() => {
+        console.log('[SettingsScreen] Mounting...');
         // Load settings
         const loadSettings = async () => {
-            const savedAutoCapture = await storageService.getSetting<boolean>('autoCapture');
-            const savedShowSensorData = await storageService.getSetting<boolean>('showSensorData');
-            const savedEnableVibration = await storageService.getSetting<boolean>('enableVibration');
-            const savedHighQualityMode = await storageService.getSetting<boolean>('highQualityMode');
+            try {
+                console.log('[SettingsScreen] Loading settings...');
+                const savedAutoCapture = await storageService.getSetting<boolean>('autoCapture');
+                const savedShowSensorData = await storageService.getSetting<boolean>('showSensorData');
+                const savedEnableVibration = await storageService.getSetting<boolean>('enableVibration');
+                const savedHighQualityMode = await storageService.getSetting<boolean>('highQualityMode');
 
-            setAutoCapture(savedAutoCapture === true || savedAutoCapture === null ? true : false);
-            setShowSensorData(savedShowSensorData === true || savedShowSensorData === null ? true : false);
-            setEnableVibration(savedEnableVibration === true || savedEnableVibration === null ? true : false);
-            setHighQualityMode(savedHighQualityMode === true || savedHighQualityMode === null ? true : false);
+                setAutoCapture(savedAutoCapture === true || savedAutoCapture === null ? true : false);
+                setShowSensorData(savedShowSensorData === true || savedShowSensorData === null ? true : false);
+                setEnableVibration(savedEnableVibration === true || savedEnableVibration === null ? true : false);
+                setHighQualityMode(savedHighQualityMode === true || savedHighQualityMode === null ? true : false);
+                console.log('[SettingsScreen] Settings loaded successfully');
+            } catch (error) {
+                console.error('[SettingsScreen] Error loading settings:', error);
+            }
         };
         loadSettings();
 
