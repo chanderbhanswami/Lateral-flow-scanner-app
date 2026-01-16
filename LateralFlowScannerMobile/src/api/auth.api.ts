@@ -103,6 +103,14 @@ export const authApi = {
         return response.data!;
     },
 
+    async verifyLoginOTP(data: VerifyEmailRequest): Promise<LoginResponse> {
+        const response = await apiClient.post<ApiResponse<LoginResponse>>(
+            API_ENDPOINTS.AUTH.VERIFY_LOGIN_OTP,
+            data
+        );
+        return (response as any).data ?? response as unknown as LoginResponse;
+    },
+
     // ==========================================
     // Password Reset
     // ==========================================

@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
 
         // Email Verification
         VERIFY_EMAIL: '/auth/verify-email',
+        VERIFY_LOGIN_OTP: '/auth/verify-login-otp',
         RESEND_VERIFICATION: '/auth/resend-verification',
 
         // Password Reset

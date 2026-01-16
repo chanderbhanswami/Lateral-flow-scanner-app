@@ -30,6 +30,7 @@ router.post('/facebook', validateRequest(facebookAuthSchema), authController.fac
 
 // Email Verification
 router.post('/verify-email', validateRequest(verifyEmailSchema), authController.verifyEmail);
+router.post('/verify-login-otp', validateRequest(verifyEmailSchema), authController.verifyLoginOTP);
 router.post('/resend-verification', authController.resendVerificationOTP);
 
 // Password Reset (unauthenticated)

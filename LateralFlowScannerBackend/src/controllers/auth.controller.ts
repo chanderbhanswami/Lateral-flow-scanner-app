@@ -143,35 +143,76 @@ export const authController = {
                 throw new ApiError(423, 'Account temporarily locked. Try again later.', 'ACCOUNT_LOCKED');
             }
 
-            // Check if active
-            if (!user.isActive) {
-                throw new ApiError(403, 'Account is deactivated', 'ACCOUNT_INACTIVE');
-            }
-
-            // Check if email is verified (mandatory for email auth)
-            if (!user.isEmailVerified) {
-                // Resend OTP and inform user to verify
-                const otp = user.generateEmailVerificationOTP();
-                await user.save();
-
-                try {
-                    await emailService.sendVerificationEmail(user.email, user.name, otp);
-                } catch (emailError) {
-                    logger.error('Failed to resend verification email:', emailError);
-                }
-
-                throw new ApiError(403, 'Please verify your email first. A new OTP has been sent.', 'EMAIL_NOT_VERIFIED');
-            }
-
-            // Verify password
+            // Verify password first
             const isMatch = await user.comparePassword(password);
             if (!isMatch) {
                 await user.incrementLoginAttempts();
                 throw new ApiError(401, 'Invalid credentials', 'INVALID_CREDENTIALS');
             }
 
-            // Reset login attempts
+            // Reset login attempts after successful password verification
             await user.resetLoginAttempts();
+
+            // Generate login OTP (always required for email login)
+            const otp = user.generateEmailVerificationOTP();
+            await user.save();
+
+            // Send login OTP email
+            try {
+                await emailService.sendVerificationEmail(user.email, user.name, otp);
+            } catch (emailError) {
+                logger.error('Failed to send login OTP:', emailError);
+                throw new ApiError(500, 'Failed to send verification code. Please try again.', 'EMAIL_SEND_FAILED');
+            }
+
+            // Return pending status - user must verify OTP to complete login
+            res.json({
+                success: true,
+                message: 'OTP sent to your email. Please verify to complete login.',
+                data: {
+                    requiresOTP: true,
+                    email: user.email,
+                    isEmailVerified: user.isEmailVerified,
+                },
+            });
+        } catch (error) {
+            next(error);
+        }
+    },
+
+    // ==========================================
+    // Verify Login OTP (Complete Login)
+    // ==========================================
+    async verifyLoginOTP(req: Request, res: Response, next: NextFunction) {
+        try {
+            const { email, otp } = req.body;
+
+            if (!email || !otp) {
+                throw new ApiError(400, 'Email and OTP are required', 'MISSING_FIELDS');
+            }
+
+            // Hash OTP for comparison
+            const hashedOTP = crypto.createHash('sha256').update(otp).digest('hex');
+
+            const user = await User.findOne({
+                email,
+                emailVerificationOTP: hashedOTP,
+                emailVerificationOTPExpires: { $gt: new Date() },
+            }).select('+emailVerificationOTP +emailVerificationOTPExpires');
+
+            if (!user) {
+                throw new ApiError(400, 'Invalid or expired OTP', 'INVALID_OTP');
+            }
+
+            // Clear OTP fields
+            user.emailVerificationOTP = undefined;
+            user.emailVerificationOTPExpires = undefined;
+
+            // If user wasn't verified yet, verify and activate them now
+            if (!user.isEmailVerified) {
+                user.isEmailVerified = true;
+                user.isActive = true;
+            }
 
             // Generate tokens
             const { accessToken, refreshToken } = generateTokens(user._id.toString());
@@ -200,6 +241,7 @@ export const authController = {
 
             res.json({
                 success: true,
+                message: 'Login successful',
                 data: {
                     user: {
                         id: user._id,

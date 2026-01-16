@@ -19,7 +19,7 @@ export type AuthStackParamList = {
     Login: undefined;
     Register: undefined;
     ForgotPassword: undefined;
-    OTPVerification: { email: string; type: 'registration' | 'password_reset' };
+    OTPVerification: { email: string; type: 'registration' | 'password_reset' | 'login' };
     ResetPassword: { email?: string; token?: string; otp?: string };
 };
 

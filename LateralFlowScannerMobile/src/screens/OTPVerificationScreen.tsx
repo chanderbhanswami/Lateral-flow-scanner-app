@@ -18,11 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
+import { useAuthStore } from '../store/authStore';
 import { AuthStackParamList, MainStackParamList } from '../navigation/types';
 
 interface RouteParams {
     email: string;
-    type: 'registration' | 'password_reset';
+    type: 'registration' | 'password_reset' | 'login';
 }
 
 const OTP_LENGTH = 6;
@@ -36,6 +37,7 @@ export const OTPVerificationScreen: React.FC = () => {
     const route = useRoute();
     const insets = useSafeAreaInsets();
     const { email, type } = (route.params as RouteParams) || { email: '', type: 'registration' };
+    const { verifyLoginOTP } = useAuthStore();
 
     const [otp, setOtp] = useState<string[]>(Array(OTP_LENGTH).fill(''));
     const [loading, setLoading] = useState(false);
@@ -97,6 +99,11 @@ export const OTPVerificationScreen: React.FC = () => {
                 Toast.show({ type: 'success', text1: 'Email Verified!', text2: 'Your account is now active' });
                 // @ts-ignore - navigating to a different stack
                 navigation.navigate('Home');
+            } else if (type === 'login') {
+                // Login OTP verification - this logs the user in
+                await verifyLoginOTP(email, code);
+                Toast.show({ type: 'success', text1: 'Welcome back!', text2: 'Login successful' });
+                // Navigation will happen automatically via auth state change
             } else {
                 // Password reset flow - navigate to reset password screen
                 navigation.navigate('ResetPassword', { email, otp: code });
@@ -117,7 +124,7 @@ export const OTPVerificationScreen: React.FC = () => {
 
         setResendLoading(true);
         try {
-            if (type === 'registration') {
+            if (type === 'registration' || type === 'login') {
                 await authService.resendVerificationOTP(email);
             } else {
                 await authService.forgotPassword(email);

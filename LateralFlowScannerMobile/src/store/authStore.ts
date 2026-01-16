@@ -9,9 +9,11 @@ interface AuthState {
     isLoading: boolean;
     isEmailVerified: boolean;
     pendingVerificationEmail: string | null;
+    pendingLoginOTP: boolean; // New: indicates OTP verification is pending
 
     // Auth actions
-    login: (credentials: LoginRequest) => Promise<void>;
+    login: (credentials: LoginRequest) => Promise<{ requiresOTP: boolean }>;
+    verifyLoginOTP: (email: string, otp: string) => Promise<void>;
     register: (data: { email: string; password: string; name: string; inviteCode: string }) => Promise<void>;
     loginWithGoogle: (data: GoogleAuthRequest) => Promise<void>;
     loginWithFacebook: (data: FacebookAuthRequest) => Promise<void>;
@@ -33,18 +35,49 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: true,
     isEmailVerified: true,
     pendingVerificationEmail: null,
+    pendingLoginOTP: false,
 
     login: async (credentials) => {
         try {
             const response = await authApi.login(credentials);
+
+            // Check if OTP verification is required (new flow)
+            if ((response as any).requiresOTP) {
+                set({
+                    pendingVerificationEmail: (response as any).email || credentials.email,
+                    pendingLoginOTP: true,
+                });
+                return { requiresOTP: true };
+            }
+
+            // Legacy: direct login (OAuth returns tokens directly)
             await storageService.saveTokens(response.accessToken, response.refreshToken);
             set({
                 user: response.user,
                 isAuthenticated: true,
-                isEmailVerified: response.user.isEmailVerified ?? true,
+                isEmailVerified: response.user?.isEmailVerified ?? true,
+                pendingLoginOTP: false,
             });
+            return { requiresOTP: false };
         } catch (error) {
             console.error('Login error:', error);
+            throw error;
+        }
+    },
+
+    verifyLoginOTP: async (email: string, otp: string) => {
+        try {
+            const response = await authApi.verifyLoginOTP({ email, otp });
+            await storageService.saveTokens(response.accessToken, response.refreshToken);
+            set({
+                user: response.user,
+                isAuthenticated: true,
+                isEmailVerified: true,
+                pendingVerificationEmail: null,
+                pendingLoginOTP: false,
+            });
+        } catch (error) {
+            console.error('Verify login OTP error:', error);
             throw error;
         }
     },
@@ -52,13 +85,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     register: async (data) => {
         try {
             const response = await authApi.register(data);
-            await storageService.saveTokens(response.accessToken, response.refreshToken);
-            set({
-                user: response.user,
-                isAuthenticated: true,
-                isEmailVerified: false,
-                pendingVerificationEmail: data.email,
-            });
+
+            // New flow: registration doesn't return tokens, requires verification
+            if ((response as any).requiresVerification) {
+                set({
+                    pendingVerificationEmail: data.email,
+                    pendingLoginOTP: false,
+                    isEmailVerified: false,
+                });
+                return;
+            }
+
+            // Legacy: if tokens are returned
+            if (response.accessToken) {
+                await storageService.saveTokens(response.accessToken, response.refreshToken);
+                set({
+                    user: response.user,
+                    isAuthenticated: true,
+                    isEmailVerified: false,
+                    pendingVerificationEmail: data.email,
+                });
+            }
         } catch (error) {
             console.error('Register error:', error);
             throw error;

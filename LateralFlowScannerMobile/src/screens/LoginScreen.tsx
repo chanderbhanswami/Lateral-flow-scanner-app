@@ -29,7 +29,7 @@ type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'
 
 export const LoginScreen: React.FC = () => {
     const navigation = useNavigation<LoginScreenNavigationProp>();
-    const { login, loginWithGoogle, loginWithFacebook, setUser, setTokens } = useAuthStore();
+    const { login, verifyLoginOTP, loginWithGoogle, loginWithFacebook, setUser, setTokens } = useAuthStore();
 
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -40,6 +40,7 @@ export const LoginScreen: React.FC = () => {
     const [rememberMe, setRememberMe] = useState(true);
     const [focusedField, setFocusedField] = useState<string | null>(null);
 
+    // OTP State (removed modal approach - using navigation instead)
     const [showInviteCodePrompt, setShowInviteCodePrompt] = useState(false);
     const [inviteCodeInput, setInviteCodeInput] = useState('');
     const [inviteError, setInviteError] = useState<string | null>(null);
@@ -77,8 +78,19 @@ export const LoginScreen: React.FC = () => {
 
         setLoading(true);
         try {
-            await login({ email: email.toLowerCase().trim(), password });
-            Toast.show({ type: 'success', text1: 'Welcome back!' });
+            const result = await login({ email: email.toLowerCase().trim(), password });
+
+            // Check if OTP verification is required
+            if (result.requiresOTP) {
+                // Navigate to OTP verification screen
+                navigation.navigate('OTPVerification', {
+                    email: email.toLowerCase().trim(),
+                    type: 'login'
+                });
+                Toast.show({ type: 'info', text1: 'OTP Sent', text2: 'Please check your email for verification code' });
+            } else {
+                Toast.show({ type: 'success', text1: 'Welcome back!' });
+            }
         } catch (error: any) {
             const message = error?.response?.data?.message || error?.message || 'Login failed';
             Toast.show({ type: 'error', text1: 'Login Failed', text2: message });
