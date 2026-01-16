@@ -205,6 +205,16 @@ dependencies {
     }
 }
 
+// Force Sentry Android SDK version to match @sentry/react-native requirement (8.29.0)
+// This fixes the "NoSuchMethodError: No static method addIntegrationToSdkVersion" crash
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'io.sentry' && details.requested.name.startsWith('sentry-android')) {
+            details.useVersion '8.29.0'
+        }
+    }
+}
+
 // Rename AAB bundle to LFS.aab after bundleRelease
 // Rename AAB bundle to LFS.aab after bundleRelease
 afterEvaluate {
