@@ -19,17 +19,30 @@ class EmailService {
 
     private initialize(): void {
         if (config.SMTP_HOST && config.SMTP_USER) {
+            // Use port 465 with secure connection for better reliability on cloud platforms
+            // Port 587 with STARTTLS can be blocked by some cloud providers
+            const smtpPort = config.SMTP_PORT || 587;
+            const isSecure = smtpPort === 465;
+
             this.transporter = nodemailer.createTransport({
                 host: config.SMTP_HOST,
-                port: config.SMTP_PORT || 587,
-                secure: config.SMTP_PORT === 465,
+                port: smtpPort,
+                secure: isSecure, // true for 465, false for other ports
                 auth: {
                     user: config.SMTP_USER,
                     pass: config.SMTP_PASS,
                 },
-            });
+                // Connection timeout settings
+                connectionTimeout: 10000, // 10 seconds
+                greetingTimeout: 10000,   // 10 seconds
+                socketTimeout: 15000,     // 15 seconds
+                // Pool connections for better performance
+                pool: true,
+                maxConnections: 3,
+                maxMessages: 100,
+            } as nodemailer.TransportOptions);
             this.isConfigured = true;
-            logger.info('Email service initialized');
+            logger.info(`Email service initialized (host: ${config.SMTP_HOST}, port: ${smtpPort}, secure: ${isSecure})`);
         } else {
             logger.warn('Email service not configured. Email sending is disabled.');
         }

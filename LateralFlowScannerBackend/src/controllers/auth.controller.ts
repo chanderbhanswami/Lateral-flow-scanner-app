@@ -66,14 +66,14 @@ export const authController = {
                 throw new ApiError(400, 'User already exists', 'USER_EXISTS');
             }
 
-            // Create user
+            // Create user - NOT active until email verified
             const user = new User({
                 email,
                 password,
                 name,
                 role, // Assign role based on code
                 authProvider: 'email',
-                isActive: true, // Auto-activate if they have a valid code
+                isActive: false, // Will be activated after email verification
             });
 
             // Generate email verification OTP
@@ -88,18 +88,6 @@ export const authController = {
                 // Don't fail registration if email fails
             }
 
-            // Generate tokens
-            const { accessToken, refreshToken } = generateTokens(user._id.toString());
-
-            // Store refresh token
-            user.refreshTokens.push({
-                token: crypto.createHash('sha256').update(refreshToken).digest('hex'),
-                deviceInfo: getDeviceInfo(req),
-                createdAt: new Date(),
-                expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
-            });
-            await user.save();
-
             // Log audit
             await supabaseAuditService.log({
                 userId: user._id.toString(),
@@ -111,21 +99,18 @@ export const authController = {
                 userAgent: req.headers['user-agent'] as any,
             });
 
+            // Don't return tokens - user must verify email first
             res.status(201).json({
                 success: true,
-                message: 'Registration successful. Please verify your email.',
+                message: 'Registration successful. Please check your email for verification OTP.',
                 data: {
                     user: {
                         id: user._id,
                         email: user.email,
                         name: user.name,
-                        role: user.role,
-                        isEmailVerified: user.isEmailVerified,
-                        authProvider: user.authProvider,
+                        isEmailVerified: false,
                     },
-                    accessToken,
-                    refreshToken,
-                    expiresIn: 7 * 24 * 60 * 60,
+                    requiresVerification: true,
                 },
             });
         } catch (error) {
@@ -161,6 +146,21 @@ export const authController = {
             // Check if active
             if (!user.isActive) {
                 throw new ApiError(403, 'Account is deactivated', 'ACCOUNT_INACTIVE');
+            }
+
+            // Check if email is verified (mandatory for email auth)
+            if (!user.isEmailVerified) {
+                // Resend OTP and inform user to verify
+                const otp = user.generateEmailVerificationOTP();
+                await user.save();
+
+                try {
+                    await emailService.sendVerificationEmail(user.email, user.name, otp);
+                } catch (emailError) {
+                    logger.error('Failed to resend verification email:', emailError);
+                }
+
+                throw new ApiError(403, 'Please verify your email first. A new OTP has been sent.', 'EMAIL_NOT_VERIFIED');
             }
 
             // Verify password
@@ -447,9 +447,23 @@ export const authController = {
                 throw new ApiError(400, 'Invalid or expired OTP', 'INVALID_OTP');
             }
 
+            // Activate the account and mark email as verified
             user.isEmailVerified = true;
+            user.isActive = true; // Activate account after email verification
             user.emailVerificationOTP = undefined;
             user.emailVerificationOTPExpires = undefined;
+
+            // Generate tokens for immediate login
+            const { accessToken, refreshToken } = generateTokens(user._id.toString());
+
+            // Store refresh token
+            user.refreshTokens.push({
+                token: crypto.createHash('sha256').update(refreshToken).digest('hex'),
+                deviceInfo: getDeviceInfo(req),
+                createdAt: new Date(),
+                expiresAt: new Date(Date.now() + REFRESH_TOKEN_EXPIRY_MS),
+            });
+
             await user.save();
 
             // Send welcome email
@@ -461,7 +475,20 @@ export const authController = {
 
             res.json({
                 success: true,
-                message: 'Email verified successfully',
+                message: 'Email verified successfully. You are now logged in.',
+                data: {
+                    user: {
+                        id: user._id,
+                        email: user.email,
+                        name: user.name,
+                        role: user.role,
+                        isEmailVerified: true,
+                        authProvider: user.authProvider,
+                    },
+                    accessToken,
+                    refreshToken,
+                    expiresIn: 7 * 24 * 60 * 60,
+                },
             });
         } catch (error) {
             next(error);

@@ -21,10 +21,19 @@ export const HomeScreen: React.FC = () => {
     const [unreadCount, setUnreadCount] = useState(0);
     const [recentCaptures, setRecentCaptures] = useState<any[]>([]);
     const [refreshing, setRefreshing] = useState(false);
+    const [greeting, setGreeting] = useState('Good Morning,');
 
     // Animation Values
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
+
+    // Dynamic Greeting calculation
+    const updateGreeting = () => {
+        const hour = new Date().getHours();
+        if (hour < 12) setGreeting('Good Morning,');
+        else if (hour < 18) setGreeting('Good Afternoon,');
+        else setGreeting('Good Evening,');
+    };
 
     const fetchData = async () => {
         try {
@@ -44,6 +53,7 @@ export const HomeScreen: React.FC = () => {
 
     useFocusEffect(
         useCallback(() => {
+            updateGreeting(); // Update greeting on focus
             fetchData();
 
             // Entrance Animation
@@ -82,14 +92,6 @@ export const HomeScreen: React.FC = () => {
         setRefreshing(true);
         await fetchData();
         setRefreshing(false);
-    };
-
-    // Dynamic Greeting
-    const getGreeting = () => {
-        const hour = new Date().getHours();
-        if (hour < 12) return 'Good Morning,';
-        if (hour < 18) return 'Good Afternoon,';
-        return 'Good Evening,';
     };
 
     // Quick Actions
@@ -160,7 +162,7 @@ export const HomeScreen: React.FC = () => {
                             </Text>
                         </View>
                         <View>
-                            <Text style={styles.greeting}>{getGreeting()}</Text>
+                            <Text style={styles.greeting}>{greeting}</Text>
                             <Text style={styles.userName} numberOfLines={1}>
                                 {user?.name || 'User'}
                             </Text>

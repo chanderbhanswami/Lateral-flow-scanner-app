@@ -229,6 +229,16 @@ export const SettingsScreen: React.FC = () => {
                                 value={showSensorData}
                                 onToggle={(v) => { setShowSensorData(v); handleSettingChange('showSensorData', v); }}
                             />
+                            <View style={styles.divider} />
+                            <SettingItem
+                                icon="high-definition"
+                                color="#06b6d4"
+                                label="High Quality Mode"
+                                sublabel="Use maximum resolution for captures"
+                                isSwitch
+                                value={highQualityMode}
+                                onToggle={(v) => { setHighQualityMode(v); handleSettingChange('highQualityMode', v); }}
+                            />
                         </View>
                     </View>
 

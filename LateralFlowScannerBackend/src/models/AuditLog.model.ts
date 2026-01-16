@@ -22,7 +22,7 @@ const AuditLogSchema = new Schema<IAuditLog>(
         action: {
             type: String,
             required: true,
-            enum: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'UPLOAD', 'USER_LOGIN', 'USER_LOGOUT'],
+            enum: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'LOGIN', 'LOGOUT', 'UPLOAD', 'USER_LOGIN', 'USER_LOGOUT', 'USER_REGISTER', 'USER_UPDATE'],
             index: true,
         },
         resource: {
