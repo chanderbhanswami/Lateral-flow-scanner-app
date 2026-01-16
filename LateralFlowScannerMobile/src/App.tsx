@@ -19,6 +19,12 @@ LogBox.ignoreAllLogs();
 Sentry.init({
   dsn: ENV.SENTRY_DSN,
   environment: ENV.ENVIRONMENT,
+  // Session Replay
+  replaysSessionSampleRate: 0.1, // Sample 10% of sessions
+  replaysOnErrorSampleRate: 1.0, // Sample 100% of sessions with errors
+  integrations: [
+    Sentry.mobileReplayIntegration(),
+  ],
 });
 
 const queryClient = new QueryClient({
