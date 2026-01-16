@@ -115,3 +115,7 @@ android/gradle.properties
 
 # Firebase config (contains sensitive data)
 android/app/google-services.json
+
+# Sentry
+android/sentry.properties
+sentry.properties
