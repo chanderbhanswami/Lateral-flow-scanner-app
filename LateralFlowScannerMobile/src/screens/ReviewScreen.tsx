@@ -25,8 +25,21 @@ export const ReviewScreen: React.FC = () => {
     const { batches } = useConcentrationBatch();
     const { extractExif, formatMetadata, exifData, isLoading: isMetadataLoading } = useMetadata();
 
-    const [concentration, setConcentration] = useState(captureData?.concentration || '');
-    const [notes, setNotes] = useState(captureData?.notes || '');
+    // All hooks must be called unconditionally (React rules)
+    const [concentration, setConcentration] = useState('');
+    const [notes, setNotes] = useState('');
+    const [selectedBatch, setSelectedBatch] = useState<any>(null);
+    const [showBatchSelector, setShowBatchSelector] = useState(false);
+
+    // Update state when captureData becomes available
+    useEffect(() => {
+        if (captureData) {
+            setConcentration(captureData.concentration || '');
+            setNotes(captureData.notes || '');
+            const batch = batches.find(b => b.id === captureData.concentrationBatchId);
+            if (batch) setSelectedBatch(batch);
+        }
+    }, [captureData, batches]);
 
     // Extract EXIF on mount
     useEffect(() => {
@@ -34,11 +47,6 @@ export const ReviewScreen: React.FC = () => {
             extractExif(imageUri);
         }
     }, [imageUri, extractExif]);
-
-    // Manage batch selection
-    const initialBatch = batches.find(b => b.id === captureData?.concentrationBatchId);
-    const [selectedBatch, setSelectedBatch] = useState(initialBatch || null);
-    const [showBatchSelector, setShowBatchSelector] = useState(false);
 
     // If params are missing, show error and go back
     if (!captureData || !imageUri) {
@@ -148,7 +156,7 @@ export const ReviewScreen: React.FC = () => {
                 <View style={styles.infoRow}>
                     <Text style={styles.infoLabel}>Quality Score:</Text>
                     <Text style={styles.infoValue}>
-                        {captureData.analysisData.qualityScore.toFixed(1)}/100
+                        {(captureData.analysisData?.qualityScore ?? 0).toFixed(1)}/100
                     </Text>
                 </View>
 
@@ -185,10 +193,10 @@ export const ReviewScreen: React.FC = () => {
             </Card>
 
             {/* Warnings */}
-            {captureData.analysisData.warnings.length > 0 && (
+            {(captureData.analysisData?.warnings?.length ?? 0) > 0 && (
                 <Card style={styles.warningCard}>
                     <Text style={styles.warningTitle}>Warnings</Text>
-                    {captureData.analysisData.warnings.map((warning, index) => (
+                    {(captureData.analysisData?.warnings ?? []).map((warning, index) => (
                         <Text key={index} style={styles.warningText}>
                             • {warning}
                         </Text>

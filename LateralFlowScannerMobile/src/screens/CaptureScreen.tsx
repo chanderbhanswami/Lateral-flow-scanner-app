@@ -32,8 +32,8 @@ import { logger } from '../utils/logger';
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Header and footer heights
-const HEADER_HEIGHT = 130;
-const FOOTER_HEIGHT = 100;
+const HEADER_HEIGHT = 150;
+const FOOTER_HEIGHT = 80;
 
 export const CaptureScreen: React.FC = () => {
     const navigation = useNavigation<CaptureScreenProps['navigation']>();
@@ -193,8 +193,33 @@ export const CaptureScreen: React.FC = () => {
 
             if (!photo || !photo.path) throw new Error('Photo capture returned empty result');
 
+            Toast.show({ type: 'info', text1: 'Analyzing image...', visibilityTime: 1500 });
+
+            // Call analyzeImage to get REAL analysis data (qualityScore, blur, exposure, etc.)
+            let realAnalysis: any = null;
+            try {
+                realAnalysis = await analyzeImage(photo.path);
+            } catch (analysisError) {
+                logger.warn('Image analysis failed, using defaults', analysisError);
+            }
+
             const captureMetadata = { ...metadata, width: photo.width || 0, height: photo.height || 0 };
-            const analysisData = { ...analysis, borderCorners: borderData?.detected ? borderData.corners : null };
+
+            // Build analysisData with real analysis or defaults
+            const analysisData = {
+                qualityScore: realAnalysis?.qualityScore ?? 50,
+                warnings: realAnalysis?.warnings ?? warnings ?? [],
+                recommendations: realAnalysis?.recommendations ?? [],
+                histogram: realAnalysis?.histogram ?? null,
+                hsvData: realAnalysis?.hsvData ?? null,
+                exposureAnalysis: realAnalysis?.exposureAnalysis ?? null,
+                blurAnalysis: realAnalysis?.blurAnalysis ?? null,
+                borderDetection: realAnalysis?.borderDetection ?? null,
+                shadowAnalysis: realAnalysis?.shadowAnalysis ?? null,
+                reflectionAnalysis: realAnalysis?.reflectionAnalysis ?? null,
+                ...(realAnalysis || {}),
+                borderCorners: borderData?.detected ? borderData.corners : null,
+            };
 
             const capturedData = await processCapture(photo.path, captureMetadata, sensorData || {}, analysisData);
 
