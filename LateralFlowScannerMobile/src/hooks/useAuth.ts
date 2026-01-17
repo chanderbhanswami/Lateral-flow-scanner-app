@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { useNavigation } from '@react-navigation/native';
 
@@ -6,9 +5,9 @@ export const useAuth = () => {
     const { user, isAuthenticated, isLoading, login, register, logout, checkAuth } = useAuthStore();
     const navigation = useNavigation();
 
-    useEffect(() => {
-        checkAuth();
-    }, []);
+    // Note: checkAuth is NOT called here automatically.
+    // It should only be called once at app startup (in AppNavigator).
+    // Calling it on every screen mount would cause unnecessary re-auth attempts.
 
     const handleLogin = async (email: string, password: string) => {
         try {

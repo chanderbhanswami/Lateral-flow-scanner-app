@@ -75,13 +75,11 @@ const styles = StyleSheet.create({
         width: '90%',
     },
     header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        flexDirection: 'column',
         padding: 20,
-        paddingRight: 60, // Extra padding to avoid overlap with Modal close button
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
+        gap: 12,
     },
     title: {
         fontSize: 20,
