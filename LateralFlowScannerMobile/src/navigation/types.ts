@@ -1,7 +1,7 @@
 import { StackScreenProps } from '@react-navigation/stack';
 import { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import { CompositeScreenProps } from '@react-navigation/native';
-import { CaptureData } from '../types';
+import { CaptureData } from '@lateralflowscanner/shared';
 
 // Root Stack
 export type RootStackParamList = {
