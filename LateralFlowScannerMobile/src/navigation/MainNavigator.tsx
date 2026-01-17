@@ -25,7 +25,7 @@ const MainNavigator: React.FC = () => {
             <Stack.Screen
                 name="Capture"
                 component={CaptureScreen}
-                options={{ title: 'Capture', headerShown: true }}
+                options={{ headerShown: false }}
             />
             <Stack.Screen
                 name="Review"

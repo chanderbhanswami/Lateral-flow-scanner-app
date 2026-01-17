@@ -27,6 +27,7 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.ReadableArray;
 
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
@@ -417,7 +418,7 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
-    public void cropImage(String imagePath, WritableArray corners, Promise promise) {
+    public void cropImage(String imagePath, ReadableArray corners, Promise promise) {
         try {
             if (!openCVInitialized) {
                 promise.reject("OPENCV_ERROR", "OpenCV not initialized");

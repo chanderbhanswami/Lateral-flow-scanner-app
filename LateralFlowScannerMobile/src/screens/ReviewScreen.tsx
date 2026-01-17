@@ -16,24 +16,44 @@ import { logger } from '../utils/logger';
 export const ReviewScreen: React.FC = () => {
     const navigation = useNavigation<ReviewScreenProps['navigation']>();
     const route = useRoute<ReviewScreenProps['route']>();
-    const { captureData, imageUri } = route.params;
+
+    // Defensive check for route params
+    const captureData = route.params?.captureData;
+    const imageUri = route.params?.imageUri;
 
     const { uploadCapture, isUploading } = useCapture();
     const { batches } = useConcentrationBatch();
     const { extractExif, formatMetadata, exifData, isLoading: isMetadataLoading } = useMetadata();
 
-    const [concentration, setConcentration] = useState(captureData.concentration || '');
-    const [notes, setNotes] = useState(captureData.notes || '');
+    const [concentration, setConcentration] = useState(captureData?.concentration || '');
+    const [notes, setNotes] = useState(captureData?.notes || '');
 
     // Extract EXIF on mount
     useEffect(() => {
-        extractExif(imageUri);
-    }, [imageUri]);
+        if (imageUri) {
+            extractExif(imageUri);
+        }
+    }, [imageUri, extractExif]);
 
     // Manage batch selection
-    const initialBatch = batches.find(b => b.id === captureData.concentrationBatchId);
+    const initialBatch = batches.find(b => b.id === captureData?.concentrationBatchId);
     const [selectedBatch, setSelectedBatch] = useState(initialBatch || null);
     const [showBatchSelector, setShowBatchSelector] = useState(false);
+
+    // If params are missing, show error and go back
+    if (!captureData || !imageUri) {
+        return (
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+                <Text style={{ fontSize: 18, color: '#ef4444', marginBottom: 16 }}>Error: Missing capture data</Text>
+                <TouchableOpacity
+                    style={{ backgroundColor: '#3b82f6', padding: 12, borderRadius: 8 }}
+                    onPress={() => navigation.goBack()}
+                >
+                    <Text style={{ color: '#fff', fontWeight: '600' }}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
 
     const handleSend = async () => {
         try {

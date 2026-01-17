@@ -1,4 +1,4 @@
-package com.lateralflowscanner.modules;
+package com.lateralflowscannermobile.modules;
 
 import android.os.Build;
 import android.os.Environment;

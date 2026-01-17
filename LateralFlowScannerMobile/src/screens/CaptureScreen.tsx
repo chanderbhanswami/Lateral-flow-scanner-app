@@ -26,15 +26,14 @@ import { HistogramDisplay } from '../components/Camera/HistogramDisplay';
 import { ExposureMeter } from '../components/Camera/ExposureMeter';
 import { ExposureSlider } from '../components/Camera/ExposureSlider';
 import { AUTO_CAPTURE_CONDITIONS } from '../constants';
+import { CAMERA_HEIGHT } from '../constants/layout';
 import { logger } from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
-// 3:4 aspect ratio camera preview
-const CAMERA_WIDTH = SCREEN_WIDTH;
-const CAMERA_HEIGHT = CAMERA_WIDTH * (4 / 3);
-const HEADER_HEIGHT = 120;
-const FOOTER_HEIGHT = 140;
+// Header and footer heights
+const HEADER_HEIGHT = 130;
+const FOOTER_HEIGHT = 100;
 
 export const CaptureScreen: React.FC = () => {
     const navigation = useNavigation<CaptureScreenProps['navigation']>();
@@ -256,11 +255,14 @@ export const CaptureScreen: React.FC = () => {
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* ===== HEADER ===== */}
             <View style={styles.header}>
-                {/* Top Row: Control Buttons */}
+                {/* Top Row: Back + Title + Controls */}
                 <View style={styles.headerTopRow}>
-                    <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
-                        <Icon name="arrow-left" size={24} color="#1f2937" />
-                    </TouchableOpacity>
+                    <View style={styles.headerLeft}>
+                        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+                            <Icon name="arrow-left" size={24} color="#1f2937" />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>Capture</Text>
+                    </View>
 
                     <View style={styles.headerControls}>
                         <TouchableOpacity style={styles.controlButton} onPress={toggleTorch}>
@@ -441,6 +443,16 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    headerLeft: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1f2937',
+    },
     headerControls: {
         flexDirection: 'row',
         gap: 8,
@@ -472,9 +484,9 @@ const styles = StyleSheet.create({
         color: '#1f2937',
     },
 
-    // Camera
+    // Camera (3:4 aspect ratio)
     cameraContainer: {
-        flex: 1,
+        height: CAMERA_HEIGHT,
         backgroundColor: '#000',
     },
     cameraWrapper: {
