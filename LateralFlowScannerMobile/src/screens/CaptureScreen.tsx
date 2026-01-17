@@ -19,7 +19,7 @@ import { BorderGuide } from '../components/Camera/BorderGuide';
 import { FocusIndicator } from '../components/Camera/FocusIndicator';
 import { SensorDisplay } from '../components/Sensors/SensorDisplay';
 import { AlignmentIndicator } from '../components/Sensors/AlignmentIndicator';
-import { WarningBanner } from '../components/Guides/WarningBanner';
+import { WarningBanner, FeedbackMessage } from '../components/Guides/WarningBanner';
 import { GuideOverlay } from '../components/Guides/GuideOverlay';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
 import { HistogramDisplay } from '../components/Camera/HistogramDisplay';
@@ -53,7 +53,7 @@ export const CaptureScreen: React.FC = () => {
         setFocusMode,
     } = useCamera();
 
-    const { sensorData, isShaking, lightLevel, getAlignment, alignment } = useSensors();
+    const { sensorData, isShaking, lightLevel, getAlignment, alignment, lightAnalysis, proximity, proximityWarning, orientation } = useSensors();
     const { borderData, guideColor, updateBorderDetection } = useBorderDetection();
     const { analysis, analyzeImage } = useImageAnalysis();
     const { processCapture, isProcessing } = useCapture();
@@ -66,7 +66,7 @@ export const CaptureScreen: React.FC = () => {
         setIsCapturing
     } = useCaptureStore();
 
-    const [warnings, setWarnings] = useState<string[]>([]);
+    const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([]);
     const [showSensorDisplay, setShowSensorDisplay] = useState(false);
     const [showBatchSelector, setShowBatchSelector] = useState(false);
     const [autoCapturePending, setAutoCapturePending] = useState(false);
@@ -76,7 +76,10 @@ export const CaptureScreen: React.FC = () => {
     const [showExposure, setShowExposure] = useState(false);
     const [manualExposure, setManualExposure] = useState(0);
 
+    const [countdown, setCountdown] = useState<number | null>(null);
+    const frameAnalysisRef = useRef<any>(null);
     const autoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     // Frame processor for real-time analysis
     const frameProcessor = useCustomFrameProcessor(
@@ -84,6 +87,7 @@ export const CaptureScreen: React.FC = () => {
             updateBorderDetection(corners);
         }, [updateBorderDetection]),
         useCallback((frameAnalysis) => {
+            frameAnalysisRef.current = frameAnalysis;
             updateWarnings(frameAnalysis);
         }, [])
     );
@@ -110,50 +114,131 @@ export const CaptureScreen: React.FC = () => {
 
     // Auto-capture logic
     useEffect(() => {
-        if (autoCapturePending && checkAutoCaptureConditions()) {
+        if (!autoCapturePending) {
+            setCountdown(null);
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
+            return;
+        }
+
+        const conditionsMet = checkAutoCaptureConditions();
+
+        if (conditionsMet) {
             incrementStableFrameCount();
-            if (stableFrameCount >= AUTO_CAPTURE_CONDITIONS.REQUIRED_STABLE_FRAMES) {
-                handleAutoCapture();
-            }
         } else {
             resetStableFrameCount();
+            setCountdown(null);
+            if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
         }
-    }, [borderData, isShaking, lightLevel, analysis, autoCapturePending, stableFrameCount]);
+
+        if (stableFrameCount >= AUTO_CAPTURE_CONDITIONS.REQUIRED_STABLE_FRAMES && !countdown) {
+            // Start Countdown
+            setCountdown(3);
+            countdownIntervalRef.current = setInterval(() => {
+                setCountdown(prev => {
+                    if (prev === 1) {
+                        clearInterval(countdownIntervalRef.current!);
+                        handleAutoCapture();
+                        return null;
+                    }
+                    return (prev || 0) - 1;
+                });
+            }, 1000);
+        }
+    }, [borderData, isShaking, lightLevel, autoCapturePending, stableFrameCount]); // Removed analysis dependency
 
     const checkAutoCaptureConditions = (): boolean => {
+        const analysis = frameAnalysisRef.current;
         if (!borderData || !analysis) return false;
+
         const conditions = {
             borderDetected: borderData.detected && borderData.confidence >= AUTO_CAPTURE_CONDITIONS.MIN_BORDER_CONFIDENCE,
-            borderAligned: borderData.isAligned && borderData.isCentered,
-            notBlurry: !analysis.blurAnalysis.isBlurry && analysis.blurAnalysis.blurScore >= AUTO_CAPTURE_CONDITIONS.MIN_BLUR_SCORE,
-            exposureGood: !analysis.exposureAnalysis.isUnderexposed && !analysis.exposureAnalysis.isOverexposed,
+            borderAligned: borderData.isAligned && borderData.isCentered, // Strict alignment
+            notBlurry: !analysis.blurAnalysis?.isBlurry, // Use frame analysis
+            exposureGood: !analysis.exposureAnalysis?.isUnderexposed && !analysis.exposureAnalysis?.isOverexposed,
             notShaking: !isShaking,
             lightGood: lightLevel >= AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL,
-            noShadow: !analysis.shadowAnalysis.hasShadow,
-            noReflection: !analysis.reflectionAnalysis.hasReflection,
+            noShadow: !analysis.shadowAnalysis?.hasShadow,
+            noReflection: !analysis.reflectionAnalysis?.hasReflection,
         };
         return Object.values(conditions).every(Boolean);
     };
 
     const updateWarnings = (frameAnalysis: any) => {
-        const newWarnings: string[] = [];
+        const messages: FeedbackMessage[] = [];
+
+        // ========== KIT/BORDER DETECTION ==========
         if (!borderData?.detected) {
-            newWarnings.push('Cassette not detected');
+            messages.push({ type: 'error', message: '⚠️ Kit not detected', icon: 'test-tube-off' });
         } else if (!borderData?.isAligned) {
-            newWarnings.push('Align cassette with guide');
+            messages.push({ type: 'warning', message: '↔️ Align kit with guide', icon: 'arrow-left-right' });
         } else if (!borderData?.isCentered) {
-            newWarnings.push('Center cassette in frame');
+            messages.push({ type: 'warning', message: '⊕ Center kit in frame', icon: 'crosshairs' });
+        } else {
+            messages.push({ type: 'success', message: '✓ Kit detected', icon: 'test-tube' });
         }
+
+        // ========== BLUR DETECTION (from frame processor) ==========
+        if (frameAnalysis?.blurAnalysis?.isBlurry) {
+            const score = frameAnalysis?.blurAnalysis?.laplacianVariance?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `📷 Blurry (${score})`, icon: 'blur' });
+        } else if (frameAnalysis?.blurAnalysis && !frameAnalysis.blurAnalysis.isBlurry) {
+            messages.push({ type: 'success', message: '✓ Sharp', icon: 'camera-iris' });
+        }
+
+        // ========== EXPOSURE DETECTION ==========
+        if (frameAnalysis?.exposureAnalysis?.isUnderexposed) {
+            messages.push({ type: 'warning', message: '🌙 Too dark', icon: 'brightness-5' });
+        } else if (frameAnalysis?.exposureAnalysis?.isOverexposed) {
+            messages.push({ type: 'warning', message: '☀️ Too bright', icon: 'white-balance-sunny' });
+        } else if (frameAnalysis?.exposureAnalysis) {
+            messages.push({ type: 'success', message: '✓ Good exposure', icon: 'brightness-6' });
+        }
+
+        // ========== SHADOW DETECTION ==========
+        if (frameAnalysis?.shadowAnalysis?.hasShadow) {
+            const coverage = ((frameAnalysis.shadowAnalysis.shadowCoverage || 0) * 100).toFixed(0);
+            messages.push({ type: 'warning', message: `🌑 Shadow (${coverage}%)`, icon: 'weather-partly-cloudy' });
+        }
+
+        // ========== REFLECTION/GLARE DETECTION ==========
+        if (frameAnalysis?.reflectionAnalysis?.hasReflection) {
+            const intensity = ((frameAnalysis.reflectionAnalysis.reflectionIntensity || 0) * 100).toFixed(0);
+            messages.push({ type: 'warning', message: `✨ Glare (${intensity}%)`, icon: 'flare' });
+        }
+
+        // ========== WHITE BALANCE ==========
+        if (frameAnalysis?.whiteBalanceAnalysis && !frameAnalysis.whiteBalanceAnalysis.isBalanced) {
+            const channel = frameAnalysis.whiteBalanceAnalysis.dominantChannel;
+            messages.push({ type: 'info', message: `🎨 ${channel} tint`, icon: 'palette' });
+        }
+
+        // ========== DEVICE STABILITY (from sensors) ==========
         if (isShaking) {
-            newWarnings.push('Hold steady');
+            messages.push({ type: 'error', message: '📳 Hold steady!', icon: 'vibrate' });
         }
+
+        // ========== AMBIENT LIGHT (from sensor) ==========
         if (lightLevel < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
-            newWarnings.push('Low light');
+            messages.push({ type: 'warning', message: '💡 Low ambient light', icon: 'lightbulb-outline' });
+        } else if (lightLevel > 1000) {
+            messages.push({ type: 'info', message: '☀️ Bright environment', icon: 'weather-sunny' });
         }
-        if (analysis?.blurAnalysis.isBlurry) {
-            newWarnings.push('Image blurry');
+
+        // ========== FOCUS ANALYSIS ==========
+        if (frameAnalysis?.focusAnalysis?.needsFocus) {
+            messages.push({ type: 'warning', message: '🔍 Tap to focus', icon: 'focus-field' });
         }
-        setWarnings(newWarnings);
+
+        // ========== OVERALL READINESS ==========
+        const hasErrors = messages.some(m => m.type === 'error');
+        const hasWarnings = messages.some(m => m.type === 'warning');
+
+        if (!hasErrors && !hasWarnings && borderData?.detected) {
+            // All conditions are good - ready to capture!
+            messages.unshift({ type: 'success', message: '✓ Ready to capture!', icon: 'camera' });
+        }
+
+        setFeedbackMessages(messages);
     };
 
     const handleAutoCapture = async () => {
@@ -208,7 +293,7 @@ export const CaptureScreen: React.FC = () => {
             // Build analysisData with real analysis or defaults
             const analysisData = {
                 qualityScore: realAnalysis?.qualityScore ?? 50,
-                warnings: realAnalysis?.warnings ?? warnings ?? [],
+                warnings: realAnalysis?.warnings ?? [],
                 recommendations: realAnalysis?.recommendations ?? [],
                 histogram: realAnalysis?.histogram ?? null,
                 hsvData: realAnalysis?.hsvData ?? null,
@@ -217,11 +302,31 @@ export const CaptureScreen: React.FC = () => {
                 borderDetection: realAnalysis?.borderDetection ?? null,
                 shadowAnalysis: realAnalysis?.shadowAnalysis ?? null,
                 reflectionAnalysis: realAnalysis?.reflectionAnalysis ?? null,
+                frameAnalysis: frameAnalysisRef.current || null, // Save live frame processing data (focus, etc.)
                 ...(realAnalysis || {}),
                 borderCorners: borderData?.detected ? borderData.corners : null,
             };
 
-            const capturedData = await processCapture(photo.path, captureMetadata, sensorData || {}, analysisData);
+            // Merge all sensor data into one payload
+            const fullSensorData = {
+                ...(sensorData || {}),
+                ambientLight: {
+                    lux: lightLevel,
+                    analysis: lightAnalysis
+                },
+                proximity: {
+                    distance: proximity,
+                    warning: proximityWarning
+                },
+                alignment: alignment,
+                deviceMotion: {
+                    ...(sensorData?.deviceMotion || {}),
+                    isShaking,
+                    orientation: orientation
+                }
+            };
+
+            const capturedData = await processCapture(photo.path, captureMetadata, fullSensorData, analysisData);
 
             if (capturedData) {
                 capturedData.captureMode = mode;
@@ -341,8 +446,16 @@ export const CaptureScreen: React.FC = () => {
                     {/* Focus Indicator */}
                     <FocusIndicator x={focusPoint.x} y={focusPoint.y} visible={focusPoint.visible} />
 
-                    {/* Warning Banner */}
-                    {warnings.length > 0 && <WarningBanner warnings={warnings} />}
+                    {/* Countdown Overlay */}
+                    {countdown !== null && (
+                        <View style={styles.countdownContainer}>
+                            <Text style={styles.countdownText}>{countdown}</Text>
+                            <Text style={styles.capturingText}>Stabilize...</Text>
+                        </View>
+                    )}
+
+                    {/* Feedback Banner */}
+                    <WarningBanner messages={feedbackMessages} />
 
                     {/* Sensor Display Overlay (if enabled) */}
                     {showSensorDisplay && (
@@ -603,5 +716,31 @@ const styles = StyleSheet.create({
         color: '#fff',
         marginLeft: 10,
         fontWeight: '600',
+    },
+    countdownContainer: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: [{ translateX: -50 }, { translateY: -50 }],
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 200,
+    },
+    countdownText: {
+        fontSize: 80,
+        fontWeight: 'bold',
+        color: '#ffffff',
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 2 },
+        textShadowRadius: 4,
+    },
+    capturingText: {
+        fontSize: 18,
+        color: '#ffffff',
+        fontWeight: '600',
+        marginTop: 8,
+        textShadowColor: 'rgba(0,0,0,0.5)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
     },
 });

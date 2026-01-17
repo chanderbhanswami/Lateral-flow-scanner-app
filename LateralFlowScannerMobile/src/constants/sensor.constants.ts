@@ -1,7 +1,7 @@
 export const SENSOR_CONSTANTS = {
     ACCELEROMETER: {
-        UPDATE_INTERVAL: 100,
-        SHAKE_THRESHOLD: 2.5,
+        UPDATE_INTERVAL: 50, // 20Hz for smoother feedback
+        SHAKE_THRESHOLD: 1.2, // Lowered from 2.5 for better sensitivity
         STABLE_THRESHOLD: 0.1,
     },
     GYROSCOPE: {
