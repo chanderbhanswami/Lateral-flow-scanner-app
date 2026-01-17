@@ -30,3 +30,33 @@
 # General Safety
 -dontwarn sun.misc.Unsafe
 -dontwarn com.google.common.util.concurrent.ListenableFuture
+
+# React Native Reanimated
+-keep class com.swmansion.reanimated.** { *; }
+-keep class com.facebook.react.turbo.** { *; }
+
+# React Native Gesture Handler
+-keep class com.swmansion.gesturehandler.** { *; }
+
+# React Native Screens
+-keep class com.swmansion.rnscreens.** { *; }
+
+# React Native Image Crop Picker
+-keep public class com.reactnative.ivpusic.imagepicker.** { *; }
+-keep public interface com.reactnative.ivpusic.imagepicker.** { *; }
+
+# React Native Fast Image
+-keep class com.dylanvann.fastimage.** { *; }
+-keep class com.bumptech.glide.** { *; }
+
+# React Native Device Info
+-keep class com.learnium.RNDeviceInfo.** { *; }
+
+# React Native Vector Icons
+-keep class com.oblador.vectoricons.** { *; }
+
+# React Native MMKV
+-keep class com.reactnativemmkv.** { *; }
+
+# React Native Config
+-keep class com.lateralflowscannermobile.BuildConfig { *; }
