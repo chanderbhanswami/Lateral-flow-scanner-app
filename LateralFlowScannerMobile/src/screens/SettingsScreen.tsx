@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, ScrollView, Text, Switch, TouchableOpacity, Image, Animated, Easing, Share, Platform } from 'react-native';
+import { View, StyleSheet, ScrollView, Text, Switch, TouchableOpacity, Image, Animated, Easing, Share, Platform, Vibration } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,17 +11,19 @@ import { useAuth } from '../hooks/useAuth';
 import { CustomDialog } from '../components/UI/CustomDialog';
 import { storageService } from '../services/storage.service';
 import { logger } from '../utils/logger';
+import { authApi } from '../api/auth.api';
 
 export const SettingsScreen: React.FC = () => {
     const navigation = useNavigation();
-    const { user } = useAuthStore();
+    const { user, setUser } = useAuthStore();
     const { logout: handleLogout } = useAuth(); // Use useAuth for logout with navigation
 
-    // Settings State
-    const [autoCapture, setAutoCapture] = useState(true);
-    const [showSensorData, setShowSensorData] = useState(true);
-    const [enableVibration, setEnableVibration] = useState(true);
-    const [highQualityMode, setHighQualityMode] = useState(true);
+    // Settings State - Initialize from User Store (Source of Truth) or defaults
+    const userSettings = (user as any)?.settings;
+    const [autoCapture, setAutoCapture] = useState(userSettings?.autoCapture ?? true);
+    const [showSensorData, setShowSensorData] = useState(userSettings?.showSensorData ?? false);
+    const [enableVibration, setEnableVibration] = useState(userSettings?.hapticFeedback ?? true); // Mapped to 'hapticFeedback' in generic settings
+    const [highQualityMode, setHighQualityMode] = useState(userSettings?.highQualityMode ?? true);
 
     // Animation
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -37,59 +39,58 @@ export const SettingsScreen: React.FC = () => {
     }>({ visible: false, title: '', message: '', type: 'info' });
 
     useEffect(() => {
-        console.log('[SettingsScreen] Mounting...');
-        // Load settings
-        const loadSettings = async () => {
-            try {
-                console.log('[SettingsScreen] Loading settings...');
-                const savedAutoCapture = await storageService.getSetting<boolean>('autoCapture');
-                const savedShowSensorData = await storageService.getSetting<boolean>('showSensorData');
-                const savedEnableVibration = await storageService.getSetting<boolean>('enableVibration');
-                const savedHighQualityMode = await storageService.getSetting<boolean>('highQualityMode');
-
-                setAutoCapture(savedAutoCapture === true || savedAutoCapture === null ? true : false);
-                setShowSensorData(savedShowSensorData === true || savedShowSensorData === null ? true : false);
-                setEnableVibration(savedEnableVibration === true || savedEnableVibration === null ? true : false);
-                setHighQualityMode(savedHighQualityMode === true || savedHighQualityMode === null ? true : false);
-                console.log('[SettingsScreen] Settings loaded successfully');
-            } catch (error) {
-                console.error('[SettingsScreen] Error loading settings:', error);
-            }
-        };
-        loadSettings();
-
-        // Entrance Animation
-        Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 600,
-            useNativeDriver: true,
-            easing: Easing.out(Easing.cubic),
-        }).start();
-    }, []);
+        // Sync local state if user store updates (e.g. after refresh)
+        const currentSettings = (user as any)?.settings;
+        if (currentSettings) {
+            setAutoCapture(currentSettings.autoCapture ?? true);
+            setShowSensorData(currentSettings.showSensorData ?? false);
+            setEnableVibration(currentSettings.hapticFeedback ?? true);
+            setHighQualityMode(currentSettings.highQualityMode ?? true);
+        }
+    }, [user]);
 
     const handleSettingChange = async (key: string, value: boolean) => {
-        await storageService.saveSetting(key, value);
-        Toast.show({
-            type: 'success',
-            text1: 'Saved',
-            visibilityTime: 1500,
-        });
+        try {
+            // 1. Haptic Feedback (Immediate)
+            if (enableVibration && key !== 'hapticFeedback') {
+                Vibration.vibrate(10); // Light tap
+            }
+
+            // 2. Update Local State immediately for UI responsiveness
+            // (Already handled by specific setters in render, but good to know)
+
+            // 3. Update Local Storage (Backup) and Backend (Primary)
+            const currentSettings = {
+                autoCapture: key === 'autoCapture' ? value : autoCapture,
+                showSensorData: key === 'showSensorData' ? value : showSensorData,
+                highQualityMode: key === 'highQualityMode' ? value : highQualityMode,
+                hapticFeedback: key === 'enableVibration' ? value : enableVibration,
+            };
+
+            // Save to Local Storage
+            await storageService.saveSetting(key, value);
+
+            // Sync to Database
+            const updatedUser = await authApi.updateProfile({
+                settings: currentSettings
+            });
+
+            // Update Global Store
+            setUser(updatedUser);
+
+            Toast.show({
+                type: 'success',
+                text1: 'Settings Saved',
+                visibilityTime: 1000,
+            });
+
+        } catch (error) {
+            console.error('Failed to sync settings:', error);
+            Toast.show({ type: 'error', text1: 'Failed to save setting' });
+        }
     };
 
-    const showLogoutDialog = () => {
-        setDialogConfig({
-            visible: true,
-            title: 'Logout',
-            message: 'Are you sure you want to log out of your account?',
-            type: 'warning',
-            showCancel: true,
-            confirmText: 'Logout',
-            onConfirm: async () => {
-                setDialogConfig(prev => ({ ...prev, visible: false }));
-                await handleLogout(); // Uses useAuth hook's logout with navigation
-            }
-        });
-    };
+    // ... handlers ...
 
     const handleShare = async () => {
         try {
@@ -105,14 +106,18 @@ export const SettingsScreen: React.FC = () => {
         setDialogConfig({
             visible: true,
             title: 'Clear Cache',
-            message: 'Remove temporary files? This will not delete your scan history.',
+            message: 'Remove temporary image files and local data? This will not delete your scan history from the cloud.',
             type: 'warning',
             showCancel: true,
             confirmText: 'Clear',
             onConfirm: async () => {
                 setDialogConfig(prev => ({ ...prev, visible: false }));
-                // Placeholder logic
-                Toast.show({ type: 'success', text1: 'Cache cleared successfully' });
+                try {
+                    await storageService.clearAllCache();
+                    Toast.show({ type: 'success', text1: 'Cache cleared successfully' });
+                } catch (e) {
+                    Toast.show({ type: 'error', text1: 'Failed to clear cache' });
+                }
             }
         });
     };
@@ -196,12 +201,22 @@ export const SettingsScreen: React.FC = () => {
                         style={styles.profileCard}
                     >
                         <View style={styles.profileAvatar}>
-                            <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
+                            {user?.avatar ? (
+                                <Image
+                                    source={{ uri: user.avatar }}
+                                    style={{ width: '100%', height: '100%', borderRadius: 32 }}
+                                />
+                            ) : (
+                                <Text style={styles.avatarText}>{user?.name?.charAt(0).toUpperCase() || 'U'}</Text>
+                            )}
                         </View>
                         <View style={styles.profileInfo}>
                             <Text style={styles.profileName}>{user?.name || 'Guest User'}</Text>
                             <Text style={styles.profileEmail}>{user?.email || 'No email connected'}</Text>
-                            <TouchableOpacity style={styles.editProfileBtn}>
+                            <TouchableOpacity
+                                style={styles.editProfileBtn}
+                                onPress={() => navigation.navigate('EditProfile' as never)}
+                            >
                                 <Text style={styles.editProfileText}>Edit Profile</Text>
                             </TouchableOpacity>
                         </View>

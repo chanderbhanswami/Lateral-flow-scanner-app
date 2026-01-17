@@ -185,10 +185,30 @@ export const authApi = {
         return response.data!;
     },
 
-    async updateProfile(data: { name?: string; phone?: string; avatar?: string }): Promise<User> {
+    async updateProfile(data: { name?: string; phone?: string; avatar?: string; settings?: any }): Promise<User> {
         const response = await apiClient.patch<ApiResponse<User>>(
             API_ENDPOINTS.AUTH.ME,
             data
+        );
+        return response.data!;
+    },
+
+    async uploadAvatar(data: FormData): Promise<{ message: string; data: { avatar: string } }> {
+        const response = await apiClient.post<ApiResponse<{ message: string; data: { avatar: string } }>>(
+            '/users/avatar', // Explicit endpoint since it might differ from constant
+            data,
+            {
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+            }
+        );
+        return response.data!;
+    },
+
+    async deleteAvatar(): Promise<{ message: string }> {
+        const response = await apiClient.delete<ApiResponse<{ message: string }>>(
+            '/users/avatar'
         );
         return response.data!;
     },

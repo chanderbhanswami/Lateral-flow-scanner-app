@@ -28,6 +28,11 @@ const envSchema = z.object({
     R2_BUCKET_NAME: z.string(),
     R2_PUBLIC_URL: z.string(),
 
+    // Cloudinary
+    CLOUDINARY_CLOUD_NAME: z.string(),
+    CLOUDINARY_API_KEY: z.string(),
+    CLOUDINARY_API_SECRET: z.string(),
+
     // Kafka
     KAFKA_BROKERS: z.string(),
     KAFKA_CLIENT_ID: z.string().default('lateral-flow-backend'),

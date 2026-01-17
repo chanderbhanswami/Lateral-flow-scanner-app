@@ -45,7 +45,15 @@ export interface User {
     updatedAt: string;
     isEmailVerified: boolean;
     authProvider?: 'email' | 'google' | 'facebook';
-    profilePicture?: string;
+    avatar?: string;
+    settings?: UserSettings;
+}
+
+export interface UserSettings {
+    autoCapture: boolean;
+    showSensorData: boolean;
+    highQualityMode: boolean;
+    hapticFeedback: boolean;
 }
 
 export interface UploadRequest {

@@ -10,6 +10,7 @@ import { SettingsScreen } from '../screens/SettingsScreen';
 import { ChangePasswordScreen } from '../screens/ChangePasswordScreen';
 import { NotificationScreen } from '../screens/NotificationScreen';
 import { StatisticsScreen } from '../screens/StatisticsScreen';
+import { EditProfileScreen } from '../screens/EditProfileScreen';
 import { MainStackParamList } from './types';
 
 const Stack = createStackNavigator<MainStackParamList>();
@@ -65,6 +66,11 @@ const MainNavigator: React.FC = () => {
             <Stack.Screen
                 name="Statistics"
                 component={StatisticsScreen}
+                options={{ headerShown: false }}
+            />
+            <Stack.Screen
+                name="EditProfile"
+                component={EditProfileScreen}
                 options={{ headerShown: false }}
             />
         </Stack.Navigator>

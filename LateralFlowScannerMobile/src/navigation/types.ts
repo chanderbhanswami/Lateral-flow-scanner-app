@@ -41,6 +41,7 @@ export type MainStackParamList = {
     ManageSessions: undefined;
     Notifications: undefined;
     Statistics: undefined;
+    EditProfile: undefined;
 };
 
 export type MainStackScreenProps<T extends keyof MainStackParamList> = StackScreenProps<

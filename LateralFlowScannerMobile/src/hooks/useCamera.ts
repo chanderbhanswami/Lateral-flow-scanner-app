@@ -4,10 +4,10 @@ import { CameraConfig, CameraMetadata } from '../types';
 import { CAMERA_CONSTANTS } from '../constants';
 import { cameraService } from '../services/camera.service';
 
-export const useCamera = () => {
+export const useCamera = (highQualityMode: boolean = true) => {
     const device = useCameraDevice('back');
     const format = useCameraFormat(device, [
-        { photoResolution: 'max' },
+        { photoResolution: highQualityMode ? 'max' : 'high' },
         { fps: CAMERA_CONSTANTS.TARGET_FPS },
         { pixelFormat: 'yuv' } as any // Explicitly request YUV
     ]);

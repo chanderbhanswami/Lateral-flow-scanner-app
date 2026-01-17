@@ -160,9 +160,16 @@ export const HomeScreen: React.FC = () => {
                 <View style={styles.header}>
                     <View style={styles.userInfo}>
                         <View style={styles.avatarContainer}>
-                            <Text style={styles.avatarText}>
-                                {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
-                            </Text>
+                            {user?.avatar ? (
+                                <Image
+                                    source={{ uri: user.avatar }}
+                                    style={{ width: '100%', height: '100%', borderRadius: 21 }}
+                                />
+                            ) : (
+                                <Text style={styles.avatarText}>
+                                    {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+                                </Text>
+                            )}
                         </View>
                         <View>
                             <Text style={styles.greeting}>{greeting}</Text>

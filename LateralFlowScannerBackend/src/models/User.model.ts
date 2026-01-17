@@ -49,6 +49,14 @@ export interface IUser {
     loginAttempts: number;
     lockUntil?: Date;
 
+    // App Settings
+    settings?: {
+        autoCapture: boolean;
+        showSensorData: boolean;
+        highQualityMode: boolean;
+        hapticFeedback: boolean;
+    };
+
     // Timestamps
     createdAt: Date;
     updatedAt: Date;
@@ -156,6 +164,14 @@ const UserSchema = new Schema<IUser, UserModel, IUserMethods>(
         lastPasswordChange: Date,
         loginAttempts: { type: Number, default: 0 },
         lockUntil: Date,
+
+        // App Settings
+        settings: {
+            autoCapture: { type: Boolean, default: true },
+            showSensorData: { type: Boolean, default: false },
+            highQualityMode: { type: Boolean, default: true },
+            hapticFeedback: { type: Boolean, default: true },
+        },
     },
     { timestamps: true }
 );

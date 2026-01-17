@@ -15,6 +15,8 @@ import { useCapture } from '../hooks/useCapture';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { useCaptureStore } from '../store/captureStore';
 import { Loading } from '../components/UI/Loading';
+import { useAuthStore } from '../store/authStore';
+import { Vibration } from 'react-native';
 import { BorderGuide } from '../components/Camera/BorderGuide';
 import { FocusIndicator } from '../components/Camera/FocusIndicator';
 import { SensorDisplay } from '../components/Sensors/SensorDisplay';
@@ -39,6 +41,14 @@ export const CaptureScreen: React.FC = () => {
     const navigation = useNavigation<CaptureScreenProps['navigation']>();
     const route = useRoute<CaptureScreenProps['route']>();
 
+    const { user } = useAuthStore();
+    const settings = (user as any)?.settings || {
+        autoCapture: true,  // Default values if no settings found
+        showSensorData: false,
+        hapticFeedback: true,
+        highQualityMode: true
+    };
+
     const {
         cameraRef,
         config,
@@ -51,7 +61,7 @@ export const CaptureScreen: React.FC = () => {
         lockWhiteBalance,
         toggleTorch,
         setFocusMode,
-    } = useCamera();
+    } = useCamera(settings.highQualityMode);
 
     const { sensorData, isShaking, lightLevel, getAlignment, alignment, lightAnalysis, proximity, proximityWarning, orientation } = useSensors();
     const { borderData, guideColor, updateBorderDetection } = useBorderDetection();
@@ -63,11 +73,12 @@ export const CaptureScreen: React.FC = () => {
         stableFrameCount,
         incrementStableFrameCount,
         resetStableFrameCount,
-        setIsCapturing
+        setIsCapturing,
+        setCurrentCapture
     } = useCaptureStore();
 
     const [feedbackMessages, setFeedbackMessages] = useState<FeedbackMessage[]>([]);
-    const [showSensorDisplay, setShowSensorDisplay] = useState(false);
+    const [showSensorDisplay, setShowSensorDisplay] = useState(settings.showSensorData);
     const [showBatchSelector, setShowBatchSelector] = useState(false);
     const [autoCapturePending, setAutoCapturePending] = useState(false);
     const [cameraError, setCameraError] = useState<string | null>(null);
@@ -114,7 +125,7 @@ export const CaptureScreen: React.FC = () => {
 
     // Auto-capture logic
     useEffect(() => {
-        if (!autoCapturePending) {
+        if (!autoCapturePending || !settings.autoCapture) {
             setCountdown(null);
             if (countdownIntervalRef.current) clearInterval(countdownIntervalRef.current);
             return;
@@ -329,9 +340,17 @@ export const CaptureScreen: React.FC = () => {
             const capturedData = await processCapture(photo.path, captureMetadata, fullSensorData, analysisData);
 
             if (capturedData) {
+                if (settings.hapticFeedback) {
+                    Vibration.vibrate(50);
+                }
                 capturedData.captureMode = mode;
-                capturedData.concentrationBatchId = selectedBatch?.id || '';
+                setCurrentCapture(capturedData);
                 navigation.navigate('Review', { captureData: capturedData, imageUri: photo.path });
+                Toast.show({
+                    type: 'success',
+                    text1: 'Capture Successful',
+                    visibilityTime: 2000,
+                });
             } else {
                 throw new Error('Processing capture returned no data');
             }

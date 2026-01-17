@@ -16,4 +16,6 @@ export { SettingsScreen } from './SettingsScreen';
 export { HistoryScreen } from './HistoryScreen';
 export { StatisticsScreen } from './StatisticsScreen';
 export { NotificationScreen } from './NotificationScreen';
+export { EditProfileScreen } from './EditProfileScreen';
+
 
