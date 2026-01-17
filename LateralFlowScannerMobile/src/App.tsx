@@ -19,6 +19,9 @@ LogBox.ignoreAllLogs();
 Sentry.init({
   dsn: ENV.SENTRY_DSN,
   environment: ENV.ENVIRONMENT,
+  enabled: true, // Explicitly enable
+  // Performance
+  tracesSampleRate: 1.0, // Capture 100% of transactions for debugging
   // Session Replay
   replaysSessionSampleRate: 0.1, // Sample 10% of sessions
   replaysOnErrorSampleRate: 1.0, // Sample 100% of sessions with errors
