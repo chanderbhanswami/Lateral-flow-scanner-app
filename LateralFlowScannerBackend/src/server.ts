@@ -15,6 +15,7 @@ import { logger } from './utils/logger';
 import { config } from './config/env';
 import { supabaseAuditService } from './services/supabaseAudit.service';
 import { r2Service } from './services/r2.service';
+import { verifyCloudinaryConnection } from './config/cloudinary';
 
 const app = express();
 
@@ -98,6 +99,10 @@ const startServer = async () => {
         // Verify R2 connection
         await r2Service.verifyConnection();
         logger.info('Cloudflare R2 connected');
+
+        // Verify Cloudinary connection
+        await verifyCloudinaryConnection();
+        logger.info(`Cloudinary service initialized (cloud_name: ${config.CLOUDINARY_CLOUD_NAME})`);
 
         // Start server
         app.listen(PORT, () => {

@@ -10,6 +10,16 @@ cloudinary.config({
 });
 
 /**
+ * Verify Cloudinary configuration
+ */
+export const verifyCloudinaryConnection = async () => {
+    if (!config.CLOUDINARY_CLOUD_NAME || !config.CLOUDINARY_API_KEY || !config.CLOUDINARY_API_SECRET) {
+        throw new Error('Cloudinary credentials missing');
+    }
+    return true;
+};
+
+/**
  * Upload an image to Cloudinary
  * @param filePath Local path to the file
  * @param folder Cloudinary folder name (default: 'profiles')
