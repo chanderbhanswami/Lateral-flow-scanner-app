@@ -131,23 +131,36 @@ export const HomeScreen: React.FC = () => {
         },
     ];
 
-    const RecentScanItem = ({ item }: { item: any }) => (
-        <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={() => navigation.navigate('Review', { captureData: item, imageUri: item.imageUrl })}
-            style={styles.recentScanCard}
-        >
-            <Image source={{ uri: item.imageUrl }} style={styles.recentScanImage} />
-            <View style={styles.recentScanOverlay}>
-                <View style={styles.recentScanBadge}>
-                    <Text style={styles.recentScanScore}>{item.concentration} {item.unit}</Text>
+    const RecentScanItem = ({ item }: { item: any }) => {
+        const timestamp = item.timestamp ? new Date(item.timestamp) : new Date();
+        const isValidDate = !isNaN(timestamp.getTime());
+
+        return (
+            <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('Review', { captureData: item, imageUri: item.imageUrl })}
+                style={styles.recentScanCard}
+            >
+                {item.imageUrl ? (
+                    <Image source={{ uri: item.imageUrl }} style={styles.recentScanImage} />
+                ) : (
+                    <View style={[styles.recentScanImage, { backgroundColor: '#e2e8f0', justifyContent: 'center', alignItems: 'center' }]}>
+                        <Icon name="image-off" size={24} color="#94a3b8" />
+                    </View>
+                )}
+                <View style={styles.recentScanOverlay}>
+                    <View style={styles.recentScanBadge}>
+                        <Text style={styles.recentScanScore}>{item.concentration} {item.unit}</Text>
+                    </View>
+                    <Text style={styles.recentScanTime}>
+                        {isValidDate
+                            ? formatDistanceToNow(timestamp, { addSuffix: true })
+                            : 'Just now'}
+                    </Text>
                 </View>
-                <Text style={styles.recentScanTime}>
-                    {formatDistanceToNow(new Date(item.timestamp), { addSuffix: true })}
-                </Text>
-            </View>
-        </TouchableOpacity>
-    );
+            </TouchableOpacity>
+        );
+    };
 
     return (
         <View style={styles.mainContainer}>
@@ -160,7 +173,7 @@ export const HomeScreen: React.FC = () => {
                 <View style={styles.header}>
                     <View style={styles.userInfo}>
                         <View style={styles.avatarContainer}>
-                            {user?.avatar ? (
+                            {user?.avatar && user.avatar.trim() !== '' ? (
                                 <Image
                                     source={{ uri: user.avatar }}
                                     style={{ width: '100%', height: '100%', borderRadius: 21 }}
