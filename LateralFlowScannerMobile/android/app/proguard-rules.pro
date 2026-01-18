@@ -44,6 +44,32 @@
 # React Native Image Crop Picker
 -keep public class com.reactnative.ivpusic.imagepicker.** { *; }
 -keep public interface com.reactnative.ivpusic.imagepicker.** { *; }
+-dontwarn com.reactnative.ivpusic.imagepicker.**
+
+# TurboModules and New Architecture support
+-keep class com.facebook.react.turbomodule.** { *; }
+-keep interface com.facebook.react.turbomodule.** { *; }
+-keep class com.facebook.jni.** { *; }
+-keep class com.facebook.react.bridge.** { *; }
+-keep class com.facebook.react.uimanager.** { *; }
+-keep class com.facebook.react.common.** { *; }
+-keep class com.facebook.react.modules.** { *; }
+-keep,allowobfuscation @interface com.facebook.proguard.annotations.DoNotStrip
+-keep,allowobfuscation @interface com.facebook.proguard.annotations.KeepGettersAndSetters
+-keep @com.facebook.proguard.annotations.DoNotStrip class *
+-keepclassmembers class * {
+    @com.facebook.proguard.annotations.DoNotStrip *;
+}
+
+# Keep native methods
+-keepclassmembers class * {
+    native <methods>;
+}
+
+# Image Crop Picker dependencies (uCrop, Glide)
+-keep class com.yalantis.ucrop.** { *; }
+-keep class com.yalantis.ucrop.view.** { *; }
+-dontwarn com.yalantis.ucrop.**
 
 # React Native Fast Image
 -keep class com.dylanvann.fastimage.** { *; }
