@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import LinearGradient from 'react-native-linear-gradient';
-import { HomeScreenProps } from '../types';
+import { HomeScreenProps } from '../navigation/types';
 import { Card } from '../components/UI/Card';
 import { useAuthStore } from '../store/authStore';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';

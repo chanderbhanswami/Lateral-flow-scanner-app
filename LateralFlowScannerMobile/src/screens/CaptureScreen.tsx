@@ -5,7 +5,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { CaptureScreenProps } from '../types';
+import { CaptureScreenProps } from '../navigation/types';
 import { useCamera } from '../hooks/useCamera';
 import { useSensors } from '../hooks/useSensors';
 import { useCustomFrameProcessor } from '../hooks/useFrameProcessor';

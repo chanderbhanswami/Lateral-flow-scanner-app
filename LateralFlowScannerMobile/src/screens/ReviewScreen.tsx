@@ -3,7 +3,7 @@ import { View, StyleSheet, Text, Image, TextInput, TouchableOpacity, ActivityInd
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import Toast from 'react-native-toast-message';
-import { ReviewScreenProps } from '../types';
+import { ReviewScreenProps } from '../navigation/types';
 import { useCapture } from '../hooks/useCapture';
 import { useMetadata } from '../hooks/useMetadata';
 import { Button } from '../components/UI/Button';
