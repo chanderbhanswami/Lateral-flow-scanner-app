@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent, Vibration, StatusBar, Platform } from 'react-native';
+
 import { Camera } from 'react-native-vision-camera';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,7 +17,6 @@ import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { useCaptureStore } from '../store/captureStore';
 import { Loading } from '../components/UI/Loading';
 import { useAuthStore } from '../store/authStore';
-import { Vibration } from 'react-native';
 import { BorderGuide } from '../components/Camera/BorderGuide';
 import { FocusIndicator } from '../components/Camera/FocusIndicator';
 import { SensorDisplay } from '../components/Sensors/SensorDisplay';
@@ -24,18 +24,19 @@ import { AlignmentIndicator } from '../components/Sensors/AlignmentIndicator';
 import { WarningBanner, FeedbackMessage } from '../components/Guides/WarningBanner';
 import { GuideOverlay } from '../components/Guides/GuideOverlay';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
-import { HistogramDisplay } from '../components/Camera/HistogramDisplay';
+import { AdvancedHistogramDisplay } from '../components/Camera/AdvancedHistogramDisplay';
 import { ExposureMeter } from '../components/Camera/ExposureMeter';
 import { ExposureSlider } from '../components/Camera/ExposureSlider';
 import { AUTO_CAPTURE_CONDITIONS } from '../constants';
-import { CAMERA_HEIGHT } from '../constants/layout';
 import { logger } from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const CAMERA_ASPECT_RATIO = 4 / 3;
+const CAMERA_HEIGHT = SCREEN_WIDTH * CAMERA_ASPECT_RATIO;
 
-// Header and footer heights
-const HEADER_HEIGHT = 150;
-const FOOTER_HEIGHT = 80;
+// Adjusted heights
+const HEADER_HEIGHT = 180;
+const FOOTER_HEIGHT = 70;
 
 export const CaptureScreen: React.FC = () => {
     const navigation = useNavigation<CaptureScreenProps['navigation']>();
@@ -43,7 +44,7 @@ export const CaptureScreen: React.FC = () => {
 
     const { user } = useAuthStore();
     const settings = (user as any)?.settings || {
-        autoCapture: true,  // Default values if no settings found
+        autoCapture: true,
         showSensorData: false,
         hapticFeedback: true,
         highQualityMode: true
@@ -85,12 +86,17 @@ export const CaptureScreen: React.FC = () => {
     const [focusPoint, setFocusPoint] = useState<{ x: number; y: number; visible: boolean }>({ x: 0, y: 0, visible: false });
     const [showGuide, setShowGuide] = useState(false);
     const [showExposure, setShowExposure] = useState(false);
+    const [showHistogram, setShowHistogram] = useState(false);
     const [manualExposure, setManualExposure] = useState(0);
 
     const [countdown, setCountdown] = useState<number | null>(null);
     const frameAnalysisRef = useRef<any>(null);
     const autoCaptureTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+    // State for displaying analysis data (throttled to avoid UI lag)
+    const [displayAnalysis, setDisplayAnalysis] = useState<any>(null);
+    const lastUpdateRef = useRef(0);
 
     // Frame processor for real-time analysis
     const frameProcessor = useCustomFrameProcessor(
@@ -100,6 +106,13 @@ export const CaptureScreen: React.FC = () => {
         useCallback((frameAnalysis) => {
             frameAnalysisRef.current = frameAnalysis;
             updateWarnings(frameAnalysis);
+
+            // Throttle UI updates to ~10fps (100ms)
+            const now = Date.now();
+            if (now - lastUpdateRef.current > 100) {
+                setDisplayAnalysis(frameAnalysis);
+                lastUpdateRef.current = now;
+            }
         }, [])
     );
 
@@ -107,6 +120,8 @@ export const CaptureScreen: React.FC = () => {
     useEffect(() => {
         const init = async () => {
             try {
+                StatusBar.setBarStyle('dark-content');
+                if (Platform.OS === 'android') StatusBar.setBackgroundColor('#ffffff');
                 await initializeCamera();
                 setCameraError(null);
             } catch (error: any) {
@@ -155,7 +170,7 @@ export const CaptureScreen: React.FC = () => {
                 });
             }, 1000);
         }
-    }, [borderData, isShaking, lightLevel, autoCapturePending, stableFrameCount]); // Removed analysis dependency
+    }, [borderData, isShaking, lightLevel, autoCapturePending, stableFrameCount]);
 
     const checkAutoCaptureConditions = (): boolean => {
         const analysis = frameAnalysisRef.current;
@@ -163,8 +178,8 @@ export const CaptureScreen: React.FC = () => {
 
         const conditions = {
             borderDetected: borderData.detected && borderData.confidence >= AUTO_CAPTURE_CONDITIONS.MIN_BORDER_CONFIDENCE,
-            borderAligned: borderData.isAligned && borderData.isCentered, // Strict alignment
-            notBlurry: !analysis.blurAnalysis?.isBlurry, // Use frame analysis
+            borderAligned: borderData.isAligned && borderData.isCentered,
+            notBlurry: !analysis.blurAnalysis?.isBlurry,
             exposureGood: !analysis.exposureAnalysis?.isUnderexposed && !analysis.exposureAnalysis?.isOverexposed,
             notShaking: !isShaking,
             lightGood: lightLevel >= AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL,
@@ -177,7 +192,7 @@ export const CaptureScreen: React.FC = () => {
     const updateWarnings = (frameAnalysis: any) => {
         const messages: FeedbackMessage[] = [];
 
-        // ========== KIT/BORDER DETECTION ==========
+        // ========== ALERT / WARNING SYSTEM ==========
         if (!borderData?.detected) {
             messages.push({ type: 'error', message: '⚠️ Kit not detected', icon: 'test-tube-off' });
         } else if (!borderData?.isAligned) {
@@ -188,64 +203,41 @@ export const CaptureScreen: React.FC = () => {
             messages.push({ type: 'success', message: '✓ Kit detected', icon: 'test-tube' });
         }
 
-        // ========== BLUR DETECTION (from frame processor) ==========
         if (frameAnalysis?.blurAnalysis?.isBlurry) {
             const score = frameAnalysis?.blurAnalysis?.laplacianVariance?.toFixed(0) || '?';
             messages.push({ type: 'warning', message: `📷 Blurry (${score})`, icon: 'blur' });
-        } else if (frameAnalysis?.blurAnalysis && !frameAnalysis.blurAnalysis.isBlurry) {
-            messages.push({ type: 'success', message: '✓ Sharp', icon: 'camera-iris' });
         }
 
-        // ========== EXPOSURE DETECTION ==========
         if (frameAnalysis?.exposureAnalysis?.isUnderexposed) {
             messages.push({ type: 'warning', message: '🌙 Too dark', icon: 'brightness-5' });
         } else if (frameAnalysis?.exposureAnalysis?.isOverexposed) {
             messages.push({ type: 'warning', message: '☀️ Too bright', icon: 'white-balance-sunny' });
-        } else if (frameAnalysis?.exposureAnalysis) {
-            messages.push({ type: 'success', message: '✓ Good exposure', icon: 'brightness-6' });
         }
 
-        // ========== SHADOW DETECTION ==========
         if (frameAnalysis?.shadowAnalysis?.hasShadow) {
-            const coverage = ((frameAnalysis.shadowAnalysis.shadowCoverage || 0) * 100).toFixed(0);
-            messages.push({ type: 'warning', message: `🌑 Shadow (${coverage}%)`, icon: 'weather-partly-cloudy' });
+            messages.push({ type: 'warning', message: `🌑 Shadow detected`, icon: 'weather-partly-cloudy' });
         }
 
-        // ========== REFLECTION/GLARE DETECTION ==========
         if (frameAnalysis?.reflectionAnalysis?.hasReflection) {
-            const intensity = ((frameAnalysis.reflectionAnalysis.reflectionIntensity || 0) * 100).toFixed(0);
-            messages.push({ type: 'warning', message: `✨ Glare (${intensity}%)`, icon: 'flare' });
+            messages.push({ type: 'warning', message: `✨ Glare detected`, icon: 'flare' });
         }
 
-        // ========== WHITE BALANCE ==========
-        if (frameAnalysis?.whiteBalanceAnalysis && !frameAnalysis.whiteBalanceAnalysis.isBalanced) {
-            const channel = frameAnalysis.whiteBalanceAnalysis.dominantChannel;
-            messages.push({ type: 'info', message: `🎨 ${channel} tint`, icon: 'palette' });
-        }
-
-        // ========== DEVICE STABILITY (from sensors) ==========
         if (isShaking) {
             messages.push({ type: 'error', message: '📳 Hold steady!', icon: 'vibrate' });
         }
 
-        // ========== AMBIENT LIGHT (from sensor) ==========
         if (lightLevel < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
             messages.push({ type: 'warning', message: '💡 Low ambient light', icon: 'lightbulb-outline' });
-        } else if (lightLevel > 1000) {
-            messages.push({ type: 'info', message: '☀️ Bright environment', icon: 'weather-sunny' });
         }
 
-        // ========== FOCUS ANALYSIS ==========
         if (frameAnalysis?.focusAnalysis?.needsFocus) {
             messages.push({ type: 'warning', message: '🔍 Tap to focus', icon: 'focus-field' });
         }
 
-        // ========== OVERALL READINESS ==========
         const hasErrors = messages.some(m => m.type === 'error');
         const hasWarnings = messages.some(m => m.type === 'warning');
 
         if (!hasErrors && !hasWarnings && borderData?.detected) {
-            // All conditions are good - ready to capture!
             messages.unshift({ type: 'success', message: '✓ Ready to capture!', icon: 'camera' });
         }
 
@@ -291,7 +283,6 @@ export const CaptureScreen: React.FC = () => {
 
             Toast.show({ type: 'info', text1: 'Analyzing image...', visibilityTime: 1500 });
 
-            // Call analyzeImage to get REAL analysis data (qualityScore, blur, exposure, etc.)
             let realAnalysis: any = null;
             try {
                 realAnalysis = await analyzeImage(photo.path);
@@ -301,7 +292,6 @@ export const CaptureScreen: React.FC = () => {
 
             const captureMetadata = { ...metadata, width: photo.width || 0, height: photo.height || 0 };
 
-            // Build analysisData with real analysis or defaults
             const analysisData = {
                 qualityScore: realAnalysis?.qualityScore ?? 50,
                 warnings: realAnalysis?.warnings ?? [],
@@ -313,12 +303,11 @@ export const CaptureScreen: React.FC = () => {
                 borderDetection: realAnalysis?.borderDetection ?? null,
                 shadowAnalysis: realAnalysis?.shadowAnalysis ?? null,
                 reflectionAnalysis: realAnalysis?.reflectionAnalysis ?? null,
-                frameAnalysis: frameAnalysisRef.current || null, // Save live frame processing data (focus, etc.)
+                frameAnalysis: frameAnalysisRef.current || null,
                 ...(realAnalysis || {}),
                 borderCorners: borderData?.detected ? borderData.corners : null,
             };
 
-            // Merge all sensor data into one payload
             const fullSensorData = {
                 ...(sensorData || {}),
                 ambientLight: {
@@ -373,6 +362,11 @@ export const CaptureScreen: React.FC = () => {
             if (!cameraRef.current) return;
             const { locationX, locationY } = event.nativeEvent;
             await cameraRef.current.focus({ x: locationX, y: locationY });
+
+            // Show focus indicator
+            setFocusPoint({ x: locationX, y: locationY, visible: true });
+            setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1500);
+
         } catch (e) {
             console.warn('[Focus] Could not focus:', e);
         }
@@ -400,43 +394,56 @@ export const CaptureScreen: React.FC = () => {
         );
     }
 
+    // Combine previous analysisRef data with current sensor data for display
+    const currentAnalysisData = {
+        frameAnalysis: frameAnalysisRef.current,
+        borderCorners: borderData?.detected ? borderData.corners : null
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            {/* ===== HEADER ===== */}
-            <View style={styles.header}>
-                {/* Top Row: Back + Title + Controls */}
-                <View style={styles.headerTopRow}>
-                    <View style={styles.headerLeft}>
-                        <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
-                            <Icon name="arrow-left" size={24} color="#1f2937" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Capture</Text>
-                    </View>
 
-                    <View style={styles.headerControls}>
-                        <TouchableOpacity style={styles.controlButton} onPress={toggleTorch}>
-                            <Icon name={config.torch === 'on' ? 'flashlight' : 'flashlight-off'} size={22} color={config.torch === 'on' ? '#f59e0b' : '#6b7280'} />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.controlButton, showExposure && styles.controlButtonActive]} onPress={() => setShowExposure(!showExposure)}>
-                            <Icon name="brightness-6" size={22} color="#6b7280" />
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.controlButton, showSensorDisplay && styles.controlButtonActive]} onPress={() => setShowSensorDisplay(!showSensorDisplay)}>
-                            <Icon name="information-outline" size={22} color="#6b7280" />
-                        </TouchableOpacity>
-                    </View>
+            {/* ===== HEADER (Updated Layout) ===== */}
+            <View style={styles.header}>
+                {/* 1. Main Header: Back & Title */}
+                <View style={styles.headerMainRow}>
+                    <TouchableOpacity style={styles.headerButton} onPress={() => navigation.goBack()}>
+                        <Icon name="arrow-left" size={24} color="#1f2937" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Capture</Text>
+                    <View style={{ width: 40 }} />
                 </View>
 
-                {/* Concentration Selector */}
+                {/* 2. Controls Panel (Moved Down) */}
+                <View style={styles.controlsPanel}>
+                    <TouchableOpacity style={[styles.controlButton, config.torch === 'on' && styles.controlButtonActive]} onPress={toggleTorch}>
+                        <Icon name={config.torch === 'on' ? 'flashlight' : 'flashlight-off'} size={20} color={config.torch === 'on' ? '#f59e0b' : '#4b5563'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.controlButton, showExposure && styles.controlButtonActive]} onPress={() => setShowExposure(!showExposure)}>
+                        <Icon name="brightness-6" size={20} color={showExposure ? '#3b82f6' : '#4b5563'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.controlButton, showHistogram && styles.controlButtonActive]} onPress={() => setShowHistogram(!showHistogram)}>
+                        <Icon name="chart-bar" size={20} color={showHistogram ? '#8b5cf6' : '#4b5563'} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={[styles.controlButton, showSensorDisplay && styles.controlButtonActive]} onPress={() => setShowSensorDisplay(!showSensorDisplay)}>
+                        <Icon name="information-variant" size={20} color={showSensorDisplay ? '#10b981' : '#4b5563'} />
+                    </TouchableOpacity>
+                </View>
+
+                {/* 3. Concentration Button */}
                 <TouchableOpacity style={styles.concentrationButton} onPress={() => setShowBatchSelector(true)}>
                     <Icon name="test-tube" size={18} color="#3b82f6" />
-                    <Text style={styles.concentrationText}>{selectedBatch ? selectedBatch.name : 'Select Concentration'}</Text>
+                    <Text style={styles.concentrationText} numberOfLines={1}>{selectedBatch ? selectedBatch.name : 'Select Concentration'}</Text>
                     <Icon name="chevron-down" size={18} color="#6b7280" />
                 </TouchableOpacity>
             </View>
 
-            {/* ===== CAMERA PREVIEW (3:4) ===== */}
+            {/* ===== CAMERA PREVIEW (Centered, 3:4) ===== */}
             <View style={styles.cameraContainer}>
-                <Pressable style={styles.cameraWrapper} onPress={handleTapToFocus}>
+                <View style={styles.cameraWrapper}>
                     <Camera
                         ref={cameraRef}
                         style={StyleSheet.absoluteFill}
@@ -449,23 +456,15 @@ export const CaptureScreen: React.FC = () => {
                         zoom={config.zoom}
                         exposure={config.exposure}
                         torch={config.torch}
-                        lowLightBoost={config.lowLightBoost}
                         photoQualityBalance={config.photoQualityBalance}
                         frameProcessor={frameProcessor}
-                        onInitialized={() => console.log('Camera initialized!')}
-                        onError={(e) => {
-                            console.error('Camera Runtime Error:', e);
-                            setCameraError(`Camera Error: ${e.message} (${e.code})`);
-                        }}
                     />
 
-                    {/* Border Guide */}
+                    {/* Border & Guides */}
                     <BorderGuide corners={borderData.corners} color={guideColor} isDetected={borderData.detected} />
-
-                    {/* Focus Indicator */}
                     <FocusIndicator x={focusPoint.x} y={focusPoint.y} visible={focusPoint.visible} />
 
-                    {/* Countdown Overlay */}
+                    {/* Overlays */}
                     {countdown !== null && (
                         <View style={styles.countdownContainer}>
                             <Text style={styles.countdownText}>{countdown}</Text>
@@ -473,37 +472,58 @@ export const CaptureScreen: React.FC = () => {
                         </View>
                     )}
 
-                    {/* Feedback Banner */}
                     <WarningBanner messages={feedbackMessages} />
 
-                    {/* Sensor Display Overlay (if enabled) */}
+                    {/* --- DEBUG & INFO OVERLAYS --- */}
                     {showSensorDisplay && (
-                        <View style={styles.sensorOverlay}>
-                            <SensorDisplay sensorData={sensorData} lightLevel={lightLevel} isShaking={isShaking} alignment={getAlignment()} />
-                            <View style={styles.histogramContainer}>
-                                <HistogramDisplay data={analysis?.histogram || null} visible={true} />
-                                <ExposureMeter analysis={analysis?.exposureAnalysis || null} visible={true} />
-                            </View>
+                        <SensorDisplay
+                            sensorData={sensorData}
+                            lightLevel={lightLevel}
+                            isShaking={isShaking}
+                            alignment={getAlignment()}
+                            analysisData={{
+                                ...currentAnalysisData,
+                                frameAnalysis: displayAnalysis // Use state instead of Ref for rendering
+                            }}
+                        />
+                    )}
+
+                    {(showHistogram || showSensorDisplay) && (
+                        <View style={styles.histogramOverlay}>
+                            <AdvancedHistogramDisplay
+                                data={displayAnalysis?.histogram}
+                                mode="luminance"
+                                visible={true}
+                            />
+                            <AdvancedHistogramDisplay
+                                data={displayAnalysis?.histogram}
+                                mode="rgb"
+                                visible={true}
+                            />
+                            <ExposureMeter
+                                analysis={displayAnalysis?.exposureAnalysis}
+                                visible={true}
+                            />
                         </View>
                     )}
 
-                    {/* Exposure Slider (if enabled) */}
                     {showExposure && (
                         <View style={styles.exposureOverlay}>
                             <ExposureSlider value={manualExposure} onChange={handleExposureChange} min={-2} max={2} />
                         </View>
                     )}
-                </Pressable>
+
+                    {/* Touch Area for Focus (Full Screen Overlay) */}
+                    <Pressable style={StyleSheet.absoluteFill} onPress={handleTapToFocus} />
+                </View>
             </View>
 
-            {/* ===== FOOTER ===== */}
+            {/* ===== FOOTER (Compact) ===== */}
             <View style={styles.footer}>
-                {/* Left: Alignment Indicator */}
                 <View style={styles.footerSide}>
                     {alignment && <AlignmentIndicator alignment={alignment} compact />}
                 </View>
 
-                {/* Center: Capture Button */}
                 <TouchableOpacity
                     style={[styles.captureButton, isProcessing && styles.captureButtonDisabled]}
                     onPress={handleManualCapture}
@@ -512,15 +532,14 @@ export const CaptureScreen: React.FC = () => {
                     <View style={styles.captureButtonInner} />
                 </TouchableOpacity>
 
-                {/* Right: Help Button */}
                 <View style={styles.footerSide}>
                     <TouchableOpacity style={styles.footerButton} onPress={() => setShowGuide(true)}>
-                        <Icon name="help-circle-outline" size={28} color="#6b7280" />
+                        <Icon name="help-circle-outline" size={26} color="#4b5563" />
                     </TouchableOpacity>
                 </View>
             </View>
 
-            {/* ===== MODALS & OVERLAYS ===== */}
+            {/* ===== MODALS ===== */}
             {showBatchSelector && (
                 <BatchSelector visible={showBatchSelector} onClose={() => setShowBatchSelector(false)} onSelect={handleBatchSelect} />
             )}
@@ -530,7 +549,7 @@ export const CaptureScreen: React.FC = () => {
             {autoCapturePending && (
                 <View style={styles.autoCaptureIndicator}>
                     <ActivityIndicator size="small" color="#10b981" />
-                    <Text style={styles.autoCaptureText}>Auto-capturing in {AUTO_CAPTURE_CONDITIONS.REQUIRED_STABLE_FRAMES - stableFrameCount}...</Text>
+                    <Text style={styles.autoCaptureText}>Auto-capture: {AUTO_CAPTURE_CONDITIONS.REQUIRED_STABLE_FRAMES - stableFrameCount}</Text>
                 </View>
             )}
 
@@ -542,224 +561,133 @@ export const CaptureScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#ffffff',
-    },
-    errorContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 20,
         backgroundColor: '#000',
     },
-    errorTitle: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '600',
-        marginTop: 16,
+    errorContainer: {
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    errorText: {
-        color: '#9ca3af',
-        fontSize: 14,
-        marginTop: 8,
-        textAlign: 'center',
-    },
-    errorButton: {
-        marginTop: 24,
-        backgroundColor: '#3b82f6',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 8,
-    },
-    errorButtonText: {
-        color: '#fff',
-        fontWeight: '600',
-    },
-    loadingText: {
-        color: '#fff',
-        marginTop: 16,
-    },
+    errorTitle: { color: '#fff', fontSize: 18, marginTop: 16 },
+    errorText: { color: '#9ca3af', marginTop: 8 },
+    errorButton: { marginTop: 20, backgroundColor: '#3b82f6', padding: 12, borderRadius: 8 },
+    errorButtonText: { color: '#fff' },
+    loadingText: { color: '#fff', marginTop: 12 },
 
-    // Header
+    // HEADER LAYOUT
     header: {
         backgroundColor: '#ffffff',
         paddingHorizontal: 16,
-        paddingVertical: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        paddingTop: 10,
+        paddingBottom: 0, // Removed padding to flush with camera
+        height: 'auto',
+        minHeight: HEADER_HEIGHT,
+        zIndex: 10,
     },
-    headerTopRow: {
+    headerMainRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 16,
     },
     headerButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerLeft: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 12,
+        width: 40, height: 40, borderRadius: 20,
+        backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center'
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1f2937',
+        fontSize: 18, fontWeight: '700', color: '#1f2937'
     },
-    headerControls: {
+    controlsPanel: {
         flexDirection: 'row',
-        gap: 8,
+        justifyContent: 'center',
+        gap: 20,
+        marginBottom: 8,
+        marginTop: 4,
+        // Removed heavy background to match original lighter aesthetic
+        paddingVertical: 8,
     },
     controlButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: 46, height: 46, borderRadius: 23,
+        backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center',
+        borderWidth: 0, // Removed border for cleaner look
+        shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
+        elevation: 3,
     },
     controlButtonActive: {
-        backgroundColor: '#dbeafe',
+        backgroundColor: '#eff6ff',
+        borderColor: '#bfdbfe',
     },
     concentrationButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#eff6ff',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 12,
-        gap: 8,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        backgroundColor: '#eff6ff', paddingHorizontal: 16, paddingVertical: 12, borderRadius: 12,
+        borderWidth: 1, borderColor: '#dbeafe'
     },
     concentrationText: {
-        flex: 1,
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#1f2937',
+        flex: 1, marginHorizontal: 8, fontSize: 14, fontWeight: '600', color: '#1e40af'
     },
 
-    // Camera (3:4 aspect ratio)
+    // CAMERA LAYOUT
     cameraContainer: {
-        height: CAMERA_HEIGHT,
-        backgroundColor: '#000',
-    },
-    cameraWrapper: {
         flex: 1,
+        backgroundColor: '#000',
+        justifyContent: 'center',
+        alignItems: 'center',
         overflow: 'hidden',
     },
-    sensorOverlay: {
-        position: 'absolute',
-        top: 10,
-        left: 10,
-        right: 10,
+    cameraWrapper: {
+        width: SCREEN_WIDTH,
+        height: CAMERA_HEIGHT,
+        overflow: 'hidden',
     },
-    histogramContainer: {
+    histogramOverlay: {
         position: 'absolute',
-        top: 10,
-        right: 0,
-        alignItems: 'flex-end',
+        top: 20,
+        right: 10,
         gap: 8,
     },
     exposureOverlay: {
         position: 'absolute',
-        top: '40%',
-        left: 20,
-        right: 20,
+        bottom: 40,
+        left: 30, right: 30,
     },
 
-    // Footer
+    // FOOTER LAYOUT
     footer: {
+        height: FOOTER_HEIGHT,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        backgroundColor: '#ffffff',
-        paddingVertical: 20,
         paddingHorizontal: 30,
-        borderTopWidth: 1,
-        borderTopColor: '#f3f4f6',
+        backgroundColor: '#ffffff',
     },
-    footerSide: {
-        width: 60,
-        alignItems: 'center',
-    },
+    footerSide: { width: 60, alignItems: 'center' },
     footerButton: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: 44, height: 44, borderRadius: 22,
+        backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center'
     },
     captureButton: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#ffffff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderWidth: 4,
-        borderColor: '#10b981',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 4,
+        width: 72, height: 72, borderRadius: 36,
+        backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
+        borderWidth: 4, borderColor: '#10b981',
+        marginTop: -36, // Pull up to overlap slightly more centered
+        shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6
     },
-    captureButtonDisabled: {
-        opacity: 0.5,
-    },
+    captureButtonDisabled: { opacity: 0.5 },
     captureButtonInner: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
-        backgroundColor: '#10b981',
+        width: 54, height: 54, borderRadius: 27, backgroundColor: '#10b981'
     },
 
-    // Auto-capture indicator
+    // INDICATORS
     autoCaptureIndicator: {
-        position: 'absolute',
-        top: 150,
-        alignSelf: 'center',
-        backgroundColor: 'rgba(16, 185, 129, 0.9)',
-        paddingHorizontal: 20,
-        paddingVertical: 10,
-        borderRadius: 20,
-        flexDirection: 'row',
-        alignItems: 'center',
-        zIndex: 10,
+        position: 'absolute', top: 20, alignSelf: 'center',
+        backgroundColor: 'rgba(16, 185, 129, 0.9)', padding: 10, borderRadius: 20,
+        flexDirection: 'row', alignItems: 'center',
     },
-    autoCaptureText: {
-        color: '#fff',
-        marginLeft: 10,
-        fontWeight: '600',
-    },
+    autoCaptureText: { color: '#fff', marginLeft: 8, fontWeight: '600', fontSize: 12 },
     countdownContainer: {
-        position: 'absolute',
-        top: '50%',
-        left: '50%',
-        transform: [{ translateX: -50 }, { translateY: -50 }],
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 200,
+        position: 'absolute', top: '50%', left: '50%',
+        transform: [{ translateX: -50 }, { translateY: -50 }], alignItems: 'center'
     },
-    countdownText: {
-        fontSize: 80,
-        fontWeight: 'bold',
-        color: '#ffffff',
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 2 },
-        textShadowRadius: 4,
-    },
-    capturingText: {
-        fontSize: 18,
-        color: '#ffffff',
-        fontWeight: '600',
-        marginTop: 8,
-        textShadowColor: 'rgba(0,0,0,0.5)',
-        textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
-    },
+    countdownText: { fontSize: 80, fontWeight: 'bold', color: '#fff', textShadowRadius: 10 },
+    capturingText: { fontSize: 18, color: '#fff', fontWeight: '600', marginTop: 8 },
 });

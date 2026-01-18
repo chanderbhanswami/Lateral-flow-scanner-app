@@ -1,4 +1,11 @@
 import { CameraDevice, CameraProps, CameraDeviceFormat } from 'react-native-vision-camera';
+import {
+    HistogramData,
+    BlurAnalysis,
+    ExposureAnalysis,
+    ShadowAnalysis,
+    ReflectionAnalysis
+} from '@lateralflowscanner/shared';
 
 export interface CameraConfig {
     device: CameraDevice | undefined;
@@ -42,4 +49,23 @@ export interface ExposureInfo {
     targetBrightness: number;
     bias: number;
     compensation: number;
+}
+
+export interface FrameAnalysis {
+    blurAnalysis?: BlurAnalysis;
+    exposureAnalysis?: ExposureAnalysis;
+    shadowAnalysis?: ShadowAnalysis;
+    reflectionAnalysis?: ReflectionAnalysis;
+    whiteBalanceAnalysis?: { isBalanced: boolean; dominantChannel: string; correction: { r: number; g: number; b: number; }; };
+    colorAnalysis?: { saturation: number; };
+    focusAnalysis?: { needsFocus: boolean; };
+    histogram?: HistogramData;
+}
+
+export interface AnalysisResult extends FrameAnalysis {
+    qualityScore: number;
+    warnings: string[];
+    recommendations: string[];
+    borderCorners?: Array<{ x: number; y: number }>;
+    borderDetection?: { detected: boolean; };
 }

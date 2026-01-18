@@ -82,7 +82,7 @@ export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDete
                         stroke={guideColor}
                         strokeWidth={2}
                         fill="none"
-                        strokeDasharray="10 5" // Dashed line for static guide to indicate it's a target
+                    // strokeDasharray="10 5" // Removed for solid line as requested
                     />
 
                     {/* Result Window */}

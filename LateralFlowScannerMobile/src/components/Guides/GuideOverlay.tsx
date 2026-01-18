@@ -16,8 +16,8 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ visible, onClose }) 
             animationType="fade"
             onRequestClose={onClose}
         >
-            <View style={styles.overlay}>
-                <View style={styles.container}>
+            <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={onClose}>
+                <View style={styles.container} onStartShouldSetResponder={() => true}>
                     <View style={styles.header}>
                         <Text style={styles.title}>Capture Guide</Text>
                         <TouchableOpacity onPress={onClose}>
@@ -55,7 +55,7 @@ export const GuideOverlay: React.FC<GuideOverlayProps> = ({ visible, onClose }) 
                         />
                     </View>
                 </View>
-            </View>
+            </TouchableOpacity>
         </Modal>
     );
 };

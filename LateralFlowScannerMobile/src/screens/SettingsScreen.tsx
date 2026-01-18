@@ -49,6 +49,16 @@ export const SettingsScreen: React.FC = () => {
         }
     }, [user]);
 
+    // Fade-in animation on mount
+    useEffect(() => {
+        Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 400,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+        }).start();
+    }, [fadeAnim]);
+
     const handleSettingChange = async (key: string, value: boolean) => {
         try {
             // 1. Haptic Feedback (Immediate)

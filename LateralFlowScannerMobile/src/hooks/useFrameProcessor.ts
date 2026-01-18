@@ -12,7 +12,7 @@ import { detectReflectionsWorklet } from '../utils/analysis/reflection';
 import { analyzeColorWorklet } from '../utils/analysis/color';
 import { analyzeFocusNeedWorklet } from '../utils/camera/focus';
 import { normalizeHistogramWorklet, calculateHistogramStatsWorklet } from '../utils/camera/histogram';
-import { analyzeWhiteBalanceWorklet } from '../utils/camera/whiteBalance';
+import { analyzeWhiteBalanceWorklet, suggestWhiteBalanceCorrectionWorklet } from '../utils/camera/whiteBalance';
 
 export const useCustomFrameProcessor = (
     onBorderDetected: (corners: Array<{ x: number; y: number }>) => void,
@@ -83,7 +83,8 @@ export const useCustomFrameProcessor = (
             const laplacianVariance = stdDev * stdDev;
 
             blurAnalysis = analyzeBlurWorklet(laplacianVariance);
-            focusAnalysis = analyzeFocusNeedWorklet(laplacianVariance);
+            const focusRes = analyzeFocusNeedWorklet(laplacianVariance);
+            focusAnalysis = { needsFocus: focusRes.shouldRefocus };
         } catch (e) {
             console.log('[FP] Blur detection failed');
         }
@@ -92,14 +93,20 @@ export const useCustomFrameProcessor = (
         let exposureAnalysis = { isUnderexposed: false, isOverexposed: false, exposureLevel: 0.5, dynamicRange: 0.8, clippedHighlights: 0, crushedShadows: 0, recommendation: '' };
         let colorAnalysis = { dominantColor: { r: 128, g: 128, b: 128 }, colorTemperature: 6500, saturation: 0.5, whiteBalanceOffset: { r: 0, g: 0, b: 0 }, isNeutral: true, recommendation: '' };
         let whiteBalanceAnalysis = { isBalanced: true, dominantChannel: 'none', correction: { r: 1, g: 1, b: 1 } };
-        let shadowAnalysis = { hasShadow: false, shadowIntensity: 0, shadowCoverage: 0 };
-        let reflectionAnalysis = { hasReflection: false, reflectionIntensity: 0, reflectionCoverage: 0 };
+        let shadowAnalysis = { hasShadow: false, shadowIntensity: 0, shadowCoverage: 0, shadowLocations: [] };
+        let reflectionAnalysis = { hasReflection: false, reflectionIntensity: 0, affectedArea: 0, glareDetected: false };
         let histogramStats = { mean: 128, std: 50, median: 128, mode: 128 };
         let normalizedHist: number[] = [];
         let brightnessHist: number[] = [];
+        let redHist: number[] = [];
+        let greenHist: number[] = [];
+        let blueHist: number[] = [];
 
         try {
             const histResult = calculateHistogramWorklet(resized, 2);
+            redHist = histResult.redHist;
+            greenHist = histResult.greenHist;
+            blueHist = histResult.blueHist;
             const meanBrightness = histResult.sumBrightness / histResult.pixelCount;
             brightnessHist = histResult.brightnessHist;
 
@@ -127,9 +134,36 @@ export const useCustomFrameProcessor = (
             const meanG = meanGSum / histResult.pixelCount;
             const meanB = meanBSum / histResult.pixelCount;
 
-            whiteBalanceAnalysis = analyzeWhiteBalanceWorklet(meanR, meanG, meanB);
-            shadowAnalysis = detectShadowsWorklet(histResult.brightnessHist, histResult.pixelCount);
-            reflectionAnalysis = detectReflectionsWorklet(histResult.brightnessHist, histResult.pixelCount);
+            const wbAnalysis = analyzeWhiteBalanceWorklet(meanR, meanG, meanB);
+            const correction = suggestWhiteBalanceCorrectionWorklet(meanR, meanG, meanB);
+
+            // Determine dominant channel
+            let dominantChannel = 'green';
+            if (meanR > meanG && meanR > meanB) dominantChannel = 'red';
+            else if (meanB > meanR && meanB > meanG) dominantChannel = 'blue';
+
+            whiteBalanceAnalysis = {
+                isBalanced: wbAnalysis.isNeutral,
+                dominantChannel,
+                correction: { r: correction.rGain, g: correction.gGain, b: correction.bGain }
+            };
+
+            const shadowRes = detectShadowsWorklet(histResult.brightnessHist, histResult.pixelCount);
+            shadowAnalysis = {
+                hasShadow: shadowRes.hasShadow,
+                shadowCoverage: shadowRes.shadowCoverage,
+                shadowIntensity: 0,
+                shadowLocations: []
+            };
+
+            const reflectRes = detectReflectionsWorklet(histResult.brightnessHist, histResult.pixelCount);
+            reflectionAnalysis = {
+                hasReflection: reflectRes.hasReflection,
+                affectedArea: reflectRes.affectedArea,
+                glareDetected: reflectRes.glareDetected,
+                reflectionIntensity: reflectRes.reflectionIntensity
+            };
+
             histogramStats = calculateHistogramStatsWorklet(histResult.brightnessHist, histResult.pixelCount);
             normalizedHist = normalizeHistogramWorklet(histResult.brightnessHist);
         } catch (e) {
@@ -204,7 +238,12 @@ export const useCustomFrameProcessor = (
                 whiteBalanceAnalysis,
                 shadowAnalysis,
                 reflectionAnalysis,
-                histogram: brightnessHist,
+                histogram: {
+                    brightness: brightnessHist,
+                    red: redHist,
+                    green: greenHist,
+                    blue: blueHist,
+                },
                 histogramStats,
                 normalizedHistogram: normalizedHist,
             });
