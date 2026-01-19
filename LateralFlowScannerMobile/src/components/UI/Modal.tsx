@@ -45,11 +45,14 @@ const styles = StyleSheet.create({
     },
     content: {
         backgroundColor: '#fff',
-        borderRadius: 12,
-        width: '90%', // Force consistent wide width
-        maxHeight: Dimensions.get('window').height * 0.8,
-        minHeight: 200, // Prevent collapse
+        borderRadius: 16,
+        width: '90%',
+        maxHeight: '85%', // Slightly more height allowance
+        // minHeight removed to let it shrink to fit if needed, but BatchForm usually is tall enough.
+        // overflow: 'hidden' removed to avoid clipping shadows or tooltips if any (though Modal usually needs it for border radius).
+        // Let's keep overflow hidden for border radius but ensure no internal constraints block height.
         overflow: 'hidden',
+        padding: 0, // Ensure no padding here, padding is in BatchForm
     },
     closeButton: {
         position: 'absolute',

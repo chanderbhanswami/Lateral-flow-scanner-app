@@ -40,6 +40,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
     return (
         <KeyboardAwareScrollView
             style={styles.container}
+            contentContainerStyle={styles.scrollContent}
             enableOnAndroid={true}
             extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
             enableAutomaticScroll={true}
@@ -120,7 +121,6 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1, // Fill the available modal space
         width: '100%',
     },
     scrollContent: {

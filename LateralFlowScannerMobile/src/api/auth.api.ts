@@ -195,11 +195,14 @@ export const authApi = {
 
     async uploadAvatar(data: FormData): Promise<{ message: string; data: { avatar: string } }> {
         const response = await apiClient.post<ApiResponse<{ message: string; data: { avatar: string } }>>(
-            '/users/avatar', // Explicit endpoint since it might differ from constant
+            '/user/avatar', // Corrected from /users to /user matching routes/index.ts
             data,
             {
                 headers: {
                     'Content-Type': 'multipart/form-data',
+                },
+                transformRequest: (data, headers) => {
+                    return data; // Prevent axios from transforming FormData
                 },
             }
         );
@@ -208,7 +211,7 @@ export const authApi = {
 
     async deleteAvatar(): Promise<{ message: string }> {
         const response = await apiClient.delete<ApiResponse<{ message: string }>>(
-            '/users/avatar'
+            '/user/avatar' // Corrected from /users to /user
         );
         return response.data!;
     },
