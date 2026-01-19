@@ -396,6 +396,7 @@ export const CaptureScreen: React.FC = () => {
                 );
             } catch (cropErr) {
                 logger.warn('Crop failed', cropErr);
+                Toast.show({ type: 'error', text1: 'Crop failed', text2: 'Using full image' });
             }
 
             Toast.show({ type: 'info', text1: 'Analyzing image...', visibilityTime: 1500 });
@@ -566,6 +567,7 @@ export const CaptureScreen: React.FC = () => {
                 <View style={styles.cameraWrapper}>
                     <Camera
                         ref={cameraRef}
+                        key={device?.id || 'camera'} // Force remount when device changes
                         style={StyleSheet.absoluteFill}
                         device={device}
                         isActive={config.isActive}

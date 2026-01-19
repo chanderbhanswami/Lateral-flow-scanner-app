@@ -48,6 +48,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         width: '90%', // Force consistent wide width
         maxHeight: Dimensions.get('window').height * 0.8,
+        minHeight: 200, // Prevent collapse
         overflow: 'hidden',
     },
     closeButton: {

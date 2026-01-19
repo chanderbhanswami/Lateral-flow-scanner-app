@@ -29,7 +29,6 @@ export const ReviewScreen: React.FC = () => {
     const [concentration, setConcentration] = useState('');
     const [notes, setNotes] = useState('');
     const [selectedBatch, setSelectedBatch] = useState<any>(null);
-    const [showBatchSelector, setShowBatchSelector] = useState(false);
 
     // Update state when captureData becomes available
     useEffect(() => {
@@ -37,7 +36,14 @@ export const ReviewScreen: React.FC = () => {
             setConcentration(captureData.concentration || '');
             setNotes(captureData.notes || '');
             const batch = batches.find(b => b.id === captureData.concentrationBatchId);
-            if (batch) setSelectedBatch(batch);
+            if (batch) {
+                setSelectedBatch(batch);
+                // Auto-fill concentration if it was empty, or ensure it matches batch if that's desired behavior
+                // User said: "if concentration batch already selected ... concentration value field should be prefield"
+                if (!captureData.concentration && batch.concentration) {
+                    setConcentration(String(batch.concentration));
+                }
+            }
         }
     }, [captureData, batches]);
 
@@ -64,6 +70,15 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const handleSend = async () => {
+        if (!concentration || concentration.trim() === '') {
+            Toast.show({
+                type: 'error',
+                text1: 'Validation Error',
+                text2: 'Please enter a concentration value',
+            });
+            return;
+        }
+
         try {
             const updatedData = {
                 ...captureData,
@@ -92,15 +107,6 @@ export const ReviewScreen: React.FC = () => {
         }
     };
 
-    const handleBatchSelect = (batch: any) => {
-        setSelectedBatch(batch);
-        setShowBatchSelector(false);
-        // Auto-fill concentration value from batch
-        if (batch.concentration !== undefined && batch.concentration !== null) {
-            setConcentration(String(batch.concentration));
-        }
-    };
-
     const handleCancel = () => {
         navigation.goBack();
     };
@@ -124,25 +130,17 @@ export const ReviewScreen: React.FC = () => {
                 />
             </Card>
 
-            {/* Batch Selection */}
-            <Card style={styles.inputCard}>
-                <Text style={styles.inputLabel}>Concentration Batch</Text>
-                <TouchableOpacity
-                    style={styles.batchSelector}
-                    onPress={() => setShowBatchSelector(true)}
-                >
-                    {selectedBatch ? (
-                        <View style={styles.selectedBatchRow}>
-                            <View style={[styles.batchColor, { backgroundColor: selectedBatch.color || '#3b82f6' }]} />
-                            <Text style={styles.batchName}>{selectedBatch.name}</Text>
-                            <Text style={styles.batchInfo}>({selectedBatch.concentration} {selectedBatch.unit})</Text>
-                        </View>
-                    ) : (
-                        <Text style={styles.placeholderText}>Select a batch...</Text>
-                    )}
-                    <Text style={styles.changeLink}>Change</Text>
-                </TouchableOpacity>
-            </Card>
+            {/* Display Selected Batch Info (Read-only) if exists */}
+            {selectedBatch && (
+                <Card style={styles.infoCard}>
+                    <Text style={styles.sectionTitle}>Selected Batch</Text>
+                    <View style={styles.selectedBatchRow}>
+                        <View style={[styles.batchColor, { backgroundColor: selectedBatch.color || '#3b82f6' }]} />
+                        <Text style={styles.batchName}>{selectedBatch.name}</Text>
+                        <Text style={styles.batchInfo}>({selectedBatch.concentration} {selectedBatch.unit})</Text>
+                    </View>
+                </Card>
+            )}
 
             {/* Capture Info */}
             <Card style={styles.infoCard}>
@@ -168,18 +166,16 @@ export const ReviewScreen: React.FC = () => {
                 </View>
             </Card>
 
-            {/* Concentration Input - Only show if manually entering value (no batch selected) */}
-            {!selectedBatch && (
-                <Card style={styles.inputCard}>
-                    <Input
-                        label="Concentration Value *"
-                        value={concentration}
-                        onChangeText={setConcentration}
-                        placeholder="Enter concentration value (e.g. 10)"
-                        keyboardType="numeric"
-                    />
-                </Card>
-            )}
+            {/* Concentration Input - ALWAYS VISIBLE */}
+            <Card style={styles.inputCard}>
+                <Input
+                    label="Concentration Value *"
+                    value={concentration}
+                    onChangeText={setConcentration}
+                    placeholder="Enter concentration value (e.g. 10)"
+                    keyboardType="numeric"
+                />
+            </Card>
 
             {/* Notes Input */}
             <Card style={styles.inputCard}>
@@ -219,20 +215,10 @@ export const ReviewScreen: React.FC = () => {
                     title={isUploading ? 'Sending...' : 'Send'}
                     onPress={handleSend}
                     style={styles.button}
-                    disabled={isUploading || (!concentration && !selectedBatch)}
+                    disabled={isUploading} // Removed dependency on concentration state for UI, handled in onPress
                     loading={isUploading}
                 />
             </View>
-            {/* Batch Selector Modal */}
-            <BatchSelector
-                visible={showBatchSelector}
-                onClose={() => setShowBatchSelector(false)}
-                onSelect={(batch) => {
-                    handleBatchSelect(batch);
-                    // Ensure the modal closes properly by deferring slightly if needed
-                    setTimeout(() => setShowBatchSelector(false), 100);
-                }}
-            />
         </KeyboardAwareScrollView>
     );
 };

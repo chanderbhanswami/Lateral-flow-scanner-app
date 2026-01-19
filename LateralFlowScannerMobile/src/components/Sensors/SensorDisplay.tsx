@@ -64,7 +64,7 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
                         {renderItem("Exposure", frameAnalysis.exposureAnalysis?.isUnderexposed ? "Too Dark" : (frameAnalysis.exposureAnalysis?.isOverexposed ? "Too Bright" : "Good"), frameAnalysis.exposureAnalysis?.isUnderexposed || frameAnalysis.exposureAnalysis?.isOverexposed ? "#f59e0b" : "#10b981")}
 
                         {/* Histogram Mean is a good proxy for 'Camera Light Intensity' */}
-                        {renderItem("Cam Intensity", frameAnalysis.histogramStats?.mean ? `${frameAnalysis.histogramStats.mean.toFixed(0)}/255` : "N/A")}
+                        {renderItem("Cam Intensity", frameAnalysis.histogramStats?.mean !== undefined ? `${frameAnalysis.histogramStats.mean.toFixed(0)}/255` : "N/A")}
 
                         {renderSectionHeader("Environment")}
                         {renderItem("Shadows", frameAnalysis.shadowAnalysis?.hasShadow ? "Detected" : "None", frameAnalysis.shadowAnalysis?.hasShadow ? "#f59e0b" : "#10b981")}
