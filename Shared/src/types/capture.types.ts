@@ -103,6 +103,12 @@ export interface ImageAnalysisData {
     qualityScore: number;
     warnings: string[];
     recommendations: string[];
+    waveform?: WaveformData;
+}
+
+export interface WaveformData {
+    waveformX: number[];
+    waveformY: number[];
 }
 
 export interface ObstructionAnalysis {
@@ -128,6 +134,8 @@ export interface HistogramData {
     contrast: number;
     mean: number;
     std: number;
+    isBimodal?: boolean;
+    peakCount?: number;
 }
 
 export interface HSVData {

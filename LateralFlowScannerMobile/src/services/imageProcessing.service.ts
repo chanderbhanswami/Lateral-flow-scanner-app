@@ -32,27 +32,32 @@ class ImageProcessingService {
             const imageData = await RNFS.readFile(imageUri, 'base64');
 
             // Perform all analyses in parallel
-            const [
-                histogram,
-                // hsvData, // OpenCVModule doesn't calculate HSV explicitly yet, derived from histogram/native if needed
-                exposureAnalysis,
-                blurAnalysis,
-                borderDetection,
-                shadowAnalysis,
-                // reflectionAnalysis, // Not yet implemented in OpenCVModule
-            ] = await Promise.all([
+            const results = await Promise.all([
                 this.calculateHistogram(imageData),
-                // this.calculateHSV(imageData),
                 this.analyzeExposure(imageData),
                 this.analyzeBlur(imageData),
                 this.detectBordersFromImage(imageData),
                 this.analyzeShadows(imageData),
-                // this.analyzeReflections(imageData),
+                this.analyzeReflections(imageData), // Native implementation exists now
+                OpenCVModule && OpenCVModule.calculateWaveform ? OpenCVModule.calculateWaveform(imageData) : Promise.resolve({ waveformX: [], waveformY: [] }),
             ]);
 
-            // Placeholder for missing native implementations
+            const [
+                histogram,
+                exposureAnalysis,
+                blurAnalysis,
+                borderDetection,
+                shadowAnalysis,
+                // reflectionAnalysis (will be reassigned or used from results)
+            ] = results;
+
+            // reflectionAnalysis is at index 5
+            const reflectionAnalysis = results[5];
+            const waveform = results[6];
+
+            // Calculate HSV separately or in parallel? For clarity we do separate call as it wasn't in list originally
+            // But we could have added it to Promise.all. 
             const hsvData = await this.calculateHSV(imageData);
-            const reflectionAnalysis = await this.analyzeReflections(imageData);
 
 
             // Calculate quality score
@@ -104,6 +109,7 @@ class ImageProcessingService {
                     levelness: 0,
                     recommendation: '',
                 },
+                waveform,
                 qualityScore,
                 warnings,
                 recommendations,
@@ -117,7 +123,19 @@ class ImageProcessingService {
 
     async calculateHistogram(imageData: string): Promise<HistogramData> {
         if (OpenCVModule && OpenCVModule.calculateHistogram) {
-            return await OpenCVModule.calculateHistogram(imageData);
+            const result = await OpenCVModule.calculateHistogram(imageData);
+            // Native module now returns 'luminance' array and 'isBimodal', 'peakCount'
+            return {
+                red: result.red,
+                green: result.green,
+                blue: result.blue,
+                brightness: result.luminance || new Array(256).fill(0), // Map luminance to brightness
+                contrast: result.contrast,
+                mean: result.mean,
+                std: result.std,
+                isBimodal: result.isBimodal,
+                peakCount: result.peakCount
+            };
         }
 
         // Fallback implementation using JS utilities
@@ -141,15 +159,34 @@ class ImageProcessingService {
     }
 
     async calculateHSV(imageData: string): Promise<HSVData> {
-        // OpenCVModule doesn't currently export calculateHSV directly in the interface shown
-        // We'll return a placeholder or implement it in native layer later
+        if (OpenCVModule && OpenCVModule.calculateHSVHistogram) {
+            try {
+                return await OpenCVModule.calculateHSVHistogram(imageData);
+            } catch (e) {
+                console.warn('Native HSV calculation failed, falling back', e);
+            }
+        }
+
+        // Fallback or placeholder
+        let meanHue = 0;
+        let meanSaturation = 0;
+        let meanValue = 0;
+
+        try {
+            // Try to at least get mean value from histogram if available
+            const histogram = await this.calculateHistogram(imageData);
+            if (histogram && histogram.mean) {
+                meanValue = histogram.mean;
+            }
+        } catch (e) { }
+
         return {
             hue: new Array(360).fill(0),
             saturation: new Array(100).fill(0),
             value: new Array(100).fill(0),
-            meanHue: 0,
-            meanSaturation: 0,
-            meanValue: 0,
+            meanHue,
+            meanSaturation,
+            meanValue,
         };
     }
 
@@ -328,6 +365,21 @@ class ImageProcessingService {
         }
 
         return Math.max(0, Math.min(100, score));
+    }
+
+    async extractExif(imagePath: string): Promise<any> {
+        if (OpenCVModule && OpenCVModule.getExifData) {
+            try {
+                // Ensure path is local file path, remove 'file://' if needed for ExifInterface? 
+                // Android ExifInterface handles paths mostly fine, but let's pass it cleanly.
+                const cleanPath = imagePath.replace('file://', '');
+                return await OpenCVModule.getExifData(cleanPath);
+            } catch (e) {
+                console.warn('Failed to extract native EXIF', e);
+                return {};
+            }
+        }
+        return {};
     }
 
     generateFeedback(data: {

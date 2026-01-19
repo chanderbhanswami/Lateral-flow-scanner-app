@@ -32,6 +32,8 @@ import { ExposureMeter } from '../components/Camera/ExposureMeter';
 import { ExposureSlider } from '../components/Camera/ExposureSlider';
 import { AUTO_CAPTURE_CONDITIONS } from '../constants';
 import { CAMERA_WIDTH, CAMERA_HEIGHT, GUIDE_X, GUIDE_Y, CASSETTE_WIDTH, CASSETTE_HEIGHT } from '../constants/layout';
+import { cameraService } from '../services/camera.service';
+import { imageProcessingService } from '../services/imageProcessing.service';
 import { logger } from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -422,7 +424,35 @@ export const CaptureScreen: React.FC = () => {
                 logger.warn('Image analysis failed, using defaults', analysisError);
             }
 
-            const captureMetadata = { ...metadata, width: photo.width || 0, height: photo.height || 0 };
+            // Parse EXIF to populate CameraMetadata
+            let nativeExif: any = {};
+            try {
+                nativeExif = await imageProcessingService.extractExif(finalImageUri);
+            } catch (e) {
+                logger.warn('EXIF extraction failed', e);
+            }
+
+            // Map EXIF to normalized CameraMetadata
+            // Note: EXIF tags usually return strings, we parse them.
+            // ExposureTime "0.02" -> 0.02
+            // FNumber "1.8" -> 1.8
+            // ISO "100" -> 100
+
+            const updatedMetadata = {
+                ...metadata,
+                width: photo.width,
+                height: photo.height,
+                timestamp: new Date().toISOString(),
+                // Populate dynamic values from Native EXIF
+                iso: nativeExif.iso ? parseInt(nativeExif.iso, 10) : (metadata?.iso || 0),
+                aperture: nativeExif.aperture ? parseFloat(nativeExif.aperture) : (metadata?.aperture || 0),
+                exposureTime: nativeExif.exposureTime ? parseFloat(nativeExif.exposureTime) : (metadata?.exposureTime || 0),
+                focalLength: nativeExif.focalLength ? parseFloat(nativeExif.focalLength) : (metadata?.focalLength || 0),
+                make: nativeExif.make || metadata?.make || 'Unknown',
+                model: nativeExif.model || metadata?.model || 'Unknown',
+                flash: nativeExif.flash ? (parseInt(nativeExif.flash) > 0) : (metadata?.flash || false),
+                whiteBalance: nativeExif.whiteBalance ? parseInt(nativeExif.whiteBalance) : (metadata?.whiteBalance || 0),
+            };
 
             const analysisData = {
                 qualityScore: realAnalysis?.qualityScore ?? 50,
@@ -435,7 +465,14 @@ export const CaptureScreen: React.FC = () => {
                 borderDetection: realAnalysis?.borderDetection ?? null,
                 shadowAnalysis: realAnalysis?.shadowAnalysis ?? null,
                 reflectionAnalysis: realAnalysis?.reflectionAnalysis ?? null,
-                frameAnalysis: frameAnalysisRef.current || null,
+                // Use captured image analysis as fallback for frameAnalysis to avoid null
+                frameAnalysis: frameAnalysisRef.current || {
+                    blurAnalysis: realAnalysis?.blurAnalysis,
+                    exposureAnalysis: realAnalysis?.exposureAnalysis,
+                    shadowAnalysis: realAnalysis?.shadowAnalysis,
+                    whiteBalanceAnalysis: null, // Not available in static analysis yet
+                    focusAnalysis: null
+                },
                 ...(realAnalysis || {}),
                 borderCorners: borderData?.detected ? borderData.corners : null,
             };
@@ -458,7 +495,14 @@ export const CaptureScreen: React.FC = () => {
                 }
             };
 
-            const capturedData = await processCapture(finalImageUri, captureMetadata, fullSensorData, analysisData);
+            const capturedData = await processCapture(
+                finalImageUri,
+                updatedMetadata,
+                fullSensorData,
+                analysisData,
+                selectedBatch ? selectedBatch.name : '', // Concentration Value
+                selectedBatch ? selectedBatch.id : undefined // Batch ID
+            );
 
             if (capturedData) {
                 if (settings.hapticFeedback) {

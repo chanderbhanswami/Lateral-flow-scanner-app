@@ -16,6 +16,7 @@ class CaptureService {
         cameraMetadata: any,
         sensorData: any,
         analysisData: any,
+        concentration: string,
         concentrationBatchId?: string
     ): Promise<CaptureData> {
         const captureId = uuidv4();
@@ -35,7 +36,7 @@ class CaptureService {
             imageSize: imageInfo.size,
             imageWidth: 0, // Will be extracted from EXIF
             imageHeight: 0, // Will be extracted from EXIF
-            concentration: '',
+            concentration: concentration || '',
             concentrationBatchId: concentrationBatchId || undefined,
             cameraMetadata,
             exifData: await metadataService.extractExifData(imageUri),

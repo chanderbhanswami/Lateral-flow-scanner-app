@@ -137,8 +137,8 @@ export const HomeScreen: React.FC = () => {
 
         return (
             <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={() => navigation.navigate('Review', { captureData: item, imageUri: item.imageUrl })}
+                activeOpacity={1} // Disable active opacity since it's not clickable
+                // onPress={() => navigation.navigate('Review', { captureData: item, imageUri: item.imageUrl })} // Disabled per user request
                 style={styles.recentScanCard}
             >
                 {item.imageUrl ? (
@@ -150,7 +150,7 @@ export const HomeScreen: React.FC = () => {
                 )}
                 <View style={styles.recentScanOverlay}>
                     <View style={styles.recentScanBadge}>
-                        <Text style={styles.recentScanScore}>{item.concentration} {item.unit}</Text>
+                        <Text style={styles.recentScanScore}>{item.concentration} mg/ml</Text>
                     </View>
                     <Text style={styles.recentScanTime}>
                         {isValidDate

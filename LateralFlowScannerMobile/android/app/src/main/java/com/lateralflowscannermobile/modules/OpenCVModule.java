@@ -32,6 +32,7 @@ import com.facebook.react.bridge.ReadableArray;
 import java.io.ByteArrayOutputStream;
 import java.util.ArrayList;
 import java.util.List;
+import android.media.ExifInterface; // Native Android EXIF interface
 
 public class OpenCVModule extends ReactContextBaseJavaModule {
     private final ReactApplicationContext reactContext;
@@ -309,45 +310,70 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             List<Mat> channels = new ArrayList<>();
             Core.split(mat, channels);
 
-            // Calculate histograms for each channel
+            // Calculate RGB histograms
             Mat histR = new Mat();
             Mat histG = new Mat();
             Mat histB = new Mat();
 
-            Imgproc.calcHist(
-                    channels.subList(2, 3),
-                    new org.opencv.core.MatOfInt(0),
-                    new Mat(),
-                    histR,
-                    new org.opencv.core.MatOfInt(256),
-                    new org.opencv.core.MatOfFloat(0f, 256f));
+            MatOfInt channelsInt = new MatOfInt(0);
+            MatOfInt histSize = new MatOfInt(256);
+            MatOfFloat ranges = new MatOfFloat(0f, 256f);
 
-            Imgproc.calcHist(
-                    channels.subList(1, 2),
-                    new org.opencv.core.MatOfInt(0),
-                    new Mat(),
-                    histG,
-                    new org.opencv.core.MatOfInt(256),
-                    new org.opencv.core.MatOfFloat(0f, 256f));
+            Imgproc.calcHist(channels.subList(2, 3), channelsInt, new Mat(), histR, histSize, ranges);
+            Imgproc.calcHist(channels.subList(1, 2), channelsInt, new Mat(), histG, histSize, ranges);
+            Imgproc.calcHist(channels.subList(0, 1), channelsInt, new Mat(), histB, histSize, ranges);
 
-            Imgproc.calcHist(
-                    channels.subList(0, 1),
-                    new org.opencv.core.MatOfInt(0),
-                    new Mat(),
-                    histB,
-                    new org.opencv.core.MatOfInt(256),
-                    new org.opencv.core.MatOfFloat(0f, 256f));
+            // Calculate Luminance Histogram
+            Mat gray = new Mat();
+            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_BGR2GRAY);
+            Mat histLum = new Mat();
+            Imgproc.calcHist(java.util.Collections.singletonList(gray), channelsInt, new Mat(), histLum, histSize,
+                    ranges);
 
             // Convert histograms to arrays
             WritableArray redArray = Arguments.createArray();
             WritableArray greenArray = Arguments.createArray();
             WritableArray blueArray = Arguments.createArray();
+            WritableArray lumArray = Arguments.createArray();
+
+            float[] lumData = new float[256];
 
             for (int i = 0; i < 256; i++) {
                 redArray.pushDouble(histR.get(i, 0)[0]);
                 greenArray.pushDouble(histG.get(i, 0)[0]);
                 blueArray.pushDouble(histB.get(i, 0)[0]);
+
+                float val = (float) histLum.get(i, 0)[0];
+                lumArray.pushDouble(val);
+                lumData[i] = val; // Cache for peak detection
             }
+
+            // Simple Bimodal Detection on Luminance
+            // Find peaks (local maxima)
+            int peaks = 0;
+            // Smooth slightly to remove noise (simple moving average)
+            float[] smoothed = new float[256];
+            for (int i = 2; i < 254; i++) {
+                smoothed[i] = (lumData[i - 2] + lumData[i - 1] + lumData[i] + lumData[i + 1] + lumData[i + 2]) / 5;
+            }
+
+            // Find peaks
+            double maxVal = 0;
+            for (float v : smoothed)
+                maxVal = Math.max(maxVal, v);
+            double peakThreshold = maxVal * 0.1; // Peak must be at least 10% of max height
+
+            for (int i = 1; i < 255; i++) {
+                if (smoothed[i] > smoothed[i - 1] && smoothed[i] > smoothed[i + 1]) {
+                    if (smoothed[i] > peakThreshold) {
+                        peaks++;
+                    }
+                }
+            }
+
+            // Refine bimodality logic: Often involves valley depth, but "peaks >= 2" is a
+            // good start.
+            boolean isBimodal = (peaks >= 2);
 
             // Calculate mean brightness
             Scalar meanScalar = Core.mean(mat);
@@ -357,18 +383,25 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             result.putArray("red", redArray);
             result.putArray("green", greenArray);
             result.putArray("blue", blueArray);
+            result.putArray("luminance", lumArray);
             result.putDouble("mean", mean);
             result.putDouble("std", 0.0); // Simplified
             result.putDouble("contrast", 0.5); // Simplified
+            result.putBoolean("isBimodal", isBimodal);
+            result.putInt("peakCount", peaks);
 
             // Cleanup
             mat.release();
-            for (Mat channel : channels) {
+            gray.release();
+            for (Mat channel : channels)
                 channel.release();
-            }
             histR.release();
             histG.release();
             histB.release();
+            histLum.release();
+            channelsInt.release();
+            histSize.release();
+            ranges.release();
 
             promise.resolve(result);
         } catch (Exception e) {
@@ -505,6 +538,204 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
 
         } catch (Exception e) {
             promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void calculateHSVHistogram(String base64Image, Promise promise) {
+        try {
+            if (!openCVInitialized) {
+                promise.reject("OPENCV_ERROR", "OpenCV not initialized");
+                return;
+            }
+
+            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+
+            Mat mat = new Mat();
+            Utils.bitmapToMat(bitmap, mat);
+
+            // Convert to HSV
+            Mat hsv = new Mat();
+            Imgproc.cvtColor(mat, hsv, Imgproc.COLOR_BGR2HSV);
+
+            List<Mat> channels = new ArrayList<>();
+            Core.split(hsv, channels);
+
+            // Calculate HSV Histograms
+            // H: 0-179 (180 bins)
+            // S: 0-255 (256 bins)
+            // V: 0-255 (256 bins)
+
+            Mat histH = new Mat();
+            Mat histS = new Mat();
+            Mat histV = new Mat();
+
+            // Hue
+            Imgproc.calcHist(
+                    channels.subList(0, 1),
+                    new org.opencv.core.MatOfInt(0),
+                    new Mat(),
+                    histH,
+                    new org.opencv.core.MatOfInt(180),
+                    new org.opencv.core.MatOfFloat(0f, 180f));
+
+            // Saturation
+            Imgproc.calcHist(
+                    channels.subList(1, 2),
+                    new org.opencv.core.MatOfInt(0),
+                    new Mat(),
+                    histS,
+                    new org.opencv.core.MatOfInt(256),
+                    new org.opencv.core.MatOfFloat(0f, 256f));
+
+            // Value
+            Imgproc.calcHist(
+                    channels.subList(2, 3),
+                    new org.opencv.core.MatOfInt(0),
+                    new Mat(),
+                    histV,
+                    new org.opencv.core.MatOfInt(256),
+                    new org.opencv.core.MatOfFloat(0f, 256f));
+
+            // Convert to arrays
+            WritableArray hArray = Arguments.createArray();
+            WritableArray sArray = Arguments.createArray();
+            WritableArray vArray = Arguments.createArray();
+
+            for (int i = 0; i < 180; i++) {
+                hArray.pushDouble(histH.get(i, 0)[0]);
+            }
+            for (int i = 0; i < 256; i++) {
+                sArray.pushDouble(histS.get(i, 0)[0]);
+                vArray.pushDouble(histV.get(i, 0)[0]);
+            }
+
+            // Calculate means
+            Scalar meanScalar = Core.mean(hsv);
+            double meanHue = meanScalar.val[0];
+            double meanSat = meanScalar.val[1];
+            double meanVal = meanScalar.val[2];
+
+            WritableMap result = Arguments.createMap();
+            result.putArray("hue", hArray);
+            result.putArray("saturation", sArray);
+            result.putArray("value", vArray);
+            result.putDouble("meanHue", meanHue);
+            result.putDouble("meanSaturation", meanSat);
+            result.putDouble("meanValue", meanVal);
+
+            // Cleanup
+            mat.release();
+            hsv.release();
+            for (Mat channel : channels) {
+                channel.release();
+            }
+            histH.release();
+            histS.release();
+            histV.release();
+
+            promise.resolve(result);
+
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void calculateWaveform(String base64Image, Promise promise) {
+        try {
+            if (!openCVInitialized) {
+                promise.reject("OPENCV_ERROR", "OpenCV not initialized");
+                return;
+            }
+
+            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+
+            Mat mat = new Mat();
+            Utils.bitmapToMat(bitmap, mat);
+
+            Mat gray = new Mat();
+            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_BGR2GRAY);
+
+            // Column Avg (Waveform X) - Reduce to 1 row
+            Mat colReduce = new Mat();
+            Core.reduce(gray, colReduce, 0, Core.REDUCE_AVG, CvType.CV_64F);
+
+            // Row Avg (Waveform Y) - Reduce to 1 col
+            Mat rowReduce = new Mat();
+            Core.reduce(gray, rowReduce, 1, Core.REDUCE_AVG, CvType.CV_64F);
+
+            WritableArray xArray = Arguments.createArray();
+            WritableArray yArray = Arguments.createArray();
+
+            for (int i = 0; i < colReduce.cols(); i++) {
+                xArray.pushDouble(colReduce.get(0, i)[0]);
+            }
+            for (int i = 0; i < rowReduce.rows(); i++) {
+                yArray.pushDouble(rowReduce.get(i, 0)[0]);
+            }
+
+            WritableMap result = Arguments.createMap();
+            result.putArray("waveformX", xArray); // Intensity across width
+            result.putArray("waveformY", yArray); // Intensity across height
+
+            mat.release();
+            gray.release();
+            colReduce.release();
+            rowReduce.release();
+
+            promise.resolve(result);
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void getExifData(String filePath, Promise promise) {
+        try {
+            ExifInterface exif = new ExifInterface(filePath);
+            WritableMap map = Arguments.createMap();
+
+            // Read standard tags
+            String iso = exif.getAttribute(ExifInterface.TAG_ISO_SPEED_RATINGS);
+            String aperture = exif.getAttribute(ExifInterface.TAG_F_NUMBER);
+            String exposureTime = exif.getAttribute(ExifInterface.TAG_EXPOSURE_TIME);
+            String flash = exif.getAttribute(ExifInterface.TAG_FLASH);
+            String focalLength = exif.getAttribute(ExifInterface.TAG_FOCAL_LENGTH);
+            String make = exif.getAttribute(ExifInterface.TAG_MAKE);
+            String model = exif.getAttribute(ExifInterface.TAG_MODEL);
+            String whiteBalance = exif.getAttribute(ExifInterface.TAG_WHITE_BALANCE);
+            String datetime = exif.getAttribute(ExifInterface.TAG_DATETIME);
+
+            // Parse numeric values where possible for better JSON structure, or keep as
+            // strings
+            // For shared types consistency, some might need parsing.
+            // However, returning raw strings is safer, let JS parse.
+
+            if (iso != null)
+                map.putString("iso", iso);
+            if (aperture != null)
+                map.putString("aperture", aperture);
+            if (exposureTime != null)
+                map.putString("exposureTime", exposureTime);
+            if (flash != null)
+                map.putString("flash", flash);
+            if (focalLength != null)
+                map.putString("focalLength", focalLength);
+            if (make != null)
+                map.putString("make", make);
+            if (model != null)
+                map.putString("model", model);
+            if (whiteBalance != null)
+                map.putString("whiteBalance", whiteBalance);
+            if (datetime != null)
+                map.putString("datetime", datetime);
+
+            promise.resolve(map);
+        } catch (Exception e) {
+            promise.reject("EXIF_ERROR", e.getMessage());
         }
     }
 

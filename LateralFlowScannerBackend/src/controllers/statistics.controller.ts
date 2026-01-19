@@ -16,26 +16,47 @@ export const statisticsController = {
                 return;
             }
 
-            // Calculate statistics
+            // 1. Basic counts
             const totalCaptures = await Capture.countDocuments({ userId });
-            const autoCaptures = await Capture.countDocuments({ userId, captureMode: 'auto' });
-            const manualCaptures = await Capture.countDocuments({ userId, captureMode: 'manual' });
+            const totalUploads = await Capture.countDocuments({ userId, status: 'uploaded' });
 
-            const avgQuality = await Capture.aggregate([
+            // 2. Last activity
+            const lastCapture = await Capture.findOne({ userId }).sort({ createdAt: -1 }).select('createdAt');
+            const lastUploadDate = lastCapture ? lastCapture.createdAt : null;
+
+            // 3. Storage Used (Sum of imageSize)
+            const storageAggregation = await Capture.aggregate([
                 { $match: { userId } },
+                { $group: { _id: null, totalSize: { $sum: '$imageSize' } } }
+            ]);
+            const storageUsed = storageAggregation[0]?.totalSize || 0;
+
+            // 4. Captures by Month (Last 6 months)
+            const sixMonthsAgo = new Date();
+            sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+            const monthlyAggregation = await Capture.aggregate([
+                { $match: { userId, createdAt: { $gte: sixMonthsAgo } } },
                 {
                     $group: {
-                        _id: null,
-                        avgQuality: { $avg: '$analysisData.qualityScore' },
-                    },
+                        _id: { $dateToString: { format: '%Y-%m', date: '$createdAt' } },
+                        count: { $sum: 1 }
+                    }
                 },
+                { $sort: { _id: 1 } }
             ]);
+
+            const capturesByMonth: Record<string, number> = {};
+            monthlyAggregation.forEach(item => {
+                capturesByMonth[item._id] = item.count;
+            });
 
             const statistics = {
                 totalCaptures,
-                autoCaptures,
-                manualCaptures,
-                averageQuality: avgQuality[0]?.avgQuality || 0,
+                totalUploads,
+                lastUploadDate,
+                storageUsed,
+                capturesByMonth
             };
 
             // Cache the result

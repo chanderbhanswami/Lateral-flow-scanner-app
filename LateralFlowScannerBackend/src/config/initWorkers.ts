@@ -1,18 +1,24 @@
 import { initImageProcessingWorker, getImageWorker } from '../jobs/imageProcessing.job';
+import { initStatisticsWorker, scheduleStatisticsUpdate, getStatisticsWorker } from '../jobs/statistics.job';
+import { initCleanupWorker, scheduleCleanup, getCleanupWorker } from '../jobs/cleanup.job';
 import { logger } from '../utils/logger';
 
 export const initWorkers = async () => {
     try {
         logger.info('Initializing background workers...');
 
-        // Initialize image processing worker (requires Redis to be connected first)
+        // Initialize image processing worker
         initImageProcessingWorker();
 
-        // Add other workers here if they exist (e.g. cleanup, statistics)
-        // initCleanupWorker();
-        // initStatisticsWorker();
+        // Initialize and schedule statistics job
+        initStatisticsWorker();
+        await scheduleStatisticsUpdate();
 
-        logger.info('Background workers initialized successfully');
+        // Initialize and schedule cleanup job
+        initCleanupWorker();
+        await scheduleCleanup();
+
+        logger.info('Background workers initialized and scheduled successfully');
     } catch (error) {
         logger.error('Failed to initialize workers:', error);
         throw error;
@@ -22,12 +28,16 @@ export const initWorkers = async () => {
 export const shutdownWorkers = async () => {
     try {
         logger.info('Shutting down workers...');
+
         const imageWorker = getImageWorker();
-        if (imageWorker) {
-            await imageWorker.close();
-        }
-        // await cleanupWorker?.close();
-        // await statisticsWorker?.close();
+        if (imageWorker) await imageWorker.close();
+
+        const statisticsWorker = getStatisticsWorker();
+        if (statisticsWorker) await statisticsWorker.close();
+
+        const cleanupWorker = getCleanupWorker();
+        if (cleanupWorker) await cleanupWorker.close();
+
         logger.info('Workers shut down successfully');
     } catch (error) {
         logger.error('Error shutting down workers:', error);

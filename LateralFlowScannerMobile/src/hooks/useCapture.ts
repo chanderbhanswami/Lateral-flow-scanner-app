@@ -24,7 +24,9 @@ export const useCapture = () => {
         imageUri: string,
         metadata: any,
         sensorData: any,
-        analysis: any
+        analysis: any,
+        concentration: string = '',
+        concentrationBatchId?: string
     ) => {
         setIsProcessing(true);
         try {
@@ -42,7 +44,9 @@ export const useCapture = () => {
                 croppedUri,
                 metadata,
                 sensorData,
-                analysis
+                analysis,
+                concentration,
+                concentrationBatchId
             );
             setCaptureData(capture);
             return capture;
