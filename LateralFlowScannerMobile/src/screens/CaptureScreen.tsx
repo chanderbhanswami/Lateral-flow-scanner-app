@@ -98,6 +98,14 @@ export const CaptureScreen: React.FC = () => {
     const [displayAnalysis, setDisplayAnalysis] = useState<any>(null);
     const lastUpdateRef = useRef(0);
 
+    // Refs for stable access in callbacks
+    const borderDataRef = useRef(borderData);
+    borderDataRef.current = borderData;
+    const isShakingRef = useRef(isShaking);
+    isShakingRef.current = isShaking;
+    const lightLevelRef = useRef(lightLevel);
+    lightLevelRef.current = lightLevel;
+
     // Frame processor for real-time analysis
     const frameProcessor = useCustomFrameProcessor(
         useCallback((corners) => {
@@ -107,10 +115,11 @@ export const CaptureScreen: React.FC = () => {
             frameAnalysisRef.current = frameAnalysis;
             updateWarnings(frameAnalysis);
 
-            // Throttle UI updates to ~10fps (100ms)
+            // Throttle UI updates to ~10fps (100ms) unless it's the first update
             const now = Date.now();
-            if (now - lastUpdateRef.current > 100) {
+            if (now - lastUpdateRef.current > 100 || !displayAnalysis) {
                 setDisplayAnalysis(frameAnalysis);
+                // Force immediate re-render if it was null
                 lastUpdateRef.current = now;
             }
         }, [])
@@ -193,11 +202,16 @@ export const CaptureScreen: React.FC = () => {
         const messages: FeedbackMessage[] = [];
 
         // ========== ALERT / WARNING SYSTEM ==========
-        if (!borderData?.detected) {
+        // Use Refs to get latest state inside the stable callback
+        const currentBorder = borderDataRef.current;
+        const currentShaking = isShakingRef.current;
+        const currentLight = lightLevelRef.current;
+
+        if (!currentBorder?.detected) {
             messages.push({ type: 'error', message: '⚠️ Kit not detected', icon: 'test-tube-off' });
-        } else if (!borderData?.isAligned) {
+        } else if (!currentBorder?.isAligned) {
             messages.push({ type: 'warning', message: '↔️ Align kit with guide', icon: 'arrow-left-right' });
-        } else if (!borderData?.isCentered) {
+        } else if (!currentBorder?.isCentered) {
             messages.push({ type: 'warning', message: '⊕ Center kit in frame', icon: 'crosshairs' });
         } else {
             messages.push({ type: 'success', message: '✓ Kit detected', icon: 'test-tube' });
@@ -215,18 +229,27 @@ export const CaptureScreen: React.FC = () => {
         }
 
         if (frameAnalysis?.shadowAnalysis?.hasShadow) {
-            messages.push({ type: 'warning', message: `🌑 Shadow detected`, icon: 'weather-partly-cloudy' });
+            const coverage = ((frameAnalysis.shadowAnalysis as any)?.shadowCoverage * 100)?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `🌑 Shadow (${coverage}%)`, icon: 'weather-partly-cloudy' });
         }
 
         if (frameAnalysis?.reflectionAnalysis?.hasReflection) {
-            messages.push({ type: 'warning', message: `✨ Glare detected`, icon: 'flare' });
+            const area = ((frameAnalysis.reflectionAnalysis as any)?.affectedArea * 100)?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `✨ Glare (${area}%)`, icon: 'flare' });
         }
 
-        if (isShaking) {
+        // White Balance Analysis
+        if (frameAnalysis?.whiteBalanceAnalysis && !frameAnalysis.whiteBalanceAnalysis.isBalanced) {
+            const dom = frameAnalysis.whiteBalanceAnalysis.dominantChannel;
+            const tint = dom === 'red' ? 'Red' : (dom === 'blue' ? 'Blue' : 'Green');
+            messages.push({ type: 'warning', message: `🎨 ${tint} tint detected`, icon: 'palette' });
+        }
+
+        if (currentShaking) {
             messages.push({ type: 'error', message: '📳 Hold steady!', icon: 'vibrate' });
         }
 
-        if (lightLevel < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
+        if (currentLight < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
             messages.push({ type: 'warning', message: '💡 Low ambient light', icon: 'lightbulb-outline' });
         }
 
@@ -237,7 +260,8 @@ export const CaptureScreen: React.FC = () => {
         const hasErrors = messages.some(m => m.type === 'error');
         const hasWarnings = messages.some(m => m.type === 'warning');
 
-        if (!hasErrors && !hasWarnings && borderData?.detected) {
+        // Only show "Ready" if completely clear
+        if (!hasErrors && !hasWarnings && currentBorder?.detected) {
             messages.unshift({ type: 'success', message: '✓ Ready to capture!', icon: 'camera' });
         }
 
@@ -361,10 +385,13 @@ export const CaptureScreen: React.FC = () => {
         try {
             if (!cameraRef.current) return;
             const { locationX, locationY } = event.nativeEvent;
+
+            // Show focus indicator IMMEDIATELY before async focus operation
+            setFocusPoint({ x: locationX, y: locationY, visible: true });
+
             await cameraRef.current.focus({ x: locationX, y: locationY });
 
-            // Show focus indicator
-            setFocusPoint({ x: locationX, y: locationY, visible: true });
+            // Hide after delay
             setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1500);
 
         } catch (e) {
@@ -481,6 +508,7 @@ export const CaptureScreen: React.FC = () => {
                             lightLevel={lightLevel}
                             isShaking={isShaking}
                             alignment={getAlignment()}
+                            proximity={proximity}
                             analysisData={{
                                 ...currentAnalysisData,
                                 frameAnalysis: displayAnalysis // Use state instead of Ref for rendering
@@ -578,44 +606,52 @@ const styles = StyleSheet.create({
     header: {
         backgroundColor: '#ffffff',
         paddingHorizontal: 16,
-        paddingTop: 10,
-        paddingBottom: 0, // Removed padding to flush with camera
-        height: 'auto',
-        minHeight: HEADER_HEIGHT,
+        paddingTop: Platform.OS === 'android' ? 10 : 0, // Adjust for status bar
+        paddingBottom: 0,
         zIndex: 10,
+        justifyContent: 'flex-end',
+        // Ensure header fills space above camera
     },
     headerMainRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 8, // Space between title and controls
     },
     headerButton: {
         width: 40, height: 40, borderRadius: 20,
         backgroundColor: '#f3f4f6', justifyContent: 'center', alignItems: 'center'
     },
     headerTitle: {
-        fontSize: 18, fontWeight: '700', color: '#1f2937'
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1e293b',
+        alignSelf: 'center',
+        flex: 1,
+        textAlign: 'center',
     },
+    // backButton: { // This was in the diff but not used in JSX, keeping original headerButton
+    //     width: 40, height: 40,
+    //     justifyContent: 'center', alignItems: 'center',
+    //     backgroundColor: '#f1f5f9', borderRadius: 20
+    // },
     controlsPanel: {
         flexDirection: 'row',
         justifyContent: 'center',
         gap: 20,
         marginBottom: 8,
         marginTop: 4,
-        // Removed heavy background to match original lighter aesthetic
         paddingVertical: 8,
     },
     controlButton: {
         width: 46, height: 46, borderRadius: 23,
         backgroundColor: '#ffffff', justifyContent: 'center', alignItems: 'center',
-        borderWidth: 0, // Removed border for cleaner look
+        borderWidth: 0,
         shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4,
         elevation: 3,
     },
     controlButtonActive: {
         backgroundColor: '#eff6ff',
-        borderColor: '#bfdbfe',
     },
     concentrationButton: {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
@@ -625,40 +661,34 @@ const styles = StyleSheet.create({
     concentrationText: {
         flex: 1, marginHorizontal: 8, fontSize: 14, fontWeight: '600', color: '#1e40af'
     },
+    // pickerContainer: { // This was in the diff but not used in JSX
+    //     marginBottom: 10, // Margin closest to camera
+    // },
 
     // CAMERA LAYOUT
     cameraContainer: {
-        flex: 1,
-        backgroundColor: '#000',
-        justifyContent: 'center',
-        alignItems: 'center',
+        width: SCREEN_WIDTH, // Original was SCREEN_WIDTH, diff had CAMERA_WIDTH. Keeping original for consistency.
+        height: CAMERA_HEIGHT,
         overflow: 'hidden',
+        backgroundColor: '#000',
+        alignSelf: 'center', // Center horizontally
     },
     cameraWrapper: {
         width: SCREEN_WIDTH,
         height: CAMERA_HEIGHT,
         overflow: 'hidden',
     },
-    histogramOverlay: {
-        position: 'absolute',
-        top: 20,
-        right: 10,
-        gap: 8,
-    },
-    exposureOverlay: {
-        position: 'absolute',
-        bottom: 40,
-        left: 30, right: 30,
-    },
 
     // FOOTER LAYOUT
     footer: {
-        height: FOOTER_HEIGHT,
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 30,
         backgroundColor: '#ffffff',
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingHorizontal: 30,
+        paddingBottom: 20,
+        paddingTop: 20, // Add padding to connect with camera
+        flex: 1, // Fill remaining space below camera
     },
     footerSide: { width: 60, alignItems: 'center' },
     footerButton: {
@@ -675,6 +705,20 @@ const styles = StyleSheet.create({
     captureButtonDisabled: { opacity: 0.5 },
     captureButtonInner: {
         width: 54, height: 54, borderRadius: 27, backgroundColor: '#10b981'
+    },
+    exposureOverlay: {
+        position: 'absolute',
+        right: 20,
+        top: '25%',
+        height: '50%',
+        justifyContent: 'center'
+    },
+    histogramOverlay: {
+        position: 'absolute',
+        top: 20,
+        right: 10,
+        alignItems: 'flex-end',
+        gap: 8,
     },
 
     // INDICATORS

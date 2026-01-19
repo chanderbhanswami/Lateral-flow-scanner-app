@@ -7,6 +7,7 @@ interface SensorDisplayProps {
     lightLevel: number;
     isShaking: boolean;
     alignment: AlignmentAnalysis | null;
+    proximity?: number | null; // Added proximity prop
     analysisData?: any; // To receive frameAnalysis and other real-time data
 }
 
@@ -15,6 +16,7 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
     lightLevel,
     isShaking,
     alignment,
+    proximity,
     analysisData
 }) => {
     // Extract real-time frame analysis if available
@@ -50,7 +52,7 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
                 {/* --- LIGHTING --- */}
                 {renderSectionHeader("Environmental")}
                 {renderItem("Ambient Light", `${lightLevel.toFixed(0)} lux`, lightLevel < 100 ? "#ef4444" : "#10b981")}
-                {renderItem("Proximity", sensorData?.proximity?.distance !== undefined ? (sensorData.proximity.distance === 0 ? "NEAR" : "FAR") : "N/A")}
+                {renderItem("Proximity", proximity !== undefined && proximity !== null ? (proximity === 0 || proximity < 5 ? "NEAR" : "FAR") : "N/A")}
 
                 {/* --- FRAME ANALYSIS (The missing parts) --- */}
                 {frameAnalysis && (
