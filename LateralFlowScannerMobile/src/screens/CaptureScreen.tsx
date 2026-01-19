@@ -5,7 +5,7 @@ import ImageEditor from '@react-native-community/image-editor';
 
 // ... (imports)
 
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
@@ -44,6 +44,7 @@ const FOOTER_HEIGHT = 70;
 export const CaptureScreen: React.FC = () => {
     const navigation = useNavigation<CaptureScreenProps['navigation']>();
     const route = useRoute<CaptureScreenProps['route']>();
+    const isFocused = useIsFocused(); // Pause camera when not focused
 
     const { user } = useAuthStore();
     const settings = (user as any)?.settings || {
@@ -297,19 +298,23 @@ export const CaptureScreen: React.FC = () => {
 
     const cropImageToKit = async (imageUri: string, detected: boolean, corners: any[], width: number, height: number): Promise<string> => {
         try {
-            // ... (previous logic for cropData calc) ...
+            console.log(`[Crop] Input: Photo=${width}x${height}, Detected=${detected}, Corners=${JSON.stringify(corners)}`);
 
-            // Re-paste logic for brevity here or assume it's kept? 
-            // Better to replace the whole function to be safe with tool usage.
+            // Frame Processor dimensions (Must match BorderGuide assumptions for correct alignment)
+            // BorderGuide uses CAMERA_WIDTH / 480, implying the layout logic treats the frame as 480 wide.
+            // Even though useFrameProcessor uses 640x480, the visual mapping seems to align with 480x640 in portrait.
+            const FP_WIDTH = 480;
+            const FP_HEIGHT = 640;
 
-            // Default to static guide if not detected
             let cropData = {
                 offset: { x: 0, y: 0 },
                 size: { width: 0, height: 0 }
             };
 
-            const scaleX = width / CAMERA_WIDTH;
-            const scaleY = height / CAMERA_HEIGHT;
+            const scaleX = width / FP_WIDTH;
+            const scaleY = height / FP_HEIGHT;
+
+            console.log(`[Crop] Scales: X=${scaleX.toFixed(3)}, Y=${scaleY.toFixed(3)}`);
 
             if (detected && corners && corners.length === 4) {
                 const xs = corners.map(p => p.x);
@@ -319,6 +324,7 @@ export const CaptureScreen: React.FC = () => {
                 const minY = Math.min(...ys);
                 const maxY = Math.max(...ys);
 
+                // Add padding (e.g. 10%)
                 const padX = (maxX - minX) * 0.1;
                 const padY = (maxY - minY) * 0.1;
 
@@ -333,17 +339,29 @@ export const CaptureScreen: React.FC = () => {
                     }
                 };
             } else {
+                // Static Guide Fallback
+                // GUIDE_X/Y are in Screen Coordinates (CAMERA_WIDTH space).
+                // We need to map Screen -> Photo.
+                // Screen Scale = Photo / Screen = width / CAMERA_WIDTH
+                const screenScaleX = width / CAMERA_WIDTH;
+                const screenScaleY = height / CAMERA_HEIGHT;
+
                 cropData = {
-                    offset: { x: GUIDE_X * scaleX, y: GUIDE_Y * scaleY },
-                    size: { width: CASSETTE_WIDTH * scaleX, height: CASSETTE_HEIGHT * scaleY }
+                    offset: { x: GUIDE_X * screenScaleX, y: GUIDE_Y * screenScaleY },
+                    size: { width: CASSETTE_WIDTH * screenScaleX, height: CASSETTE_HEIGHT * screenScaleY }
                 };
             }
 
-            // Ensure constraints
-            if (cropData.offset.x < 0) cropData.offset.x = 0;
-            if (cropData.offset.y < 0) cropData.offset.y = 0;
+            // Ensure constraints (Round to integer for ImageEditor)
+            cropData.offset.x = Math.floor(Math.max(0, cropData.offset.x));
+            cropData.offset.y = Math.floor(Math.max(0, cropData.offset.y));
             if (cropData.offset.x + cropData.size.width > width) cropData.size.width = width - cropData.offset.x;
             if (cropData.offset.y + cropData.size.height > height) cropData.size.height = height - cropData.offset.y;
+
+            cropData.size.width = Math.floor(cropData.size.width);
+            cropData.size.height = Math.floor(cropData.size.height);
+
+            console.log(`[Crop] Final Rect: ${JSON.stringify(cropData)}`);
 
             const result = await ImageEditor.cropImage(imageUri, {
                 offset: cropData.offset,
@@ -352,10 +370,6 @@ export const CaptureScreen: React.FC = () => {
                 resizeMode: 'cover',
             });
 
-            // Modern ImageEditor returns object with path/uri or just path depending on version. 
-            // @react-native-community/image-editor returns { path: string, ... } or uri.
-            // Actually it returns Promise<CropResult> where CropResult = { path: string, width: number, height: number, ... }
-            // Let's coerce.
             return (result as any).path || (result as any).uri || result;
 
         } catch (e) {
@@ -570,7 +584,7 @@ export const CaptureScreen: React.FC = () => {
                         key={device?.id || 'camera'} // Force remount when device changes
                         style={StyleSheet.absoluteFill}
                         device={device}
-                        isActive={config.isActive}
+                        isActive={config.isActive && isFocused}
                         photo={true}
                         format={format}
                         pixelFormat="yuv"

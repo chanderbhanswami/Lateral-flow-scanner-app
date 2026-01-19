@@ -231,7 +231,7 @@ export const HomeScreen: React.FC = () => {
                                                 <View style={styles.liveDot} />
                                                 <Text style={styles.liveTagText}>AI Ready</Text>
                                             </View>
-                                            <Text style={styles.heroTitle}>Start Analysis</Text>
+                                            <Text style={styles.heroTitle}>Start Scanning</Text>
                                             <Text style={styles.heroSubtitle}>
                                                 Capture and analyze lateral flow tests with precision.
                                             </Text>

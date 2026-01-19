@@ -70,15 +70,6 @@ export const ReviewScreen: React.FC = () => {
     }
 
     const handleSend = async () => {
-        if (!concentration || concentration.trim() === '') {
-            Toast.show({
-                type: 'error',
-                text1: 'Validation Error',
-                text2: 'Please enter a concentration value',
-            });
-            return;
-        }
-
         try {
             const updatedData = {
                 ...captureData,
@@ -215,7 +206,7 @@ export const ReviewScreen: React.FC = () => {
                     title={isUploading ? 'Sending...' : 'Send'}
                     onPress={handleSend}
                     style={styles.button}
-                    disabled={isUploading} // Removed dependency on concentration state for UI, handled in onPress
+                    disabled={isUploading || !concentration}
                     loading={isUploading}
                 />
             </View>
