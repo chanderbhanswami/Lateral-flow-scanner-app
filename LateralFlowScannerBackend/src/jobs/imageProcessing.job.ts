@@ -42,6 +42,9 @@ export const initImageProcessingWorker = () => {
         {
             connection,
             concurrency: 5,
+            // Optimization: Reduce Redis command usage (heartbeats)
+            stalledInterval: 60000, // Check for stalled jobs every 60s (default 30s)
+            lockDuration: 60000,    // Keep lock for 60s
         }
     );
 
