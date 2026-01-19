@@ -18,10 +18,10 @@ interface BorderDetection {
 // Inline thresholds
 const BORDER_THRESHOLDS = {
     MIN_AREA: 1000,
-    ASPECT_RATIO_MIN: 2.5,
-    ASPECT_RATIO_MAX: 4.5,
-    ALIGNMENT_TOLERANCE: 10, // degrees
-    CENTER_TOLERANCE: 0.15   // fraction of frame
+    ASPECT_RATIO_MIN: 1.2,
+    ASPECT_RATIO_MAX: 8.0,
+    ALIGNMENT_TOLERANCE: 15, // degrees - slightly relaxed
+    CENTER_TOLERANCE: 0.25   // fraction of frame - more tolerant to off-center
 };
 
 /**

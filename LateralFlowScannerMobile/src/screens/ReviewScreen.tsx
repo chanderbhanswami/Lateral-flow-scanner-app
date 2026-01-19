@@ -95,9 +95,9 @@ export const ReviewScreen: React.FC = () => {
     const handleBatchSelect = (batch: any) => {
         setSelectedBatch(batch);
         setShowBatchSelector(false);
-        // Optional: auto-fill concentration value from batch if empty
-        if (!concentration && batch.concentration) {
-            setConcentration(batch.concentration);
+        // Auto-fill concentration value from batch
+        if (batch.concentration !== undefined && batch.concentration !== null) {
+            setConcentration(String(batch.concentration));
         }
     };
 
@@ -219,7 +219,7 @@ export const ReviewScreen: React.FC = () => {
                     title={isUploading ? 'Sending...' : 'Send'}
                     onPress={handleSend}
                     style={styles.button}
-                    disabled={isUploading || !concentration}
+                    disabled={isUploading || (!concentration && !selectedBatch)}
                     loading={isUploading}
                 />
             </View>
@@ -227,7 +227,11 @@ export const ReviewScreen: React.FC = () => {
             <BatchSelector
                 visible={showBatchSelector}
                 onClose={() => setShowBatchSelector(false)}
-                onSelect={handleBatchSelect}
+                onSelect={(batch) => {
+                    handleBatchSelect(batch);
+                    // Ensure the modal closes properly by deferring slightly if needed
+                    setTimeout(() => setShowBatchSelector(false), 100);
+                }}
             />
         </KeyboardAwareScrollView>
     );

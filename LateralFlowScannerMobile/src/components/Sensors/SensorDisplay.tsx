@@ -54,15 +54,17 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
                 {renderItem("Ambient Light", `${lightLevel.toFixed(0)} lux`, lightLevel < 100 ? "#ef4444" : "#10b981")}
                 {renderItem("Proximity", proximity !== undefined && proximity !== null ? (proximity === 0 || proximity < 5 ? "NEAR" : "FAR") : "N/A")}
 
-                {/* --- FRAME ANALYSIS (The missing parts) --- */}
+                {/* --- FRAME ANALYSIS --- */}
                 {frameAnalysis && (
                     <>
                         {renderSectionHeader("Image Quality")}
                         {renderItem("Blur", frameAnalysis.blurAnalysis?.isBlurry ? "BLURRY" : "Clear", frameAnalysis.blurAnalysis?.isBlurry ? "#ef4444" : "#10b981")}
-                        {renderItem("Blur Score", frameAnalysis.blurAnalysis?.blurScore?.toFixed(0) || "N/A")}
+                        {renderItem("Blur Score", frameAnalysis.blurAnalysis?.blurScore !== undefined ? frameAnalysis.blurAnalysis.blurScore.toFixed(0) : "N/A")}
 
                         {renderItem("Exposure", frameAnalysis.exposureAnalysis?.isUnderexposed ? "Too Dark" : (frameAnalysis.exposureAnalysis?.isOverexposed ? "Too Bright" : "Good"), frameAnalysis.exposureAnalysis?.isUnderexposed || frameAnalysis.exposureAnalysis?.isOverexposed ? "#f59e0b" : "#10b981")}
-                        {/* {renderItem("Luminance", frameAnalysis.exposureAnalysis?.lumaTarget ? `${frameAnalysis.exposureAnalysis.lumaTarget.toFixed(0)}` : "-")} */}
+
+                        {/* Histogram Mean is a good proxy for 'Camera Light Intensity' */}
+                        {renderItem("Cam Intensity", frameAnalysis.histogramStats?.mean ? `${frameAnalysis.histogramStats.mean.toFixed(0)}/255` : "N/A")}
 
                         {renderSectionHeader("Environment")}
                         {renderItem("Shadows", frameAnalysis.shadowAnalysis?.hasShadow ? "Detected" : "None", frameAnalysis.shadowAnalysis?.hasShadow ? "#f59e0b" : "#10b981")}
@@ -71,23 +73,14 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
                         {renderItem("Reflections", frameAnalysis.reflectionAnalysis?.hasReflection ? "Detected" : "None", frameAnalysis.reflectionAnalysis?.hasReflection ? "#f59e0b" : "#10b981")}
                         {frameAnalysis.reflectionAnalysis?.hasReflection && renderItem("Affected", `${((frameAnalysis.reflectionAnalysis as any)?.affectedArea * 100)?.toFixed(0)}%`)}
 
-                        {/* Camera Light: Using Histogram Mean (average pixel brightness 0-255) */}
-                        {renderItem("Cam Light", frameAnalysis.histogramStats?.mean ? `${frameAnalysis.histogramStats.mean.toFixed(0)} / 255` : "N/A", "#fbbf24")}
-
                         {renderSectionHeader("Color / WB")}
                         {renderItem("Status", frameAnalysis.whiteBalanceAnalysis?.isBalanced ? "Balanced" : "Tinted", frameAnalysis.whiteBalanceAnalysis?.isBalanced ? "#10b981" : "#f59e0b")}
-
-                        {/* Use colorAnalysis for Temperature */}
-                        {renderItem("Temp", frameAnalysis.colorAnalysis?.colorTemperature ? `${frameAnalysis.colorAnalysis.colorTemperature.toFixed(0)}K` : "N/A")}
-
-                        {/* Tint: Green Gain relative to Red/Blue or similar proxy. Using Green Gain for now if available in correction */}
-                        {renderItem("Tint (G)", (frameAnalysis.whiteBalanceAnalysis as any)?.correction?.g ? `x${(frameAnalysis.whiteBalanceAnalysis as any).correction.g.toFixed(2)}` : "-")}
-
-                        {renderItem("Dom. Ch", frameAnalysis.whiteBalanceAnalysis?.dominantChannel || "-")}
+                        {renderItem("Temperature", frameAnalysis.colorAnalysis?.colorTemperature ? `${frameAnalysis.colorAnalysis.colorTemperature.toFixed(0)}K` : "N/A")}
+                        {renderItem("Tint", (frameAnalysis.whiteBalanceAnalysis as any)?.correction?.g ? `x${(frameAnalysis.whiteBalanceAnalysis as any).correction.g.toFixed(2)}` : "-")}
+                        {renderItem("Dominant", typeof frameAnalysis.colorAnalysis?.dominantColor === 'string' ? frameAnalysis.colorAnalysis.dominantColor : (frameAnalysis.colorAnalysis?.dominantColor ? JSON.stringify(frameAnalysis.colorAnalysis.dominantColor) : "-"))}
 
                         {renderSectionHeader("Focus / Kit")}
-                        {renderItem("Focus User", frameAnalysis.focusAnalysis?.needsFocus ? "REFOCUS" : "Good", frameAnalysis.focusAnalysis?.needsFocus ? "#ef4444" : "#10b981")}
-                        {renderItem("Blur Score", frameAnalysis.blurAnalysis?.blurScore ? frameAnalysis.blurAnalysis.blurScore.toFixed(0) : "N/A")}
+                        {renderItem("Focus Status", frameAnalysis.focusAnalysis?.needsFocus ? "REFOCUS" : "Good", frameAnalysis.focusAnalysis?.needsFocus ? "#ef4444" : "#10b981")}
                         {renderItem("Border Det.", borderData?.detected ? "YES" : "Searching...", borderData?.detected ? "#10b981" : "#cbd5e1")}
                     </>
                 )}

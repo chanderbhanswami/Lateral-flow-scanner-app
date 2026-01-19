@@ -36,10 +36,16 @@ export const useCamera = (highQualityMode: boolean = true) => {
             if (!granted) {
                 throw new Error('Camera permission denied');
             }
-            // Add a small delay to ensure native permission state propagates before starting session
-            await new Promise(resolve => setTimeout(() => resolve(true), 500));
+            // CRITICAL: On Android/iOS, obtaining permission doesn't immediately make the camera resource available.
+            // We wait to ensure the OS has fully propagated the permission state.
+            await new Promise(resolve => setTimeout(() => resolve(true), 1000));
         }
+
+        // Activate camera
         setConfig(prev => ({ ...prev, isActive: true }));
+
+        // Double check: If we just got permission, sometimes a toggle is needed.
+        // But usually a sufficient delay works. 
     }, []);
 
     const capturePhoto = useCallback(async () => {

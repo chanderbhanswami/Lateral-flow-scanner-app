@@ -120,45 +120,104 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
 
 const styles = StyleSheet.create({
     container: {
-        flex: 1,
-        padding: 20,
-        backgroundColor: '#fff',
-        borderRadius: 12,
+        flex: 1, // Fill the available modal space
+        width: '100%',
+    },
+    scrollContent: {
+        flexGrow: 1,
+        paddingHorizontal: 20,
+        paddingVertical: 15,
+        justifyContent: 'center', // Center content vertically if space allows
+    },
+    header: {
+        marginBottom: 20,
     },
     title: {
         fontSize: 24,
-        fontWeight: '700',
+        fontWeight: 'bold',
         color: '#1f2937',
-        marginBottom: 20,
+        alignSelf: 'center',
     },
+    subtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+        alignSelf: 'center',
+        marginTop: 4,
+    },
+    form: {
+        gap: 16,
+    },
+    inputGroup: {
+        gap: 6,
+    },
+    // Legacy support for JSX
     field: {
         marginBottom: 16,
     },
     label: {
         fontSize: 14,
-        fontWeight: '500',
+        fontWeight: '600',
         color: '#374151',
-        marginBottom: 8,
     },
     input: {
+        backgroundColor: '#f9fafb',
         borderWidth: 1,
-        borderColor: '#d1d5db',
+        borderColor: '#e5e7eb',
         borderRadius: 8,
         padding: 12,
         fontSize: 16,
         color: '#1f2937',
+        minHeight: 48, // Ensure touch target
     },
     inputError: {
         borderColor: '#ef4444',
     },
-    textArea: {
-        height: 80,
+    multilineInput: {
+        minHeight: 100,
         textAlignVertical: 'top',
+    },
+    textArea: {
+        minHeight: 100,
+        textAlignVertical: 'top',
+    },
+    row: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    halfInput: {
+        flex: 1,
+    },
+    buttons: {
+        flexDirection: 'row',
+        gap: 12,
+        marginTop: 24,
+    },
+    button: {
+        flex: 1,
+        paddingVertical: 14,
+        borderRadius: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    cancelButton: {
+        backgroundColor: '#f3f4f6',
+    },
+    submitButton: {
+        backgroundColor: '#10b981',
+    },
+    cancelButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#4b5563',
+    },
+    submitButtonText: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#ffffff',
     },
     errorText: {
         color: '#ef4444',
         fontSize: 12,
-        marginTop: 4,
     },
     colorPreview: {
         width: 40,
@@ -167,15 +226,5 @@ const styles = StyleSheet.create({
         marginTop: 8,
         borderWidth: 1,
         borderColor: '#d1d5db',
-    },
-    buttons: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginTop: 24,
-        paddingBottom: 20, // Add padding at bottom for scroll visibility
-    },
-    button: {
-        flex: 1,
-        marginHorizontal: 8,
     },
 });

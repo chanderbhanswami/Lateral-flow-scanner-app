@@ -178,10 +178,10 @@ export const useCustomFrameProcessor = (
 
             // 2. Adaptive Thresholding: Better for varying lighting than Canny
             const edges = cv.createObject(cv.ObjectType.Mat);
-            cv.invoke('adaptiveThreshold', gray, edges, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
+            cv.invoke('adaptiveThreshold', gray, edges, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 21, 2);
 
-            // 3. Morphology: Close gaps in edges
-            const kernel = cv.invoke('getStructuringElement', cv.MORPH_RECT, { width: 3, height: 3 });
+            // 3. Morphology: Close gaps in edges (Increased kernel size to merge improved segments)
+            const kernel = cv.invoke('getStructuringElement', cv.MORPH_RECT, { width: 5, height: 5 });
             cv.invoke('morphologyEx', edges, edges, cv.MORPH_CLOSE, kernel);
 
             // 4. Find Contours
@@ -199,7 +199,7 @@ export const useCustomFrameProcessor = (
                 const area = cv.invoke('contourArea', contour);
 
                 // Filter 1: Area (too small = noise, too big = whole screen)
-                if (area < 5000 || area > 640 * 480 * 0.9) continue;
+                if (area < 5000 || area > 640 * 480 * 0.95) continue;
 
                 // Filter 2: Shape Approximation (Polygon)
                 const perimeter = cv.invoke('arcLength', contour, true);
@@ -209,8 +209,8 @@ export const useCustomFrameProcessor = (
                 // Get vertices count
                 const vertices = cv.invoke('rows', approx); // Mat of shape (N, 1, 2)
 
-                // We expect roughly 4 corners for a cassette
-                if (vertices < 4 || vertices > 8) continue;
+                // We expect roughly 4 corners for a cassette, but noise/labels can add vertices
+                if (vertices < 4 || vertices > 12) continue;
 
                 // Filter 3: Bounding Rect features
                 const rotatedRect = cv.invoke('minAreaRect', contour);
@@ -225,14 +225,13 @@ export const useCustomFrameProcessor = (
                 const rectArea = w * h;
 
                 // Filter 4: Rectangularity (detected contour area vs bbox area)
-                // Cassettes are solid rectangles, so contour area should be close to rectArea
                 const rectangularity = area / rectArea;
 
-                // Strict Checks:
-                // - Aspect Ratio: typical cassette is ~2:1 to ~5:1. Avoid squares (1:1) or lines (>8:1)
-                // - Rectangularity: should be high (> 0.7)
-                if (aspectRatio < 1.5 || aspectRatio > 6.0) continue;
-                if (rectangularity < 0.7) continue;
+                // Strict Checks (Relaxed for better detection):
+                // - Aspect Ratio: typical cassette is ~2:1 to ~5:1. 
+                // - Rectangularity: allowed slightly lower
+                if (aspectRatio < 1.2 || aspectRatio > 8.0) continue;
+                if (rectangularity < 0.6) continue;
 
                 // If this is the largest valid kit-like object found so far
                 if (area > maxArea) {

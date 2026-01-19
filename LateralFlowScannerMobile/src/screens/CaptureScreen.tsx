@@ -31,11 +31,11 @@ import { AdvancedHistogramDisplay } from '../components/Camera/AdvancedHistogram
 import { ExposureMeter } from '../components/Camera/ExposureMeter';
 import { ExposureSlider } from '../components/Camera/ExposureSlider';
 import { AUTO_CAPTURE_CONDITIONS } from '../constants';
+import { CAMERA_WIDTH, CAMERA_HEIGHT, GUIDE_X, GUIDE_Y, CASSETTE_WIDTH, CASSETTE_HEIGHT } from '../constants/layout';
 import { logger } from '../utils/logger';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CAMERA_ASPECT_RATIO = 4 / 3;
-const CAMERA_HEIGHT = SCREEN_WIDTH * CAMERA_ASPECT_RATIO;
+// CAMERA_HEIGHT is imported from constants/layout
 
 // Adjusted heights
 const HEADER_HEIGHT = 180;
@@ -293,6 +293,77 @@ export const CaptureScreen: React.FC = () => {
         }
     }, [lockExposure]);
 
+    // ... inside CaptureScreen component ...
+
+    const cropImageToKit = async (imageUri: string, detected: boolean, corners: any[], width: number, height: number): Promise<string> => {
+        try {
+            // ... (previous logic for cropData calc) ...
+
+            // Re-paste logic for brevity here or assume it's kept? 
+            // Better to replace the whole function to be safe with tool usage.
+
+            // Default to static guide if not detected
+            let cropData = {
+                offset: { x: 0, y: 0 },
+                size: { width: 0, height: 0 }
+            };
+
+            const scaleX = width / CAMERA_WIDTH;
+            const scaleY = height / CAMERA_HEIGHT;
+
+            if (detected && corners && corners.length === 4) {
+                const xs = corners.map(p => p.x);
+                const ys = corners.map(p => p.y);
+                const minX = Math.min(...xs);
+                const maxX = Math.max(...xs);
+                const minY = Math.min(...ys);
+                const maxY = Math.max(...ys);
+
+                const padX = (maxX - minX) * 0.1;
+                const padY = (maxY - minY) * 0.1;
+
+                cropData = {
+                    offset: {
+                        x: Math.max(0, (minX - padX) * scaleX),
+                        y: Math.max(0, (minY - padY) * scaleY)
+                    },
+                    size: {
+                        width: Math.min(width, (maxX - minX + 2 * padX) * scaleX),
+                        height: Math.min(height, (maxY - minY + 2 * padY) * scaleY)
+                    }
+                };
+            } else {
+                cropData = {
+                    offset: { x: GUIDE_X * scaleX, y: GUIDE_Y * scaleY },
+                    size: { width: CASSETTE_WIDTH * scaleX, height: CASSETTE_HEIGHT * scaleY }
+                };
+            }
+
+            // Ensure constraints
+            if (cropData.offset.x < 0) cropData.offset.x = 0;
+            if (cropData.offset.y < 0) cropData.offset.y = 0;
+            if (cropData.offset.x + cropData.size.width > width) cropData.size.width = width - cropData.offset.x;
+            if (cropData.offset.y + cropData.size.height > height) cropData.size.height = height - cropData.offset.y;
+
+            const result = await ImageEditor.cropImage(imageUri, {
+                offset: cropData.offset,
+                size: cropData.size,
+                displaySize: { width: cropData.size.width, height: cropData.size.height },
+                resizeMode: 'cover',
+            });
+
+            // Modern ImageEditor returns object with path/uri or just path depending on version. 
+            // @react-native-community/image-editor returns { path: string, ... } or uri.
+            // Actually it returns Promise<CropResult> where CropResult = { path: string, width: number, height: number, ... }
+            // Let's coerce.
+            return (result as any).path || (result as any).uri || result;
+
+        } catch (e) {
+            console.warn('Crop failed, using original:', e);
+            return imageUri;
+        }
+    };
+
     const handleCapture = async (mode: 'auto' | 'manual') => {
         try {
             setIsCapturing(true);
@@ -311,11 +382,27 @@ export const CaptureScreen: React.FC = () => {
 
             if (!photo || !photo.path) throw new Error('Photo capture returned empty result');
 
+            Toast.show({ type: 'info', text1: 'Processing & Cropping...', visibilityTime: 1500 });
+
+            // CROP IMAGE TO KIT
+            let finalImageUri = photo.path;
+            try {
+                finalImageUri = await cropImageToKit(
+                    photo.path,
+                    borderData.detected,
+                    borderData.corners,
+                    photo.width,
+                    photo.height
+                );
+            } catch (cropErr) {
+                logger.warn('Crop failed', cropErr);
+            }
+
             Toast.show({ type: 'info', text1: 'Analyzing image...', visibilityTime: 1500 });
 
             let realAnalysis: any = null;
             try {
-                realAnalysis = await analyzeImage(photo.path);
+                realAnalysis = await analyzeImage(finalImageUri);
             } catch (analysisError) {
                 logger.warn('Image analysis failed, using defaults', analysisError);
             }
@@ -356,7 +443,7 @@ export const CaptureScreen: React.FC = () => {
                 }
             };
 
-            const capturedData = await processCapture(photo.path, captureMetadata, fullSensorData, analysisData);
+            const capturedData = await processCapture(finalImageUri, captureMetadata, fullSensorData, analysisData);
 
             if (capturedData) {
                 if (settings.hapticFeedback) {
@@ -364,7 +451,7 @@ export const CaptureScreen: React.FC = () => {
                 }
                 capturedData.captureMode = mode;
                 setCurrentCapture(capturedData);
-                navigation.navigate('Review', { captureData: capturedData, imageUri: photo.path });
+                navigation.navigate('Review', { captureData: capturedData, imageUri: finalImageUri });
                 Toast.show({
                     type: 'success',
                     text1: 'Capture Successful',
@@ -516,8 +603,8 @@ export const CaptureScreen: React.FC = () => {
                             alignment={getAlignment()}
                             proximity={proximity}
                             analysisData={{
-                                ...currentAnalysisData,
-                                frameAnalysis: displayAnalysis // Use state instead of Ref for rendering
+                                frameAnalysis: displayAnalysis,
+                                borderDetection: borderData
                             }}
                         />
                     )}
@@ -705,7 +792,7 @@ const styles = StyleSheet.create({
         width: 72, height: 72, borderRadius: 36,
         backgroundColor: '#fff', justifyContent: 'center', alignItems: 'center',
         borderWidth: 4, borderColor: '#10b981',
-        marginTop: -36, // Pull up to overlap slightly more centered
+        marginTop: -20, // Reduced overlap (was -36)
         shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 6
     },
     captureButtonDisabled: { opacity: 0.5 },
