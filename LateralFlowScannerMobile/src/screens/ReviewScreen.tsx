@@ -168,16 +168,18 @@ export const ReviewScreen: React.FC = () => {
                 </View>
             </Card>
 
-            {/* Concentration Input */}
-            <Card style={styles.inputCard}>
-                <Input
-                    label="Concentration Value *"
-                    value={concentration}
-                    onChangeText={setConcentration}
-                    placeholder="Enter concentration value (e.g. 10)"
-                    keyboardType="numeric"
-                />
-            </Card>
+            {/* Concentration Input - Only show if manually entering value (no batch selected) */}
+            {!selectedBatch && (
+                <Card style={styles.inputCard}>
+                    <Input
+                        label="Concentration Value *"
+                        value={concentration}
+                        onChangeText={setConcentration}
+                        placeholder="Enter concentration value (e.g. 10)"
+                        keyboardType="numeric"
+                    />
+                </Card>
+            )}
 
             {/* Notes Input */}
             <Card style={styles.inputCard}>
@@ -238,6 +240,8 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         padding: 16,
+        paddingBottom: 40,
+        flexGrow: 1,
     },
     imageCard: {
         marginBottom: 16,

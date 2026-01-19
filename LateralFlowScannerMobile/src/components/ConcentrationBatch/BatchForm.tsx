@@ -54,6 +54,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                     value={name}
                     onChangeText={setName}
                     placeholder="e.g., High Concentration"
+                    placeholderTextColor="#9ca3af"
                 />
                 {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
             </View>
@@ -65,6 +66,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                     value={concentration}
                     onChangeText={setConcentration}
                     placeholder="e.g., 100"
+                    placeholderTextColor="#9ca3af"
                     keyboardType="numeric"
                 />
                 {errors.concentration && <Text style={styles.errorText}>{errors.concentration}</Text>}
@@ -77,6 +79,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                     value={unit}
                     onChangeText={setUnit}
                     placeholder="e.g., mg/mL"
+                    placeholderTextColor="#9ca3af"
                 />
                 {errors.unit && <Text style={styles.errorText}>{errors.unit}</Text>}
             </View>
@@ -88,6 +91,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                     value={description}
                     onChangeText={setDescription}
                     placeholder="Optional description"
+                    placeholderTextColor="#9ca3af"
                     multiline
                     numberOfLines={3}
                 />
@@ -100,6 +104,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
                     value={color}
                     onChangeText={setColor}
                     placeholder="#3b82f6"
+                    placeholderTextColor="#9ca3af"
                 />
                 <View style={[styles.colorPreview, { backgroundColor: color }]} />
                 {errors.color && <Text style={styles.errorText}>{errors.color}</Text>}
@@ -115,6 +120,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
 
 const styles = StyleSheet.create({
     container: {
+        flex: 1,
         padding: 20,
         backgroundColor: '#fff',
         borderRadius: 12,
@@ -166,6 +172,7 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         marginTop: 24,
+        paddingBottom: 20, // Add padding at bottom for scroll visibility
     },
     button: {
         flex: 1,

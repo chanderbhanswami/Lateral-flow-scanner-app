@@ -4,6 +4,7 @@ import { storageService } from './storage.service';
 import { logger } from '../utils/logger';
 import { readFile } from '../utils/filesystem';
 import { retry } from '../utils/retry';
+import RNFS from 'react-native-fs';
 
 class UploadService {
     async uploadCapture(captureData: CaptureData, imageUri: string): Promise<UploadResponse> {
@@ -26,7 +27,6 @@ class UploadService {
 
     private async _uploadToBackend(captureData: CaptureData, imageUri: string): Promise<UploadResponse> {
         // Read image as base64 using filesystem utility
-        const RNFS = require('react-native-fs').default;
         const imageBase64 = await RNFS.readFile(imageUri, 'base64');
 
         // Upload to backend with retry

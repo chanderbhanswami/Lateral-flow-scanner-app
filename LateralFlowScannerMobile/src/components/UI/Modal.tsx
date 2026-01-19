@@ -46,7 +46,7 @@ const styles = StyleSheet.create({
     content: {
         backgroundColor: '#fff',
         borderRadius: 12,
-        maxWidth: Dimensions.get('window').width * 0.9,
+        width: '90%', // Force consistent wide width
         maxHeight: Dimensions.get('window').height * 0.8,
         overflow: 'hidden',
     },

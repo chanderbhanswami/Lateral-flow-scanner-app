@@ -36,6 +36,8 @@ export const useCamera = (highQualityMode: boolean = true) => {
             if (!granted) {
                 throw new Error('Camera permission denied');
             }
+            // Add a small delay to ensure native permission state propagates before starting session
+            await new Promise(resolve => setTimeout(() => resolve(true), 500));
         }
         setConfig(prev => ({ ...prev, isActive: true }));
     }, []);

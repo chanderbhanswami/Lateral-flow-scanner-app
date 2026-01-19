@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent, Vibration, StatusBar, Platform } from 'react-native';
-
 import { Camera } from 'react-native-vision-camera';
+import ImageEditor from '@react-native-community/image-editor';
+
+// ... (imports)
+
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -106,7 +109,78 @@ export const CaptureScreen: React.FC = () => {
     const lightLevelRef = useRef(lightLevel);
     lightLevelRef.current = lightLevel;
 
+    const updateWarnings = (frameAnalysis: any) => {
+        const messages: FeedbackMessage[] = [];
+
+        // ========== ALERT / WARNING SYSTEM ==========
+        // Use Refs to get latest state inside the stable callback
+        const currentBorder = borderDataRef.current;
+        const currentShaking = isShakingRef.current;
+        const currentLight = lightLevelRef.current;
+
+        if (!currentBorder?.detected) {
+            messages.push({ type: 'error', message: '⚠️ Kit not detected', icon: 'test-tube-off' });
+        } else if (!currentBorder?.isAligned) {
+            messages.push({ type: 'warning', message: '↔️ Align kit with guide', icon: 'arrow-left-right' });
+        } else if (!currentBorder?.isCentered) {
+            messages.push({ type: 'warning', message: '⊕ Center kit in frame', icon: 'crosshairs' });
+        } else {
+            messages.push({ type: 'success', message: '✓ Kit detected', icon: 'test-tube' });
+        }
+
+        if (frameAnalysis?.blurAnalysis?.isBlurry) {
+            const score = frameAnalysis?.blurAnalysis?.laplacianVariance?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `📷 Blurry (${score})`, icon: 'blur' });
+        }
+
+        if (frameAnalysis?.exposureAnalysis?.isUnderexposed) {
+            messages.push({ type: 'warning', message: '🌙 Too dark', icon: 'brightness-5' });
+        } else if (frameAnalysis?.exposureAnalysis?.isOverexposed) {
+            messages.push({ type: 'warning', message: '☀️ Too bright', icon: 'white-balance-sunny' });
+        }
+
+        if (frameAnalysis?.shadowAnalysis?.hasShadow) {
+            const coverage = ((frameAnalysis.shadowAnalysis as any)?.shadowCoverage * 100)?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `🌑 Shadow (${coverage}%)`, icon: 'weather-partly-cloudy' });
+        }
+
+        if (frameAnalysis?.reflectionAnalysis?.hasReflection) {
+            const area = ((frameAnalysis.reflectionAnalysis as any)?.affectedArea * 100)?.toFixed(0) || '?';
+            messages.push({ type: 'warning', message: `✨ Glare (${area}%)`, icon: 'flare' });
+        }
+
+        // White Balance Analysis
+        if (frameAnalysis?.whiteBalanceAnalysis && !frameAnalysis.whiteBalanceAnalysis.isBalanced) {
+            const dom = frameAnalysis.whiteBalanceAnalysis.dominantChannel;
+            const tint = dom === 'red' ? 'Red' : (dom === 'blue' ? 'Blue' : 'Green');
+            messages.push({ type: 'warning', message: `🎨 ${tint} tint detected`, icon: 'palette' });
+        }
+
+        if (currentShaking) {
+            messages.push({ type: 'error', message: '📳 Hold steady!', icon: 'vibrate' });
+        }
+
+        if (currentLight < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
+            messages.push({ type: 'warning', message: '💡 Low ambient light', icon: 'lightbulb-outline' });
+        }
+
+        if (frameAnalysis?.focusAnalysis?.needsFocus) {
+            messages.push({ type: 'warning', message: '🔍 Tap to focus', icon: 'focus-field' });
+        }
+
+        const hasErrors = messages.some(m => m.type === 'error');
+        const hasWarnings = messages.some(m => m.type === 'warning');
+
+        // Only show "Ready" if completely clear
+        if (!hasErrors && !hasWarnings && currentBorder?.detected) {
+            messages.unshift({ type: 'success', message: '✓ Ready to capture!', icon: 'camera' });
+        }
+
+        setFeedbackMessages(messages);
+    };
+
     // Frame processor for real-time analysis
+
     const frameProcessor = useCustomFrameProcessor(
         useCallback((corners) => {
             updateBorderDetection(corners);
@@ -198,75 +272,7 @@ export const CaptureScreen: React.FC = () => {
         return Object.values(conditions).every(Boolean);
     };
 
-    const updateWarnings = (frameAnalysis: any) => {
-        const messages: FeedbackMessage[] = [];
 
-        // ========== ALERT / WARNING SYSTEM ==========
-        // Use Refs to get latest state inside the stable callback
-        const currentBorder = borderDataRef.current;
-        const currentShaking = isShakingRef.current;
-        const currentLight = lightLevelRef.current;
-
-        if (!currentBorder?.detected) {
-            messages.push({ type: 'error', message: '⚠️ Kit not detected', icon: 'test-tube-off' });
-        } else if (!currentBorder?.isAligned) {
-            messages.push({ type: 'warning', message: '↔️ Align kit with guide', icon: 'arrow-left-right' });
-        } else if (!currentBorder?.isCentered) {
-            messages.push({ type: 'warning', message: '⊕ Center kit in frame', icon: 'crosshairs' });
-        } else {
-            messages.push({ type: 'success', message: '✓ Kit detected', icon: 'test-tube' });
-        }
-
-        if (frameAnalysis?.blurAnalysis?.isBlurry) {
-            const score = frameAnalysis?.blurAnalysis?.laplacianVariance?.toFixed(0) || '?';
-            messages.push({ type: 'warning', message: `📷 Blurry (${score})`, icon: 'blur' });
-        }
-
-        if (frameAnalysis?.exposureAnalysis?.isUnderexposed) {
-            messages.push({ type: 'warning', message: '🌙 Too dark', icon: 'brightness-5' });
-        } else if (frameAnalysis?.exposureAnalysis?.isOverexposed) {
-            messages.push({ type: 'warning', message: '☀️ Too bright', icon: 'white-balance-sunny' });
-        }
-
-        if (frameAnalysis?.shadowAnalysis?.hasShadow) {
-            const coverage = ((frameAnalysis.shadowAnalysis as any)?.shadowCoverage * 100)?.toFixed(0) || '?';
-            messages.push({ type: 'warning', message: `🌑 Shadow (${coverage}%)`, icon: 'weather-partly-cloudy' });
-        }
-
-        if (frameAnalysis?.reflectionAnalysis?.hasReflection) {
-            const area = ((frameAnalysis.reflectionAnalysis as any)?.affectedArea * 100)?.toFixed(0) || '?';
-            messages.push({ type: 'warning', message: `✨ Glare (${area}%)`, icon: 'flare' });
-        }
-
-        // White Balance Analysis
-        if (frameAnalysis?.whiteBalanceAnalysis && !frameAnalysis.whiteBalanceAnalysis.isBalanced) {
-            const dom = frameAnalysis.whiteBalanceAnalysis.dominantChannel;
-            const tint = dom === 'red' ? 'Red' : (dom === 'blue' ? 'Blue' : 'Green');
-            messages.push({ type: 'warning', message: `🎨 ${tint} tint detected`, icon: 'palette' });
-        }
-
-        if (currentShaking) {
-            messages.push({ type: 'error', message: '📳 Hold steady!', icon: 'vibrate' });
-        }
-
-        if (currentLight < AUTO_CAPTURE_CONDITIONS.MIN_LIGHT_LEVEL) {
-            messages.push({ type: 'warning', message: '💡 Low ambient light', icon: 'lightbulb-outline' });
-        }
-
-        if (frameAnalysis?.focusAnalysis?.needsFocus) {
-            messages.push({ type: 'warning', message: '🔍 Tap to focus', icon: 'focus-field' });
-        }
-
-        const hasErrors = messages.some(m => m.type === 'error');
-        const hasWarnings = messages.some(m => m.type === 'warning');
-
-        // Only show "Ready" if completely clear
-        if (!hasErrors && !hasWarnings && currentBorder?.detected) {
-            messages.unshift({ type: 'success', message: '✓ Ready to capture!', icon: 'camera' });
-        }
-
-        setFeedbackMessages(messages);
-    };
 
     const handleAutoCapture = async () => {
         setAutoCapturePending(false);

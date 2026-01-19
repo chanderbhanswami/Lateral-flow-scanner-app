@@ -71,16 +71,23 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
                         {renderItem("Reflections", frameAnalysis.reflectionAnalysis?.hasReflection ? "Detected" : "None", frameAnalysis.reflectionAnalysis?.hasReflection ? "#f59e0b" : "#10b981")}
                         {frameAnalysis.reflectionAnalysis?.hasReflection && renderItem("Affected", `${((frameAnalysis.reflectionAnalysis as any)?.affectedArea * 100)?.toFixed(0)}%`)}
 
-                        {renderItem("Cam Light", `${(frameAnalysis.histogram?.brightness ? (frameAnalysis.histogram.brightness.reduce((a: number, b: number) => a + b, 0) / 256).toFixed(0) : "N/A")}`, "#fbbf24")}
+                        {/* Camera Light: Using Histogram Mean (average pixel brightness 0-255) */}
+                        {renderItem("Cam Light", frameAnalysis.histogramStats?.mean ? `${frameAnalysis.histogramStats.mean.toFixed(0)} / 255` : "N/A", "#fbbf24")}
 
                         {renderSectionHeader("Color / WB")}
                         {renderItem("Status", frameAnalysis.whiteBalanceAnalysis?.isBalanced ? "Balanced" : "Tinted", frameAnalysis.whiteBalanceAnalysis?.isBalanced ? "#10b981" : "#f59e0b")}
-                        {renderItem("Tint", (frameAnalysis.whiteBalanceAnalysis as any)?.correction?.tint ? `${(frameAnalysis.whiteBalanceAnalysis as any).correction.tint.toFixed(1)}` : "-")}
-                        {renderItem("Temp", (frameAnalysis.whiteBalanceAnalysis as any)?.correction?.temperature ? `${(frameAnalysis.whiteBalanceAnalysis as any).correction.temperature.toFixed(0)}K` : "-")}
+
+                        {/* Use colorAnalysis for Temperature */}
+                        {renderItem("Temp", frameAnalysis.colorAnalysis?.colorTemperature ? `${frameAnalysis.colorAnalysis.colorTemperature.toFixed(0)}K` : "N/A")}
+
+                        {/* Tint: Green Gain relative to Red/Blue or similar proxy. Using Green Gain for now if available in correction */}
+                        {renderItem("Tint (G)", (frameAnalysis.whiteBalanceAnalysis as any)?.correction?.g ? `x${(frameAnalysis.whiteBalanceAnalysis as any).correction.g.toFixed(2)}` : "-")}
+
                         {renderItem("Dom. Ch", frameAnalysis.whiteBalanceAnalysis?.dominantChannel || "-")}
 
                         {renderSectionHeader("Focus / Kit")}
                         {renderItem("Focus User", frameAnalysis.focusAnalysis?.needsFocus ? "REFOCUS" : "Good", frameAnalysis.focusAnalysis?.needsFocus ? "#ef4444" : "#10b981")}
+                        {renderItem("Blur Score", frameAnalysis.blurAnalysis?.blurScore ? frameAnalysis.blurAnalysis.blurScore.toFixed(0) : "N/A")}
                         {renderItem("Border Det.", borderData?.detected ? "YES" : "Searching...", borderData?.detected ? "#10b981" : "#cbd5e1")}
                     </>
                 )}

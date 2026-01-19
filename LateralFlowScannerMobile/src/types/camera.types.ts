@@ -57,9 +57,17 @@ export interface FrameAnalysis {
     shadowAnalysis?: ShadowAnalysis;
     reflectionAnalysis?: ReflectionAnalysis;
     whiteBalanceAnalysis?: { isBalanced: boolean; dominantChannel: string; correction: { r: number; g: number; b: number; }; };
-    colorAnalysis?: { saturation: number; };
+    colorAnalysis?: {
+        saturation: number;
+        colorTemperature?: number;
+        dominantColor?: { r: number; g: number; b: number; };
+        whiteBalanceOffset?: { r: number; g: number; b: number; };
+        isNeutral?: boolean;
+        recommendation?: string;
+    };
     focusAnalysis?: { needsFocus: boolean; };
     histogram?: HistogramData;
+    histogramStats?: { mean: number; std: number; median: number; mode: number; };
 }
 
 export interface AnalysisResult extends FrameAnalysis {

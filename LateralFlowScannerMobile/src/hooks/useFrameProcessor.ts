@@ -173,41 +173,76 @@ export const useCustomFrameProcessor = (
         // === STEP 5: BORDER DETECTION ===
         let bestCorners: Array<{ x: number; y: number }> = [];
         try {
+            // 1. Pre-processing: Gaussian Blur to reduce noise
             cv.invoke('GaussianBlur', gray, gray, { width: 5, height: 5 }, 0);
 
+            // 2. Adaptive Thresholding: Better for varying lighting than Canny
             const edges = cv.createObject(cv.ObjectType.Mat);
-            cv.invoke('Canny', gray, edges, 75, 200);
+            cv.invoke('adaptiveThreshold', gray, edges, 255, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2);
 
+            // 3. Morphology: Close gaps in edges
+            const kernel = cv.invoke('getStructuringElement', cv.MORPH_RECT, { width: 3, height: 3 });
+            cv.invoke('morphologyEx', edges, edges, cv.MORPH_CLOSE, kernel);
+
+            // 4. Find Contours
             const contours = cv.createObject(cv.ObjectType.MatVector);
             const hierarchy = cv.createObject(cv.ObjectType.Mat);
             cv.invoke('findContours', edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
 
             const count = cv.invoke('size', contours);
             let maxArea = 0;
-            const loopLimit = Math.min(count, 20);
+            // Iterate all contours, not just first 20 (though usually few external ones exist)
+            const loopLimit = Math.min(count, 50);
 
             for (let i = 0; i < loopLimit; i++) {
                 const contour = cv.invoke('getVector', contours, i);
                 const area = cv.invoke('contourArea', contour);
-                if (area < 1000) continue;
 
+                // Filter 1: Area (too small = noise, too big = whole screen)
+                if (area < 5000 || area > 640 * 480 * 0.9) continue;
+
+                // Filter 2: Shape Approximation (Polygon)
+                const perimeter = cv.invoke('arcLength', contour, true);
+                const approx = cv.createObject(cv.ObjectType.Mat);
+                cv.invoke('approxPolyDP', contour, approx, 0.02 * perimeter, true);
+
+                // Get vertices count
+                const vertices = cv.invoke('rows', approx); // Mat of shape (N, 1, 2)
+
+                // We expect roughly 4 corners for a cassette
+                if (vertices < 4 || vertices > 8) continue;
+
+                // Filter 3: Bounding Rect features
                 const rotatedRect = cv.invoke('minAreaRect', contour);
                 const rectData = cv.toJSValue(rotatedRect);
-
-                const center = rectData.center || { x: rectData.centerX || 0, y: rectData.centerY || 0 };
                 const size = rectData.size || { width: rectData.width || 0, height: rectData.height || 0 };
-                const ang = rectData.angle !== undefined ? rectData.angle : 0;
-
-                const cx = center.x || 0;
-                const cy = center.y || 0;
                 const w = size.width || 0;
                 const h = size.height || 0;
 
-                const rectArea = w * h;
-                if (rectArea > maxArea && rectArea < 640 * 480 * 0.8) {
-                    maxArea = rectArea;
+                if (w === 0 || h === 0) continue;
 
-                    // Calculate corners
+                const aspectRatio = Math.max(w, h) / Math.min(w, h);
+                const rectArea = w * h;
+
+                // Filter 4: Rectangularity (detected contour area vs bbox area)
+                // Cassettes are solid rectangles, so contour area should be close to rectArea
+                const rectangularity = area / rectArea;
+
+                // Strict Checks:
+                // - Aspect Ratio: typical cassette is ~2:1 to ~5:1. Avoid squares (1:1) or lines (>8:1)
+                // - Rectangularity: should be high (> 0.7)
+                if (aspectRatio < 1.5 || aspectRatio > 6.0) continue;
+                if (rectangularity < 0.7) continue;
+
+                // If this is the largest valid kit-like object found so far
+                if (area > maxArea) {
+                    maxArea = area;
+
+                    const center = rectData.center || { x: rectData.centerX || 0, y: rectData.centerY || 0 };
+                    const ang = rectData.angle !== undefined ? rectData.angle : 0;
+                    const cx = center.x || 0;
+                    const cy = center.y || 0;
+
                     const angleRad = (ang * Math.PI) / 180;
                     const cos = Math.cos(angleRad);
                     const sin = Math.sin(angleRad);

@@ -71,8 +71,8 @@ const styles = StyleSheet.create({
     container: {
         backgroundColor: '#fff',
         borderRadius: 12,
-        maxHeight: '80%',
-        width: '90%',
+        width: '100%',
+        flex: 1, // Allow it to fill the Modal content area
     },
     header: {
         flexDirection: 'column',
