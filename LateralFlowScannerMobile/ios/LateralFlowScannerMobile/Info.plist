@@ -23,7 +23,7 @@
 		<string>fb-messenger-share-api</string>
 	</array>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
+	<true />
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
@@ -39,36 +39,30 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>$(MARKETING_VERSION)</string>
+	<string>1.2.0</string>
 	<key>CFBundleSignature</key>
 	<string>????</string>
 	<key>CFBundleVersion</key>
-	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<string>1</string>
 	<key>LSRequiresIPhoneOS</key>
-	<true/>
+	<true />
 	<key>NSAppTransportSecurity</key>
 	<dict>
-	  <!-- Do not change NSAllowsArbitraryLoads to true, or you will risk app rejection! -->
 		<key>NSAllowsArbitraryLoads</key>
-		<false/>
+		<false />
 		<key>NSAllowsLocalNetworking</key>
-		<true/>
+		<true />
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to capture lateral flow test images.</string>
-
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Microphone access is needed for video recording.</string>
-
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>We need access to your photo library to save captured images.</string>
-
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>We need permission to save images to your photo library.</string>
-
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Location data helps improve capture accuracy.</string>
-
 	<key>NSMotionUsageDescription</key>
 	<string>Motion sensors help detect device stability.</string>
 	<key>UILaunchStoryboardName</key>
@@ -84,6 +78,6 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
-	<false/>
+	<false />
 </dict>
 </plist>
