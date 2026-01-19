@@ -186,8 +186,8 @@ export const authApi = {
     },
 
     async updateProfile(data: { name?: string; phone?: string; avatar?: string; settings?: any }): Promise<User> {
-        const response = await apiClient.patch<ApiResponse<User>>(
-            API_ENDPOINTS.AUTH.ME,
+        const response = await apiClient.put<ApiResponse<User>>(
+            API_ENDPOINTS.USER.PROFILE,
             data
         );
         return response.data!;
