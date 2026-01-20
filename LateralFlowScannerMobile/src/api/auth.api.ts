@@ -206,7 +206,8 @@ export const authApi = {
                 },
             }
         );
-        return response.data!;
+        // Handle both wrapped and unwrapped response formats
+        return (response as any).data ?? response;
     },
 
     async deleteAvatar(): Promise<{ message: string }> {

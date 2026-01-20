@@ -1,7 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
+import mongoose from 'mongoose';
 import { Capture } from '../models/Capture.model';
 import { redisService } from '../services/redis.service';
 import { CACHE_KEYS, CACHE_TTL } from '../utils/cache-keys';
+import { logger } from '../utils/logger';
 
 export const statisticsController = {
     async getUserStatistics(req: Request, res: Response, next: NextFunction): Promise<void> {
@@ -17,16 +19,23 @@ export const statisticsController = {
             }
 
             // 1. Basic counts
-            const totalCaptures = await Capture.countDocuments({ userId });
-            const totalUploads = await Capture.countDocuments({ userId, status: 'uploaded' });
+            logger.info(`Getting stats for user: ${userId}`);
+
+            // Explicit cast to ensure type matching
+            const userObjectId = new mongoose.Types.ObjectId(userId);
+
+            const totalCaptures = await Capture.countDocuments({ userId: userObjectId });
+            const totalUploads = await Capture.countDocuments({ userId: userObjectId, status: 'uploaded' });
+
+            logger.info(`Stats found: captures=${totalCaptures}, uploads=${totalUploads}`);
 
             // 2. Last activity
-            const lastCapture = await Capture.findOne({ userId }).sort({ createdAt: -1 }).select('createdAt');
+            const lastCapture = await Capture.findOne({ userId: userObjectId }).sort({ createdAt: -1 }).select('createdAt');
             const lastUploadDate = lastCapture ? lastCapture.createdAt : null;
 
             // 3. Storage Used (Sum of imageSize)
             const storageAggregation = await Capture.aggregate([
-                { $match: { userId } },
+                { $match: { userId: userObjectId } },
                 { $group: { _id: null, totalSize: { $sum: '$imageSize' } } }
             ]);
             const storageUsed = storageAggregation[0]?.totalSize || 0;

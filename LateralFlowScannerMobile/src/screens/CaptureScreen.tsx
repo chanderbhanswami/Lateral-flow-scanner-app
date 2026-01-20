@@ -93,6 +93,7 @@ export const CaptureScreen: React.FC = () => {
     const [showGuide, setShowGuide] = useState(false);
     const [showExposure, setShowExposure] = useState(false);
     const [showHistogram, setShowHistogram] = useState(false);
+    const [histogramMode, setHistogramMode] = useState<'rgb' | 'composite'>('rgb');
     const [manualExposure, setManualExposure] = useState(0);
 
     const [countdown, setCountdown] = useState<number | null>(null);
@@ -603,7 +604,19 @@ export const CaptureScreen: React.FC = () => {
                         <Icon name="brightness-6" size={20} color={showExposure ? '#3b82f6' : '#4b5563'} />
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={[styles.controlButton, showHistogram && styles.controlButtonActive]} onPress={() => setShowHistogram(!showHistogram)}>
+                    <TouchableOpacity
+                        style={[styles.controlButton, showHistogram && styles.controlButtonActive]}
+                        onPress={() => {
+                            if (!showHistogram) {
+                                setShowHistogram(true);
+                                setHistogramMode('rgb');
+                            } else if (histogramMode === 'rgb') {
+                                setHistogramMode('composite');
+                            } else {
+                                setShowHistogram(false);
+                            }
+                        }}
+                    >
                         <Icon name="chart-bar" size={20} color={showHistogram ? '#8b5cf6' : '#4b5563'} />
                     </TouchableOpacity>
 
@@ -676,11 +689,18 @@ export const CaptureScreen: React.FC = () => {
                                 mode="luminance"
                                 visible={true}
                             />
-                            <AdvancedHistogramDisplay
-                                data={displayAnalysis?.histogram}
-                                mode="rgb"
-                                visible={true}
-                            />
+                            <TouchableOpacity onPress={() => setHistogramMode(prev => prev === 'rgb' ? 'composite' : 'rgb')}>
+                                <AdvancedHistogramDisplay
+                                    data={displayAnalysis?.histogram}
+                                    mode={histogramMode}
+                                    visible={true}
+                                />
+                                <View style={styles.histogramSwitchBadge}>
+                                    <Icon name="swap-horizontal" size={12} color="#fff" />
+                                    <Text style={styles.histogramSwitchText}>{histogramMode.toUpperCase()}</Text>
+                                </View>
+                            </TouchableOpacity>
+
                             <ExposureMeter
                                 analysis={displayAnalysis?.exposureAnalysis}
                                 visible={true}
@@ -868,10 +888,27 @@ const styles = StyleSheet.create({
     },
     histogramOverlay: {
         position: 'absolute',
-        top: 20,
+        top: 70, // Moved down to avoid warning banner overlap
         right: 10,
         alignItems: 'flex-end',
         gap: 8,
+    },
+    histogramSwitchBadge: {
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        flexDirection: 'row',
+        alignItems: 'center', // Fix alignment
+        backgroundColor: 'rgba(59, 130, 246, 0.8)',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 10,
+        gap: 4
+    },
+    histogramSwitchText: {
+        color: '#fff',
+        fontSize: 8,
+        fontWeight: 'bold'
     },
 
     // INDICATORS

@@ -121,14 +121,26 @@ class CaptureService {
             const filePath = imageUri.replace('file://', '');
 
             // 3. Call Native Module for Perspective Correction / Cropping logic
-            // Checks if 'cropImage' exists (the new method we just added)
-            // We fallback to perspectiveCorrection (legacy) if cropImage is missing, but we just added it.
-
             let croppedPath = imageUri;
 
-            if (OpenCVModule.cropImage) {
-                croppedPath = await OpenCVModule.cropImage(filePath, targetCorners);
-            } else if (OpenCVModule.perspectiveCorrection) {
+            if (OpenCVModule && OpenCVModule.cropImage) {
+                try {
+                    croppedPath = await OpenCVModule.cropImage(filePath, targetCorners);
+                } catch (err) {
+                    logger.warn('OpenCV cropImage failed, trying legacy fallback', err);
+                    // Fall through to legacy check
+                    if (OpenCVModule.perspectiveCorrection) {
+                        const RNFS = require('react-native-fs').default;
+                        const base64Image = await RNFS.readFile(imageUri, 'base64');
+                        const resultBase64 = await OpenCVModule.perspectiveCorrection(base64Image, targetCorners);
+                        if (resultBase64) {
+                            const newPath = imageUri.replace('.jpg', '_cropped.jpg');
+                            await RNFS.writeFile(newPath, resultBase64, 'base64');
+                            croppedPath = `file://${newPath}`;
+                        }
+                    }
+                }
+            } else if (OpenCVModule && OpenCVModule.perspectiveCorrection) {
                 // Fallback to legacy Base64 method - requires RNFS for file I/O
                 logger.warn('Using legacy Base64 crop - update native module!');
                 const RNFS = require('react-native-fs').default;
@@ -137,12 +149,20 @@ class CaptureService {
                 if (resultBase64) {
                     const newPath = imageUri.replace('.jpg', '_cropped.jpg');
                     await RNFS.writeFile(newPath, resultBase64, 'base64');
-                    croppedPath = newPath;
+                    croppedPath = `file://${newPath}`;
                 }
+            } else {
+                logger.warn('No OpenCV crop method available');
             }
 
-            logger.info('Capture cropped successfully', { path: croppedPath });
-            return typeof croppedPath === 'string' ? `file://${croppedPath}` : imageUri;
+            // Ensure we handle the file:// prefix consistency
+            if (!croppedPath.startsWith('file://') && !croppedPath.startsWith('/')) {
+                // Check if it's a relative path or needs prefix
+                croppedPath = `file://${croppedPath}`;
+            }
+
+            logger.info('Capture cropped successfully', { original: imageUri, result: croppedPath });
+            return croppedPath;
 
         } catch (e) {
             logger.error('Crop failed, using original', e);

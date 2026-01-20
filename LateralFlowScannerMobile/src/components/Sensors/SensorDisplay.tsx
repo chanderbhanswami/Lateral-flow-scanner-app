@@ -35,8 +35,13 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
     );
 
     return (
-        <View style={styles.container}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        <View style={styles.container} pointerEvents="box-none">
+            <ScrollView
+                showsVerticalScrollIndicator={true}
+                contentContainerStyle={styles.scrollContent}
+                nestedScrollEnabled={true}
+                persistentScrollbar={true}
+            >
 
                 {/* --- SENSORS & STABILITY --- */}
                 {renderSectionHeader("Device Motion")}
@@ -99,10 +104,10 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: 80, // Moved up slightly
+        top: 60, // Moved up to make room
         left: 10,
-        width: 160,
-        height: 380, // Fixed height with scroll
+        width: 170, // Slightly wider
+        height: 320, // Reduced height to fit on screen
         backgroundColor: 'rgba(0, 0, 0, 0.65)',
         borderRadius: 8,
         borderWidth: 1,

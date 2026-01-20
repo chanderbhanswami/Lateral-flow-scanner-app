@@ -7,7 +7,7 @@ interface AdvancedHistogramDisplayProps {
     data: HistogramData | null;
     width?: number;
     height?: number;
-    mode: 'luminance' | 'rgb';
+    mode: 'luminance' | 'rgb' | 'composite';
     visible?: boolean;
 }
 
@@ -44,10 +44,16 @@ export const AdvancedHistogramDisplay: React.FC<AdvancedHistogramDisplayProps> =
         );
     };
 
+    // Calculate Composite (Average of RGB) on the fly if needed
+    const getCompositeData = () => {
+        if (!data.red || !data.green || !data.blue) return [];
+        return data.red.map((r, i) => (r + data.green![i] + data.blue![i]) / 3);
+    };
+
     return (
         <View style={[styles.container, { width, height }]}>
             <View style={styles.labelContainer}>
-                <Text style={styles.label}>{mode === 'luminance' ? 'Luminance' : 'RGB Channels'}</Text>
+                <Text style={styles.label}>{mode === 'luminance' ? 'Luminance' : (mode === 'composite' ? 'Composite' : 'RGB Channels')}</Text>
             </View>
             <Svg width={width} height={height} style={styles.svg}>
                 {/* Background Grid/Guide */}
@@ -55,11 +61,14 @@ export const AdvancedHistogramDisplay: React.FC<AdvancedHistogramDisplayProps> =
 
                 {mode === 'luminance' ? (
                     createPath(data.brightness, '#ffffff', 2)
+                ) : mode === 'composite' ? (
+                    createPath(getCompositeData(), '#fbbf24', 2) // Amber color for composite
                 ) : (
                     <G>
-                        {createPath(data.red, '#ef4444')}
-                        {createPath(data.green, '#10b981')}
                         {createPath(data.blue, '#3b82f6')}
+                        {createPath(data.green, '#10b981')}
+                        {/* Render Red LAST to ensure it's on top and visible */}
+                        {createPath(data.red, '#ef4444', 2)}
                     </G>
                 )}
             </Svg>

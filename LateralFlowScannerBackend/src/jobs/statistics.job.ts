@@ -34,10 +34,22 @@ export const initStatisticsWorker = () => {
                     createdAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
                 });
 
+                // Missing metrics
+                const activeUsers7Days = await Capture.distinct('userId', {
+                    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) }
+                }).then(ids => ids.length);
+
+                const storageAggregation = await Capture.aggregate([
+                    { $group: { _id: null, totalSize: { $sum: '$imageSize' } } }
+                ]);
+                const totalStorageUsed = storageAggregation[0]?.totalSize || 0;
+
                 const statistics = {
                     totalUsers,
                     totalCaptures,
                     capturesLast24h,
+                    activeUsers7Days,
+                    totalStorageUsed,
                     timestamp: new Date(),
                 };
 

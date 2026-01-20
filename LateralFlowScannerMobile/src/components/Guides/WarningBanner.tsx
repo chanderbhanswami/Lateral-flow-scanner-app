@@ -60,15 +60,17 @@ export const WarningBanner: React.FC<WarningBannerProps> = ({ warnings = [], mes
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: 10,
+        top: 2, // Moved higher to avoid overlap
         left: 0,
         right: 0,
         zIndex: 100,
+        height: 50, // Fixed height for banner area
     },
     scrollContent: {
         paddingHorizontal: 12,
         flexDirection: 'row',
         alignItems: 'center',
+        paddingVertical: 5,
     },
     messageItem: {
         flexDirection: 'row',
