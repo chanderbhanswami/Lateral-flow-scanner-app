@@ -24,6 +24,7 @@ import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
 import { AuthStackParamList } from '../navigation/types';
+import { moderateScale, scale, verticalScale } from '../utils/responsive';
 
 type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
@@ -191,7 +192,7 @@ export const LoginScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             <View style={styles.content}>
@@ -444,101 +445,103 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: 20,
+        padding: moderateScale(20),
         justifyContent: 'center',
     },
     header: {
-        marginBottom: 32,
+        marginBottom: verticalScale(32),
         alignItems: 'center',
     },
     logoContainer: {
-        width: 80,
-        height: 80,
-        borderRadius: 20,
+        width: moderateScale(80),
+        height: moderateScale(80),
+        borderRadius: moderateScale(20),
         backgroundColor: 'transparent',
         alignItems: 'center',
         justifyContent: 'center',
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     logo: {
-        width: 80,
-        height: 80,
-        borderRadius: 20,
+        width: moderateScale(80),
+        height: moderateScale(80),
+        borderRadius: moderateScale(20),
     },
     title: {
-        fontSize: 28,
+        fontSize: moderateScale(24), // Reduced from 28
         fontWeight: '700',
         color: '#1f2937',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
     },
     subtitle: {
-        fontSize: 15,
+        fontSize: moderateScale(14), // Reduced from 15
         color: '#6b7280',
         textAlign: 'center',
     },
     card: {
-        padding: 24,
+        padding: moderateScale(20), // Reduced form 24
     },
     field: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     label: {
-        fontSize: 14,
+        fontSize: moderateScale(13), // Reduced from 14
         fontWeight: '600',
         color: '#374151',
-        marginBottom: 8,
+        marginBottom: verticalScale(6),
     },
     inputContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         borderWidth: 1,
         borderColor: '#e5e7eb',
-        borderRadius: 12,
+        borderRadius: moderateScale(12),
         backgroundColor: '#fff',
+        height: verticalScale(48), // Explicit height for control
     },
     inputContainerFocused: {
         borderColor: '#3b82f6',
         borderWidth: 1.5,
     },
     inputIcon: {
-        paddingLeft: 14,
+        paddingLeft: moderateScale(14),
     },
     input: {
         flex: 1,
-        padding: 14,
-        fontSize: 16,
+        paddingHorizontal: moderateScale(12),
+        fontSize: moderateScale(15), // Reduced from 16
         color: '#1f2937',
+        height: '100%', // Ensure it fills container
     },
     passwordToggle: {
-        padding: 14,
+        padding: moderateScale(14),
     },
     optionsRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     rememberMe: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     rememberMeText: {
-        marginLeft: 8,
-        fontSize: 14,
+        marginLeft: moderateScale(8),
+        fontSize: moderateScale(13),
         color: '#6b7280',
     },
     forgotPasswordText: {
         color: '#3b82f6',
-        fontSize: 14,
+        fontSize: moderateScale(13),
         fontWeight: '500',
     },
     loginButton: {
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     divider: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginVertical: 16,
+        marginVertical: verticalScale(16),
     },
     dividerLine: {
         flex: 1,
@@ -546,23 +549,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#e5e7eb',
     },
     dividerText: {
-        marginHorizontal: 16,
+        marginHorizontal: moderateScale(16),
         color: '#9ca3af',
-        fontSize: 13,
+        fontSize: moderateScale(13),
     },
     socialButtons: {
         flexDirection: 'row',
-        gap: 12,
+        gap: moderateScale(12),
     },
     socialButton: {
         flex: 1,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 14,
-        borderRadius: 12,
+        padding: moderateScale(12),
+        borderRadius: moderateScale(12),
         borderWidth: 1,
-        gap: 8,
+        gap: moderateScale(8),
+        height: verticalScale(48),
     },
     googleButton: {
         borderColor: '#ea4335',
@@ -571,7 +575,7 @@ const styles = StyleSheet.create({
     googleButtonText: {
         color: '#ea4335',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: moderateScale(14),
     },
     facebookButton: {
         borderColor: '#1877f2',
@@ -580,16 +584,16 @@ const styles = StyleSheet.create({
     facebookButtonText: {
         color: '#1877f2',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: moderateScale(14),
     },
     registerLink: {
         alignItems: 'center',
-        marginTop: 24,
-        paddingBottom: 20,
+        marginTop: verticalScale(24),
+        paddingBottom: verticalScale(20),
     },
     registerText: {
         color: '#6b7280',
-        fontSize: 15,
+        fontSize: moderateScale(14),
     },
     registerTextBold: {
         color: '#3b82f6',
@@ -599,12 +603,12 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: 'rgba(0,0,0,0.5)',
         justifyContent: 'center',
-        padding: 20,
+        padding: moderateScale(20),
     },
     modalContent: {
         backgroundColor: '#fff',
-        borderRadius: 16,
-        padding: 24,
+        borderRadius: moderateScale(16),
+        padding: moderateScale(24),
         alignItems: 'center',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
@@ -613,26 +617,26 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     modalTitle: {
-        fontSize: 20,
+        fontSize: moderateScale(20),
         fontWeight: 'bold',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
         color: '#1f2937',
     },
     modalSubtitle: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
         textAlign: 'center',
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     modalInput: {
         width: '100%',
         borderWidth: 1,
         borderColor: '#e5e7eb',
-        borderRadius: 12,
-        padding: 14,
-        fontSize: 16,
+        borderRadius: moderateScale(12),
+        padding: moderateScale(14),
+        fontSize: moderateScale(16),
         color: '#1f2937',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
         textAlign: 'center',
     },
     modalInputFocused: {
@@ -644,18 +648,18 @@ const styles = StyleSheet.create({
     },
     modalErrorText: {
         color: '#ef4444',
-        fontSize: 14,
-        marginBottom: 16,
+        fontSize: moderateScale(14),
+        marginBottom: verticalScale(16),
     },
     modalButtons: {
         flexDirection: 'row',
-        gap: 12,
+        gap: moderateScale(12),
         width: '100%',
     },
     modalButton: {
         flex: 1,
-        padding: 14,
-        borderRadius: 12,
+        padding: moderateScale(14),
+        borderRadius: moderateScale(12),
         alignItems: 'center',
     },
     cancelButton: {

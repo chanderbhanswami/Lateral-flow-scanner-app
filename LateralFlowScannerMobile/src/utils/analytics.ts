@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import * as Sentry from '@sentry/react-native';
 
 interface AnalyticsEvent {
     name: string;
@@ -32,9 +33,24 @@ class AnalyticsService {
     }
 
     private async sendEvent(event: AnalyticsEvent) {
-        // Implement actual analytics sending logic here
-        // e.g., Firebase Analytics, Mixpanel, etc.
+        // Log to console for development visibility
         console.log('Analytics Event:', event);
+
+        // Add as a breadcrumb to Sentry (creates a timeline of user actions)
+        Sentry.addBreadcrumb({
+            category: 'analytics',
+            message: event.name,
+            data: event.properties,
+            level: 'info',
+        });
+
+        // If it's an explicit error tracking event, ensure it's captured
+        if (event.name === 'error') {
+            const errorMessage = event.properties?.error_message || 'Unknown Analytics Error';
+            Sentry.captureMessage(errorMessage, {
+                extra: event.properties
+            });
+        }
     }
 
     screen(screenName: string, properties?: Record<string, any>) {

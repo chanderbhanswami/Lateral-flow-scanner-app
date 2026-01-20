@@ -4,7 +4,8 @@ import {
     ExifData,
     SensorData,
     ImageAnalysisData,
-    DeviceInfo
+    DeviceInfo,
+    DetectionMetadata
 } from '@lateralflowscanner/shared';
 
 export interface ICapture extends Document {
@@ -23,6 +24,10 @@ export interface ICapture extends Document {
     sensorData: SensorData;
     analysisData: ImageAnalysisData;
     deviceInfo: DeviceInfo;
+    cassetteId?: string;
+    lotNumber?: string;
+    qrCode?: string;
+    detectionMetadata?: DetectionMetadata;
     captureMode: 'auto' | 'manual';
     status: 'pending' | 'uploaded' | 'processed' | 'failed';
     notes?: string;
@@ -96,6 +101,41 @@ const CaptureSchema = new Schema<ICapture>(
         deviceInfo: {
             type: Schema.Types.Mixed,
             required: true,
+        },
+        cassetteId: {
+            type: String,
+            required: false,
+        },
+        lotNumber: {
+            type: String,
+            required: false,
+        },
+        qrCode: {
+            type: String,
+            required: false,
+        },
+        detectionMetadata: {
+            engine: {
+                type: String,
+                enum: ['NATIVE_CPP_JSI', 'JS_FALLBACK', 'HYBRID', 'UNKNOWN'],
+                required: false,
+            },
+            algorithms: {
+                type: [String], // Array of strings
+                required: false,
+            },
+            parameters: {
+                type: Schema.Types.Mixed,
+                required: false,
+            },
+            performance: {
+                type: Schema.Types.Mixed,
+                required: false,
+            },
+            version: {
+                type: String,
+                required: false,
+            }
         },
         captureMode: {
             type: String,

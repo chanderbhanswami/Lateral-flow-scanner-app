@@ -17,6 +17,7 @@ import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-toast-message';
 import { useAuthStore } from '../store/authStore';
 import { authApi } from '../api/auth.api';
+import { moderateScale, verticalScale, scale } from '../utils/responsive';
 
 export const EditProfileScreen = () => {
     const navigation = useNavigation();
@@ -213,43 +214,43 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 20,
-        paddingVertical: 12,
+        paddingHorizontal: moderateScale(20),
+        paddingVertical: verticalScale(12),
         backgroundColor: '#fff',
         borderBottomWidth: 1,
         borderBottomColor: '#e2e8f0',
     },
     backButton: {
-        padding: 8,
-        marginLeft: -8,
+        padding: moderateScale(8),
+        marginLeft: moderateScale(-8),
     },
     headerTitle: {
-        fontSize: 18,
+        fontSize: moderateScale(18),
         fontWeight: '700',
         color: '#1e293b',
     },
     saveButton: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#3b82f6',
-        padding: 8,
+        padding: moderateScale(8),
     },
     content: {
         flex: 1,
-        padding: 24,
+        padding: moderateScale(24),
     },
     avatarSection: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: verticalScale(32),
     },
     avatarContainer: {
         position: 'relative',
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     avatar: {
-        width: 120,
-        height: 120,
-        borderRadius: 60,
+        width: moderateScale(120),
+        height: moderateScale(120),
+        borderRadius: moderateScale(60),
         backgroundColor: '#f1f5f9',
     },
     avatarPlaceholder: {
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
         backgroundColor: '#3b82f6',
     },
     avatarPlaceholderText: {
-        fontSize: 48,
+        fontSize: moderateScale(48),
         fontWeight: 'bold',
         color: '#fff',
     },
@@ -267,9 +268,9 @@ const styles = StyleSheet.create({
         bottom: 0,
         right: 0,
         backgroundColor: '#3b82f6',
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: moderateScale(36),
+        height: moderateScale(36),
+        borderRadius: moderateScale(18),
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,
@@ -277,40 +278,40 @@ const styles = StyleSheet.create({
     },
     avatarActions: {
         flexDirection: 'row',
-        gap: 16,
+        gap: moderateScale(16),
     },
     changePhotoText: {
         color: '#3b82f6',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: moderateScale(14),
     },
     removeButton: {
-        marginLeft: 16,
+        marginLeft: moderateScale(16),
     },
     removePhotoText: {
         color: '#ef4444',
         fontWeight: '600',
-        fontSize: 14,
+        fontSize: moderateScale(14),
     },
     form: {
-        gap: 24,
+        gap: verticalScale(24),
     },
     inputGroup: {
-        gap: 8,
+        gap: verticalScale(8),
     },
     label: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         fontWeight: '600',
         color: '#64748b',
-        marginLeft: 4,
+        marginLeft: moderateScale(4),
     },
     input: {
         backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#e2e8f0',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 16,
+        borderRadius: moderateScale(12),
+        padding: moderateScale(16),
+        fontSize: moderateScale(16),
         color: '#1e293b',
     },
     disabledInput: {
@@ -318,8 +319,8 @@ const styles = StyleSheet.create({
         color: '#94a3b8',
     },
     helperText: {
-        fontSize: 12,
+        fontSize: moderateScale(12),
         color: '#94a3b8',
-        marginLeft: 4,
+        marginLeft: moderateScale(4),
     },
 });

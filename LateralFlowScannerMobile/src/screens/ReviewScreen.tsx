@@ -12,6 +12,7 @@ import { Input } from '../components/UI/Input';
 import { useConcentrationBatch } from '../hooks/useConcentrationBatch';
 import { BatchSelector } from '../components/ConcentrationBatch/BatchSelector';
 import { logger } from '../utils/logger';
+import { moderateScale, verticalScale, scale } from '../utils/responsive';
 
 export const ReviewScreen: React.FC = () => {
     const navigation = useNavigation<ReviewScreenProps['navigation']>();
@@ -22,7 +23,7 @@ export const ReviewScreen: React.FC = () => {
     const imageUri = route.params?.imageUri;
 
     const { uploadCapture, isUploading } = useCapture();
-    const { batches } = useConcentrationBatch();
+    const { batches, createBatch } = useConcentrationBatch();
     const { extractExif, formatMetadata, exifData, isLoading: isMetadataLoading } = useMetadata();
 
     // All hooks must be called unconditionally (React rules)
@@ -39,7 +40,6 @@ export const ReviewScreen: React.FC = () => {
             if (batch) {
                 setSelectedBatch(batch);
                 // Auto-fill concentration if it was empty, or ensure it matches batch if that's desired behavior
-                // User said: "if concentration batch already selected ... concentration value field should be prefield"
                 if (!captureData.concentration && batch.concentration) {
                     setConcentration(String(batch.concentration));
                 }
@@ -71,10 +71,52 @@ export const ReviewScreen: React.FC = () => {
 
     const handleSend = async () => {
         try {
+            let finalBatchId = selectedBatch?.id;
+            const cleanConcentration = concentration.trim();
+
+            // Smart Batch Logic: Check if value matches selected batch
+            const currentBatchValue = selectedBatch ? String(selectedBatch.concentration) : '';
+
+            if (cleanConcentration && cleanConcentration !== currentBatchValue) {
+                // Value changed! 
+                // 1. Try to find existing batch with this value
+                const existingBatch = batches.find(b => String(b.concentration) === cleanConcentration);
+
+                if (existingBatch) {
+                    console.log('Found existing batch matching value:', cleanConcentration);
+                    finalBatchId = existingBatch.id;
+                } else {
+                    // 2. Auto-Create New Batch
+                    console.log('Creating new batch for value:', cleanConcentration);
+                    try {
+                        const newBatch = await createBatch({
+                            name: cleanConcentration,
+                            concentration: Number(cleanConcentration) || 0,
+                            unit: 'mg/ml', // Default unit
+                            notes: cleanConcentration, // As requested: notes = value
+                            color: '#eab308' // Default 'New' color (Yellow-ish)
+                        });
+
+                        if (newBatch && newBatch.id) {
+                            finalBatchId = newBatch.id;
+                            console.log('Created new batch:', newBatch.id);
+                        }
+                    } catch (createErr) {
+                        console.error('Failed to auto-create batch:', createErr);
+                        Toast.show({
+                            type: 'error',
+                            text1: 'Batch Creation Failed',
+                            text2: 'Saving without batch link',
+                        });
+                        finalBatchId = undefined;
+                    }
+                }
+            }
+
             const updatedData = {
                 ...captureData,
-                concentration,
-                concentrationBatchId: selectedBatch?.id || undefined,
+                concentration: cleanConcentration,
+                concentrationBatchId: finalBatchId || undefined,
                 notes,
                 exifData: exifData || captureData.exifData, // Include extracted EXIF
             };
@@ -109,7 +151,7 @@ export const ReviewScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             {/* Image Preview */}
@@ -220,102 +262,102 @@ const styles = StyleSheet.create({
         backgroundColor: '#f5f5f5',
     },
     scrollContent: {
-        padding: 16,
-        paddingBottom: 40,
+        padding: moderateScale(16),
+        paddingBottom: verticalScale(40),
         flexGrow: 1,
     },
     imageCard: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
         padding: 0,
         overflow: 'hidden',
     },
     image: {
         width: '100%',
-        height: 300,
+        height: verticalScale(300),
     },
     infoCard: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     sectionTitle: {
-        fontSize: 18,
+        fontSize: moderateScale(18),
         fontWeight: '600',
-        marginBottom: 12,
+        marginBottom: verticalScale(12),
         color: '#1f2937',
     },
     infoRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        paddingVertical: 8,
+        paddingVertical: verticalScale(8),
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
     },
     infoLabel: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
     },
     infoValue: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         fontWeight: '500',
         color: '#1f2937',
     },
     inputCard: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     inputLabel: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         fontWeight: '500',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
         color: '#1f2937',
     },
     input: {
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
+        borderRadius: moderateScale(8),
+        padding: moderateScale(12),
+        fontSize: moderateScale(16),
         color: '#1f2937',
         backgroundColor: '#fff',
     },
     notesInput: {
-        height: 100,
+        height: verticalScale(100),
         textAlignVertical: 'top',
     },
     warningCard: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
         backgroundColor: '#fef3c7',
         borderColor: '#f59e0b',
         borderWidth: 1,
     },
     warningTitle: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
         color: '#92400e',
     },
     warningText: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#78350f',
-        marginBottom: 4,
+        marginBottom: verticalScale(4),
     },
     buttonContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginTop: 16,
-        marginBottom: 40,
+        marginTop: verticalScale(16),
+        marginBottom: verticalScale(40),
     },
     button: {
         flex: 1,
-        marginHorizontal: 8,
+        marginHorizontal: moderateScale(8),
     },
     batchSelector: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: 12,
+        padding: moderateScale(12),
         backgroundColor: '#fff',
         borderWidth: 1,
         borderColor: '#d1d5db',
-        borderRadius: 8,
+        borderRadius: moderateScale(8),
     },
     selectedBatchRow: {
         flexDirection: 'row',
@@ -323,27 +365,27 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     batchColor: {
-        width: 12,
-        height: 12,
-        borderRadius: 6,
-        marginRight: 8,
+        width: moderateScale(12),
+        height: moderateScale(12),
+        borderRadius: moderateScale(6),
+        marginRight: moderateScale(8),
     },
     batchName: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '500',
         color: '#1f2937',
-        marginRight: 8,
+        marginRight: moderateScale(8),
     },
     batchInfo: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
     },
     placeholderText: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         color: '#9ca3af',
     },
     changeLink: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#3b82f6',
         fontWeight: '600',
     },

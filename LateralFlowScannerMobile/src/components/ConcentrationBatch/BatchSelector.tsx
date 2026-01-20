@@ -5,6 +5,7 @@ import { useConcentrationBatch } from '../../hooks/useConcentrationBatch';
 import { Modal } from '../UI/Modal';
 import { BatchForm } from './BatchForm';
 import { Button } from '../UI/Button';
+import { moderateScale, verticalScale, scale } from '../../utils/responsive';
 
 interface BatchSelectorProps {
     visible: boolean;
@@ -70,60 +71,60 @@ export const BatchSelector: React.FC<BatchSelectorProps> = ({ visible, onClose, 
 const styles = StyleSheet.create({
     container: {
         backgroundColor: '#fff',
-        borderRadius: 12,
+        borderRadius: moderateScale(12),
         width: '100%',
         flex: 1, // Allow it to fill the Modal content area
     },
     header: {
         flexDirection: 'column',
-        padding: 20,
+        padding: moderateScale(20),
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
-        gap: 12,
+        gap: verticalScale(12),
     },
     title: {
-        fontSize: 20,
+        fontSize: moderateScale(20),
         fontWeight: '700',
         color: '#1f2937',
     },
     item: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
+        padding: moderateScale(16),
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
     },
     colorIndicator: {
-        width: 4,
-        height: 40,
-        borderRadius: 2,
-        marginRight: 12,
+        width: moderateScale(4),
+        height: verticalScale(40),
+        borderRadius: moderateScale(2),
+        marginRight: moderateScale(12),
     },
     itemContent: {
         flex: 1,
     },
     itemName: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#1f2937',
-        marginBottom: 4,
+        marginBottom: verticalScale(4),
     },
     itemConcentration: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
     },
     empty: {
-        padding: 40,
+        padding: moderateScale(40),
         alignItems: 'center',
     },
     emptyText: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#6b7280',
-        marginBottom: 8,
+        marginBottom: verticalScale(8),
     },
     emptySubtext: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#9ca3af',
     },
 });

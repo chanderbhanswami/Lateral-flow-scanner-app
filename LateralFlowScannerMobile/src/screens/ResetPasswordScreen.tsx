@@ -18,6 +18,7 @@ import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
 import { AuthStackParamList } from '../navigation/types';
+import { moderateScale, verticalScale } from '../utils/responsive';
 
 type ResetPasswordScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'ResetPassword'>;
 type ResetPasswordScreenRouteProp = RouteProp<AuthStackParamList, 'ResetPassword'>;
@@ -110,7 +111,7 @@ export const ResetPasswordScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
@@ -254,32 +255,32 @@ export const ResetPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
     scrollContent: { flexGrow: 1 },
-    content: { flex: 1, padding: 20 },
-    backButton: { marginBottom: 24 },
-    header: { alignItems: 'center', marginBottom: 32 },
+    content: { flex: 1, padding: moderateScale(20) },
+    backButton: { marginBottom: verticalScale(24) },
+    header: { alignItems: 'center', marginBottom: verticalScale(32) },
 
-    logoContainer: { width: 96, height: 96, marginBottom: 24 },
-    logo: { width: 96, height: 96, borderRadius: 24 },
-    title: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 12, textAlign: 'center' },
-    subtitle: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22 },
-    card: { padding: 24 },
-    field: { marginBottom: 20 },
-    label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, backgroundColor: '#fff' },
+    logoContainer: { width: moderateScale(96), height: moderateScale(96), marginBottom: verticalScale(24) },
+    logo: { width: moderateScale(96), height: moderateScale(96), borderRadius: moderateScale(24) },
+    title: { fontSize: moderateScale(24), fontWeight: '700', color: '#1f2937', marginBottom: verticalScale(12), textAlign: 'center' },
+    subtitle: { fontSize: moderateScale(15), color: '#6b7280', textAlign: 'center', lineHeight: moderateScale(22) },
+    card: { padding: moderateScale(24) },
+    field: { marginBottom: verticalScale(20) },
+    label: { fontSize: moderateScale(14), fontWeight: '600', color: '#374151', marginBottom: verticalScale(8) },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: moderateScale(12), backgroundColor: '#fff', height: verticalScale(48) },
     inputError: { borderColor: '#ef4444' },
-    inputIcon: { paddingLeft: 14 },
-    input: { flex: 1, padding: 14, fontSize: 16, color: '#1f2937' },
-    passwordToggle: { padding: 14 },
-    strengthContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
+    inputIcon: { paddingLeft: moderateScale(14) },
+    input: { flex: 1, paddingHorizontal: moderateScale(14), fontSize: moderateScale(16), color: '#1f2937', height: '100%' },
+    passwordToggle: { padding: moderateScale(14) },
+    strengthContainer: { flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(8) },
     strengthBar: { flexDirection: 'row', flex: 1, gap: 4 },
     strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
-    strengthLabel: { marginLeft: 10, fontSize: 12, fontWeight: '600' },
-    requirements: { marginTop: 12, gap: 6 },
-    requirementRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    requirementText: { fontSize: 12, color: '#9ca3af' },
+    strengthLabel: { marginLeft: moderateScale(10), fontSize: moderateScale(12), fontWeight: '600' },
+    requirements: { marginTop: verticalScale(12), gap: 6 },
+    requirementRow: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) },
+    requirementText: { fontSize: moderateScale(12), color: '#9ca3af' },
     requirementMet: { color: '#10b981' },
-    errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
-    matchContainer: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-    matchText: { color: '#10b981', fontSize: 12 },
-    resetButton: { marginTop: 8 },
+    errorText: { color: '#ef4444', fontSize: moderateScale(12), marginTop: verticalScale(4) },
+    matchContainer: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(6), marginTop: verticalScale(4) },
+    matchText: { color: '#10b981', fontSize: moderateScale(12) },
+    resetButton: { marginTop: verticalScale(8) },
 });

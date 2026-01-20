@@ -4,6 +4,7 @@ import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view
 import { ConcentrationBatch } from '../../types';
 import { Button } from '../UI/Button';
 import { validateConcentrationBatch } from '../../utils/validation';
+import { moderateScale, verticalScale, scale } from '../../utils/responsive';
 
 interface BatchFormProps {
     batch?: ConcentrationBatch;
@@ -42,7 +43,7 @@ export const BatchForm: React.FC<BatchFormProps> = ({ batch, onSubmit, onCancel 
             style={styles.container}
             contentContainerStyle={styles.scrollContent}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(20)} // Reduced to prevent empty space
             enableAutomaticScroll={true}
             keyboardShouldPersistTaps="handled"
         >
@@ -125,79 +126,80 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         flexGrow: 1,
-        paddingHorizontal: 20,
-        paddingVertical: 15,
-        justifyContent: 'center', // Center content vertically if space allows
+        paddingHorizontal: moderateScale(20),
+        paddingTop: verticalScale(20),
+        paddingBottom: verticalScale(40), // Increased to prevent buttons touching bottom
     },
     header: {
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     title: {
-        fontSize: 24,
+        fontSize: moderateScale(24),
         fontWeight: 'bold',
         color: '#1f2937',
         alignSelf: 'center',
+        marginBottom: verticalScale(8),
     },
     subtitle: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
         alignSelf: 'center',
-        marginTop: 4,
+        marginBottom: verticalScale(20),
     },
     form: {
-        gap: 16,
+        gap: verticalScale(16),
     },
     inputGroup: {
-        gap: 6,
+        gap: verticalScale(6),
     },
     // Legacy support for JSX
     field: {
-        marginBottom: 16,
+        marginBottom: verticalScale(16),
     },
     label: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         fontWeight: '600',
         color: '#374151',
+        marginBottom: verticalScale(8),
     },
     input: {
         backgroundColor: '#f9fafb',
         borderWidth: 1,
         borderColor: '#e5e7eb',
-        borderRadius: 8,
-        padding: 12,
-        fontSize: 16,
+        borderRadius: moderateScale(8),
+        padding: moderateScale(12),
+        fontSize: moderateScale(16),
         color: '#1f2937',
-        minHeight: 48, // Ensure touch target
+        minHeight: verticalScale(48),
     },
     inputError: {
         borderColor: '#ef4444',
     },
     multilineInput: {
-        minHeight: 100,
+        minHeight: verticalScale(100),
         textAlignVertical: 'top',
     },
     textArea: {
-        minHeight: 100,
+        minHeight: verticalScale(100),
         textAlignVertical: 'top',
     },
     row: {
         flexDirection: 'row',
-        gap: 12,
+        gap: moderateScale(12),
     },
     halfInput: {
         flex: 1,
     },
     buttons: {
         flexDirection: 'row',
-        gap: 12,
-        marginTop: 24,
+        gap: moderateScale(12),
+        marginTop: verticalScale(24),
+        marginBottom: verticalScale(10), // Extra safety margin
     },
     button: {
         flex: 1,
-        paddingVertical: 14,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
+        paddingVertical: verticalScale(14), // Restored for better touch target
+        borderRadius: moderateScale(8),
     },
     cancelButton: {
         backgroundColor: '#f3f4f6',
@@ -206,24 +208,24 @@ const styles = StyleSheet.create({
         backgroundColor: '#10b981',
     },
     cancelButtonText: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#4b5563',
     },
     submitButtonText: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#ffffff',
     },
     errorText: {
         color: '#ef4444',
-        fontSize: 12,
+        fontSize: moderateScale(12),
     },
     colorPreview: {
-        width: 40,
-        height: 40,
-        borderRadius: 8,
-        marginTop: 8,
+        width: moderateScale(40),
+        height: moderateScale(40),
+        borderRadius: moderateScale(8),
+        marginTop: verticalScale(8),
         borderWidth: 1,
         borderColor: '#d1d5db',
     },

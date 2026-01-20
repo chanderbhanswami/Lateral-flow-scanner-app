@@ -101,9 +101,15 @@ android {
 
     namespace "com.lateralflowscannermobile"
     
+    buildFeatures {
+        viewBinding true
+        prefab true
+    }
+
     // Use short path for CMake build to work around Windows 260 character path limit
     externalNativeBuild {
         cmake {
+            path "src/main/cpp/CMakeLists.txt"
             buildStagingDirectory "D:/rn-build"
         }
     }
@@ -187,7 +193,7 @@ dependencies {
     // OpenCV - commented out as it requires manual setup
     // OpenCV (via QuickBirdStudios wrapper for easy integration)
     // OpenCV - compileOnly allows us to compile against it, but relies on react-native-fast-opencv for the runtime AAR.
-    compileOnly 'org.opencv:opencv:4.12.0'
+    implementation 'org.opencv:opencv:4.12.0'
 
     // Camera2 API
     implementation 'androidx.camera:camera-core:1.3.0'

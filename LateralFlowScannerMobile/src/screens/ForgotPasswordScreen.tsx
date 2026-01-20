@@ -18,6 +18,7 @@ import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
 import { AuthStackParamList } from '../navigation/types';
+import { moderateScale, verticalScale } from '../utils/responsive';
 
 type ForgotPasswordScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'ForgotPassword'>;
 
@@ -143,7 +144,7 @@ export const ForgotPasswordScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
@@ -218,47 +219,47 @@ export const ForgotPasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
     scrollContent: { flexGrow: 1 },
-    content: { flex: 1, padding: 20 },
-    backButton: { marginBottom: 24 },
+    content: { flex: 1, padding: moderateScale(20) },
+    backButton: { marginBottom: verticalScale(24) },
 
     // Header
-    header: { alignItems: 'center', marginBottom: 32 },
-    logoContainer: { width: 96, height: 96, marginBottom: 24 },
-    logo: { width: 96, height: 96, borderRadius: 24 },
-    title: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 12, textAlign: 'center' },
-    subtitle: { fontSize: 15, color: '#6b7280', textAlign: 'center', lineHeight: 22, paddingHorizontal: 20 },
+    header: { alignItems: 'center', marginBottom: verticalScale(32) },
+    logoContainer: { width: moderateScale(96), height: moderateScale(96), marginBottom: verticalScale(24) },
+    logo: { width: moderateScale(96), height: moderateScale(96), borderRadius: moderateScale(24) },
+    title: { fontSize: moderateScale(24), fontWeight: '700', color: '#1f2937', marginBottom: verticalScale(12), textAlign: 'center' },
+    subtitle: { fontSize: moderateScale(15), color: '#6b7280', textAlign: 'center', lineHeight: moderateScale(22), paddingHorizontal: moderateScale(20) },
 
     // Card
-    card: { padding: 24 },
-    field: { marginBottom: 16 },
-    label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, backgroundColor: '#fff' },
-    inputIcon: { paddingLeft: 14 },
-    input: { flex: 1, padding: 14, fontSize: 16, color: '#1f2937' },
-    validIcon: { paddingRight: 14 },
-    sendButton: { marginTop: 8 },
+    card: { padding: moderateScale(24) },
+    field: { marginBottom: verticalScale(16) },
+    label: { fontSize: moderateScale(14), fontWeight: '600', color: '#374151', marginBottom: verticalScale(8) },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: moderateScale(12), backgroundColor: '#fff', height: verticalScale(48) },
+    inputIcon: { paddingLeft: moderateScale(14) },
+    input: { flex: 1, paddingHorizontal: moderateScale(14), fontSize: moderateScale(16), color: '#1f2937', height: '100%' },
+    validIcon: { paddingRight: moderateScale(14) },
+    sendButton: { marginTop: verticalScale(8) },
 
     // Login Link
-    loginLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 24, gap: 6 },
-    loginLinkText: { color: '#3b82f6', fontSize: 15, fontWeight: '500' },
+    loginLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: verticalScale(24), gap: moderateScale(6) },
+    loginLinkText: { color: '#3b82f6', fontSize: moderateScale(15), fontWeight: '500' },
 
     // Success State
-    successContainer: { flex: 1, alignItems: 'center', paddingTop: 20 },
-    successIcon: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#ecfdf5', alignItems: 'center', justifyContent: 'center', marginBottom: 24 },
-    successTitle: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 12 },
-    successSubtitle: { fontSize: 15, color: '#6b7280', textAlign: 'center', marginBottom: 8 },
-    emailText: { fontSize: 16, fontWeight: '600', color: '#1f2937', marginBottom: 24 },
+    successContainer: { flex: 1, alignItems: 'center', paddingTop: verticalScale(20) },
+    successIcon: { width: moderateScale(120), height: moderateScale(120), borderRadius: moderateScale(60), backgroundColor: '#ecfdf5', alignItems: 'center', justifyContent: 'center', marginBottom: verticalScale(24) },
+    successTitle: { fontSize: moderateScale(24), fontWeight: '700', color: '#1f2937', marginBottom: verticalScale(12) },
+    successSubtitle: { fontSize: moderateScale(15), color: '#6b7280', textAlign: 'center', marginBottom: verticalScale(8) },
+    emailText: { fontSize: moderateScale(16), fontWeight: '600', color: '#1f2937', marginBottom: verticalScale(24) },
 
     // Instructions Card
-    instructionsCard: { padding: 20, width: '100%', marginBottom: 24 },
-    instructionsTitle: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 16 },
-    instructionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 12 },
-    stepNumber: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
-    stepNumberText: { fontSize: 12, fontWeight: '700', color: '#3b82f6' },
-    instructionText: { flex: 1, fontSize: 14, color: '#4b5563' },
+    instructionsCard: { padding: moderateScale(20), width: '100%', marginBottom: verticalScale(24) },
+    instructionsTitle: { fontSize: moderateScale(14), fontWeight: '600', color: '#374151', marginBottom: verticalScale(16) },
+    instructionRow: { flexDirection: 'row', alignItems: 'center', marginBottom: verticalScale(12), gap: moderateScale(12) },
+    stepNumber: { width: moderateScale(24), height: moderateScale(24), borderRadius: moderateScale(12), backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center' },
+    stepNumberText: { fontSize: moderateScale(12), fontWeight: '700', color: '#3b82f6' },
+    instructionText: { flex: 1, fontSize: moderateScale(14), color: '#4b5563' },
 
-    continueButton: { width: '100%', marginBottom: 16 },
-    resendContainer: { marginTop: 8 },
-    resendText: { fontSize: 14, color: '#6b7280' },
+    continueButton: { width: '100%', marginBottom: verticalScale(16) },
+    resendContainer: { marginTop: verticalScale(8) },
+    resendText: { fontSize: moderateScale(14), color: '#6b7280' },
     resendLink: { color: '#3b82f6', fontWeight: '500' },
 });

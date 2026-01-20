@@ -20,6 +20,7 @@ import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '../store/authStore';
 import { AuthStackParamList, MainStackParamList } from '../navigation/types';
+import { moderateScale, verticalScale } from '../utils/responsive';
 
 interface RouteParams {
     email: string;
@@ -153,7 +154,7 @@ export const OTPVerificationScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
@@ -247,55 +248,55 @@ const styles = StyleSheet.create({
     },
     content: {
         flex: 1,
-        padding: 20,
+        padding: moderateScale(20),
     },
     backButton: {
-        marginBottom: 24,
+        marginBottom: verticalScale(24),
     },
     header: {
         alignItems: 'center',
-        marginBottom: 32,
+        marginBottom: verticalScale(32),
     },
 
     logoContainer: {
-        width: 96,
-        height: 96,
-        marginBottom: 24,
+        width: moderateScale(96),
+        height: moderateScale(96),
+        marginBottom: verticalScale(24),
     },
     logo: {
-        width: 96,
-        height: 96,
-        borderRadius: 24,
+        width: moderateScale(96),
+        height: moderateScale(96),
+        borderRadius: moderateScale(24),
     },
     title: {
-        fontSize: 24,
+        fontSize: moderateScale(24),
         fontWeight: '700',
         color: '#1f2937',
-        marginBottom: 12,
+        marginBottom: verticalScale(12),
     },
     subtitle: {
-        fontSize: 15,
+        fontSize: moderateScale(15),
         color: '#6b7280',
         textAlign: 'center',
-        lineHeight: 22,
+        lineHeight: moderateScale(22),
     },
     card: {
-        padding: 24,
+        padding: moderateScale(24),
     },
     otpContainer: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 24,
-        gap: 8,
+        marginBottom: verticalScale(24),
+        gap: moderateScale(8),
     },
     otpInput: {
         flex: 1,
         aspectRatio: 1,
-        maxWidth: 52,
+        maxWidth: moderateScale(52),
         borderWidth: 2,
         borderColor: '#e5e7eb',
-        borderRadius: 12,
-        fontSize: 24,
+        borderRadius: moderateScale(12),
+        fontSize: moderateScale(24),
         fontWeight: '700',
         textAlign: 'center',
         color: '#1f2937',
@@ -306,23 +307,23 @@ const styles = StyleSheet.create({
         backgroundColor: '#eff6ff',
     },
     verifyButton: {
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     resendContainer: {
         alignItems: 'center',
     },
     resendText: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
-        marginBottom: 4,
+        marginBottom: verticalScale(4),
     },
     countdownText: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#9ca3af',
         fontWeight: '500',
     },
     resendLink: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#3b82f6',
         fontWeight: '600',
     },
@@ -332,16 +333,16 @@ const styles = StyleSheet.create({
     helpContainer: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        marginTop: 24,
+        marginTop: verticalScale(24),
         backgroundColor: '#f3f4f6',
-        padding: 16,
-        borderRadius: 12,
-        gap: 10,
+        padding: moderateScale(16),
+        borderRadius: moderateScale(12),
+        gap: moderateScale(10),
     },
     helpText: {
         flex: 1,
-        fontSize: 13,
+        fontSize: moderateScale(13),
         color: '#6b7280',
-        lineHeight: 20,
+        lineHeight: moderateScale(20),
     },
 });

@@ -26,7 +26,9 @@ export const useCapture = () => {
         sensorData: any,
         analysis: any,
         concentration: string = '',
-        concentrationBatchId?: string
+        detectionMetadata: any,
+        concentrationBatchId?: string,
+        ocrData?: { cassetteId?: string; lotNumber?: string; qrCode?: string }
     ) => {
         setIsProcessing(true);
         try {
@@ -46,7 +48,10 @@ export const useCapture = () => {
                 sensorData,
                 analysis,
                 concentration,
-                concentrationBatchId
+                detectionMetadata, // PASS THROUGH
+
+                concentrationBatchId,
+                ocrData // PASS OCR DATA
             );
             setCaptureData(capture);
             return capture;

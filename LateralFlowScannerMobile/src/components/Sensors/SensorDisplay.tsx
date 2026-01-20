@@ -11,7 +11,7 @@ interface SensorDisplayProps {
     analysisData?: any; // To receive frameAnalysis and other real-time data
 }
 
-export const SensorDisplay: React.FC<SensorDisplayProps> = ({
+export const SensorDisplay = React.memo<SensorDisplayProps>(({
     sensorData,
     lightLevel,
     isShaking,
@@ -35,12 +35,14 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
     );
 
     return (
-        <View style={styles.container} pointerEvents="box-none">
+        <View style={styles.container}>
             <ScrollView
+                style={{ flex: 1 }}
                 showsVerticalScrollIndicator={true}
                 contentContainerStyle={styles.scrollContent}
                 nestedScrollEnabled={true}
                 persistentScrollbar={true}
+                indicatorStyle="white"
             >
 
                 {/* --- SENSORS & STABILITY --- */}
@@ -99,20 +101,22 @@ export const SensorDisplay: React.FC<SensorDisplayProps> = ({
             </ScrollView>
         </View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {
         position: 'absolute',
-        top: 60, // Moved up to make room
+        top: 60,
         left: 10,
-        width: 170, // Slightly wider
-        height: 320, // Reduced height to fit on screen
+        width: 170,
+        height: 320,
         backgroundColor: 'rgba(0, 0, 0, 0.65)',
         borderRadius: 8,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.1)',
-        overflow: 'hidden'
+        overflow: 'hidden',
+        zIndex: 100, // Ensure it's above everything
+        elevation: 5 // Android shadow/dept
     },
     scrollContent: {
         padding: 10,

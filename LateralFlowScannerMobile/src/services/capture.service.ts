@@ -17,7 +17,9 @@ class CaptureService {
         sensorData: any,
         analysisData: any,
         concentration: string,
-        concentrationBatchId?: string
+        detectionMetadata: any, // ADDED: New Metadata Argument
+        concentrationBatchId?: string,
+        ocrData?: { cassetteId?: string; lotNumber?: string; qrCode?: string }
     ): Promise<CaptureData> {
         const captureId = uuidv4();
         const userId = useAuthStore.getState().user?.id || '';
@@ -43,6 +45,11 @@ class CaptureService {
             sensorData,
             analysisData,
             deviceInfo: await metadataService.getDeviceInfo(),
+            detectionMetadata: detectionMetadata || {
+                engine: 'UNKNOWN',
+                algorithms: [],
+            },
+            ...ocrData, // Spread optional OCR fields (cassetteId, lotNumber, qrCode)
             captureMode: 'auto',
             status: 'pending',
         };

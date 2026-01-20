@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
+import { AppState, AppStateStatus } from 'react-native';
 import { CameraConfig, CameraMetadata } from '../types';
 import { CAMERA_CONSTANTS } from '../constants';
 import { cameraService } from '../services/camera.service';
@@ -9,8 +10,12 @@ export const useCamera = (highQualityMode: boolean = true) => {
     const format = useCameraFormat(device, [
         { photoResolution: highQualityMode ? 'max' : 'high' },
         { fps: CAMERA_CONSTANTS.TARGET_FPS },
-        { pixelFormat: 'yuv' } as any // Explicitly request YUV
+        { pixelFormat: 'yuv' } as any
     ]);
+
+    const [hasPermission, setHasPermission] = useState(false);
+    const [cameraKey, setCameraKey] = useState(0); // Used to force remount
+    const appState = useRef(AppState.currentState);
 
     const [config, setConfig] = useState<CameraConfig>({
         device,
@@ -23,45 +28,69 @@ export const useCamera = (highQualityMode: boolean = true) => {
         whiteBalance: 'auto',
         torch: 'off',
         lowLightBoost: false,
-        photoQualityBalance: 'quality', // Prioritize quality over speed
+        photoQualityBalance: 'quality',
     });
 
     const [metadata, setMetadata] = useState<CameraMetadata | null>(null);
     const cameraRef = useRef<Camera | null>(null);
 
-    const initializeCamera = useCallback(async () => {
-        let permission = await Camera.getCameraPermissionStatus();
+    // Robust Initialization
+    const checkPermissions = useCallback(async () => {
+        const getPermission = async () => {
+            const status = await Camera.getCameraPermissionStatus();
+            if (status === 'granted') return true;
+            if (status === 'not-determined') {
+                const newStatus = await Camera.requestCameraPermission();
+                return newStatus === 'granted';
+            }
+            return false;
+        };
 
-        if (permission === 'denied' || permission === 'not-determined') {
-            permission = await Camera.requestCameraPermission();
+        const isGranted = await getPermission();
+        setHasPermission(isGranted);
+
+        if (isGranted) {
+            // Force a small delay to allow native camera resources to free up
+            // especially if permission was JUST granted dialog overlay.
+            setTimeout(() => {
+                setConfig(prev => ({ ...prev, isActive: true }));
+                // Increment key to force fresh mount of native view
+                setCameraKey(k => k + 1);
+            }, 500);
         }
-
-        if (permission === 'denied') {
-            throw new Error('Camera permission denied');
-        }
-
-        // Wait a moment for the OS to release the camera resource to the app
-        if (permission === 'granted') {
-            await new Promise(resolve => setTimeout(() => resolve(true), 500));
-        }
-
-        // Activate camera
-        setConfig(prev => ({ ...prev, isActive: true }));
-
-        // Double check: If we just got permission, sometimes a toggle is needed.
-        // But usually a sufficient delay works. 
     }, []);
+
+    // Monitor AppState (In case user goes to Settings -> Allow -> Back)
+    useEffect(() => {
+        const subscription = AppState.addEventListener('change', nextAppState => {
+            if (
+                appState.current.match(/inactive|background/) &&
+                nextAppState === 'active'
+            ) {
+                // App came to foreground, re-check everything
+                checkPermissions();
+            }
+            appState.current = nextAppState;
+        });
+
+        return () => {
+            subscription.remove();
+        };
+    }, [checkPermissions]);
+
+    // Initial Check
+    useEffect(() => {
+        checkPermissions();
+    }, [checkPermissions]);
 
     const capturePhoto = useCallback(async () => {
         if (!cameraRef.current || !config.isActive) {
             throw new Error('Camera not ready');
         }
-
         const photo = await cameraRef.current.takePhoto({
             flash: config.torch === 'on' ? 'on' : 'off',
             enableShutterSound: true,
         });
-
         return photo;
     }, [config]);
 
@@ -98,7 +127,9 @@ export const useCamera = (highQualityMode: boolean = true) => {
         metadata,
         device,
         format,
-        initializeCamera,
+        hasPermission, // Exported
+        cameraKey,     // Exported
+        initializeCamera: checkPermissions, // Renamed but kept signature compatible-ish
         capturePhoto,
         lockExposure,
         lockWhiteBalance,

@@ -54,8 +54,19 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
     private void initializeOpenCV() {
         if (!openCVInitialized) {
             openCVInitialized = OpenCVLoader.initDebug();
+            if (openCVInitialized) {
+                try {
+                    System.loadLibrary("lateral-flow-cpp");
+                } catch (UnsatisfiedLinkError e) {
+                    // Log error but don't crash, fallback to Java OpenCV
+                    System.err.println("Failed to load native library: " + e.getMessage());
+                }
+            }
         }
     }
+
+    // Native Method Declaration
+    private native double[] detectKitCpp(long matAddr);
 
     @ReactMethod
     public void detectBorders(String base64Image, Promise promise) {
@@ -73,6 +84,37 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             Mat mat = new Mat();
             Utils.bitmapToMat(bitmap, mat);
 
+            // Attempt Native C++ Detection First (Robust Hough+RANSAC)
+            try {
+                double[] cppResult = detectKitCpp(mat.getNativeObjAddr());
+                if (cppResult != null && cppResult.length == 8) {
+                    // Success from C++!
+                    WritableMap result = Arguments.createMap();
+                    result.putBoolean("detected", true);
+                    result.putDouble("confidence", 0.95);
+                    result.putDouble("area",
+                            dist(new Point(cppResult[0], cppResult[1]), new Point(cppResult[2], cppResult[3])) * dist(
+                                    new Point(cppResult[0], cppResult[1]), new Point(cppResult[6], cppResult[7])));
+
+                    WritableArray corners = Arguments.createArray();
+                    for (int i = 0; i < 8; i += 2) {
+                        WritableMap p = Arguments.createMap();
+                        p.putDouble("x", cppResult[i]);
+                        p.putDouble("y", cppResult[i + 1]);
+                        corners.pushMap(p);
+                    }
+                    result.putArray("corners", corners);
+
+                    mat.release();
+                    promise.resolve(result);
+                    return;
+                }
+            } catch (UnsatisfiedLinkError e) {
+                // Determine if we should log or silently fail back to Java
+                // System.err.println("Native method not found, falling back to Java.");
+            }
+
+            // Fallback to Java implementation (Original Logic)
             // Convert to grayscale
             Mat gray = new Mat();
             Imgproc.cvtColor(mat, gray, Imgproc.COLOR_BGR2GRAY);
@@ -115,10 +157,10 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
                 Imgproc.approxPolyDP(contour2f, approx, epsilon, true);
 
                 // Get corners
-                Point[] corners = approx.toArray();
+                Point[] cornersPoints = approx.toArray();
                 WritableArray cornersArray = Arguments.createArray();
 
-                for (Point corner : corners) {
+                for (Point corner : cornersPoints) {
                     WritableMap point = Arguments.createMap();
                     point.putDouble("x", corner.x);
                     point.putDouble("y", corner.y);

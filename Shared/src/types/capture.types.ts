@@ -17,9 +17,18 @@ export interface CaptureData {
     sensorData: SensorData;
     analysisData: ImageAnalysisData;
     deviceInfo: DeviceInfo;
+    detectionMetadata?: DetectionMetadata;
     captureMode: 'auto' | 'manual';
     status: 'pending' | 'uploaded' | 'processed' | 'failed';
     notes?: string;
+}
+
+export interface DetectionMetadata {
+    engine: 'NATIVE_CPP_JSI' | 'JS_FALLBACK' | 'HYBRID' | 'UNKNOWN';
+    algorithms: string[];
+    parameters?: Record<string, any>;
+    performance?: Record<string, number>;
+    version?: string;
 }
 
 export interface CameraMetadata {

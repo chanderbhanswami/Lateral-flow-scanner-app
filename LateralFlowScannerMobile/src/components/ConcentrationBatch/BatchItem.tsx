@@ -3,6 +3,7 @@ import { View, StyleSheet, Text, TouchableOpacity } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { ConcentrationBatch } from '../../types';
 import { Card } from '../UI/Card';
+import { moderateScale, verticalScale, scale } from '../../utils/responsive';
 
 interface BatchItemProps {
     batch: ConcentrationBatch;
@@ -39,38 +40,38 @@ const styles = StyleSheet.create({
     container: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 16,
-        marginBottom: 12,
+        padding: moderateScale(16),
+        marginBottom: verticalScale(12),
     },
     colorIndicator: {
-        width: 4,
+        width: moderateScale(4),
         height: '100%',
-        borderRadius: 2,
-        marginRight: 12,
+        borderRadius: moderateScale(2),
+        marginRight: moderateScale(12),
     },
     content: {
         flex: 1,
     },
     name: {
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
         color: '#1f2937',
-        marginBottom: 4,
+        marginBottom: verticalScale(4),
     },
     concentration: {
-        fontSize: 14,
+        fontSize: moderateScale(14),
         color: '#6b7280',
-        marginBottom: 2,
+        marginBottom: verticalScale(2),
     },
     description: {
-        fontSize: 12,
+        fontSize: moderateScale(12),
         color: '#9ca3af',
     },
     actions: {
         flexDirection: 'row',
     },
     actionButton: {
-        padding: 8,
-        marginLeft: 8,
+        padding: moderateScale(8),
+        marginLeft: moderateScale(8),
     },
 });

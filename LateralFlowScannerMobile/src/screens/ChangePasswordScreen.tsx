@@ -18,6 +18,7 @@ import { Button } from '../components/UI/Button';
 import { Card } from '../components/UI/Card';
 import { authService } from '../services/auth.service';
 import { MainStackParamList } from '../navigation/types';
+import { moderateScale, verticalScale, scale } from '../utils/responsive';
 
 type ChangePasswordScreenNavigationProp = StackNavigationProp<MainStackParamList, 'ChangePassword'>;
 
@@ -109,7 +110,7 @@ export const ChangePasswordScreen: React.FC = () => {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
             enableOnAndroid={true}
-            extraScrollHeight={Platform.OS === 'ios' ? 20 : 100}
+            extraScrollHeight={Platform.OS === 'ios' ? verticalScale(20) : verticalScale(100)}
             enableAutomaticScroll={true}
         >
             <View style={[styles.content, { paddingTop: insets.top + 10 }]}>
@@ -275,32 +276,32 @@ export const ChangePasswordScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f9fafb' },
     scrollContent: { flexGrow: 1 },
-    content: { flex: 1, padding: 20 },
-    header: { marginBottom: 24, alignItems: 'center' },
-    backButton: { marginBottom: 16, alignSelf: 'flex-start' },
-    logoContainer: { width: 80, height: 80, marginBottom: 16 },
-    logo: { width: 80, height: 80, borderRadius: 20 },
-    title: { fontSize: 24, fontWeight: '700', color: '#1f2937', marginBottom: 8 },
-    subtitle: { fontSize: 15, color: '#6b7280' },
-    card: { padding: 20 },
-    field: { marginBottom: 20 },
-    label: { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: 12, backgroundColor: '#fff' },
+    content: { flex: 1, padding: moderateScale(20) },
+    header: { marginBottom: verticalScale(24), alignItems: 'center' },
+    backButton: { marginBottom: verticalScale(16), alignSelf: 'flex-start' },
+    logoContainer: { width: moderateScale(80), height: moderateScale(80), marginBottom: verticalScale(16) },
+    logo: { width: moderateScale(80), height: moderateScale(80), borderRadius: moderateScale(20) },
+    title: { fontSize: moderateScale(24), fontWeight: '700', color: '#1f2937', marginBottom: verticalScale(8) },
+    subtitle: { fontSize: moderateScale(15), color: '#6b7280' },
+    card: { padding: moderateScale(20) },
+    field: { marginBottom: verticalScale(20) },
+    label: { fontSize: moderateScale(14), fontWeight: '600', color: '#374151', marginBottom: verticalScale(8) },
+    inputContainer: { flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#e5e7eb', borderRadius: moderateScale(12), backgroundColor: '#fff' },
     inputError: { borderColor: '#ef4444' },
-    inputIcon: { paddingLeft: 14 },
-    input: { flex: 1, padding: 14, fontSize: 16, color: '#1f2937' },
-    passwordToggle: { padding: 14 },
-    divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 16 },
-    strengthContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8 },
-    strengthBar: { flexDirection: 'row', flex: 1, gap: 4 },
-    strengthSegment: { flex: 1, height: 4, borderRadius: 2 },
-    strengthLabel: { marginLeft: 10, fontSize: 12, fontWeight: '600' },
-    requirements: { marginTop: 12, gap: 6 },
-    requirementRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    requirementText: { fontSize: 12, color: '#9ca3af' },
+    inputIcon: { paddingLeft: moderateScale(14) },
+    input: { flex: 1, padding: moderateScale(14), fontSize: moderateScale(16), color: '#1f2937' },
+    passwordToggle: { padding: moderateScale(14) },
+    divider: { height: 1, backgroundColor: '#e5e7eb', marginVertical: verticalScale(16) },
+    strengthContainer: { flexDirection: 'row', alignItems: 'center', marginTop: verticalScale(8) },
+    strengthBar: { flexDirection: 'row', flex: 1, gap: moderateScale(4) },
+    strengthSegment: { flex: 1, height: verticalScale(4), borderRadius: moderateScale(2) },
+    strengthLabel: { marginLeft: moderateScale(10), fontSize: moderateScale(12), fontWeight: '600' },
+    requirements: { marginTop: verticalScale(12), gap: verticalScale(6) },
+    requirementRow: { flexDirection: 'row', alignItems: 'center', gap: moderateScale(8) },
+    requirementText: { fontSize: moderateScale(12), color: '#9ca3af' },
     requirementMet: { color: '#10b981' },
-    errorText: { color: '#ef4444', fontSize: 12, marginTop: 4 },
-    submitButton: { marginTop: 8 },
-    securityNote: { flexDirection: 'row', alignItems: 'flex-start', marginTop: 20, padding: 16, backgroundColor: '#eff6ff', borderRadius: 12, gap: 12 },
-    securityNoteText: { flex: 1, fontSize: 13, color: '#1d4ed8', lineHeight: 20 },
+    errorText: { color: '#ef4444', fontSize: moderateScale(12), marginTop: verticalScale(4) },
+    submitButton: { marginTop: verticalScale(8) },
+    securityNote: { flexDirection: 'row', alignItems: 'flex-start', marginTop: verticalScale(20), padding: moderateScale(16), backgroundColor: '#eff6ff', borderRadius: moderateScale(12), gap: moderateScale(12) },
+    securityNoteText: { flex: 1, fontSize: moderateScale(13), color: '#1d4ed8', lineHeight: moderateScale(20) },
 });

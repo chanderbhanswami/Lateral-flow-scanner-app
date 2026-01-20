@@ -1,7 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent, Vibration, StatusBar, Platform } from 'react-native';
-import { Camera } from 'react-native-vision-camera';
+import { Camera, useCodeScanner } from 'react-native-vision-camera';
 import ImageEditor from '@react-native-community/image-editor';
+import KeepAwake from 'react-native-keep-awake';
+import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import MlkitOcr from 'react-native-mlkit-ocr';
 
 // ... (imports)
 
@@ -9,7 +12,7 @@ import { useNavigation, useRoute, useIsFocused } from '@react-navigation/native'
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import Toast from 'react-native-toast-message';
-import { CaptureScreenProps } from '../types';
+import { CaptureScreenProps, DetectionMetadata } from '../types';
 import { useCamera } from '../hooks/useCamera';
 import { useSensors } from '../hooks/useSensors';
 import { useCustomFrameProcessor } from '../hooks/useFrameProcessor';
@@ -68,6 +71,8 @@ export const CaptureScreen: React.FC = () => {
         lockWhiteBalance,
         toggleTorch,
         setFocusMode,
+        hasPermission,
+        cameraKey
     } = useCamera(settings.highQualityMode);
 
     const { sensorData, isShaking, lightLevel, getAlignment, alignment, lightAnalysis, proximity, proximityWarning, orientation } = useSensors();
@@ -112,6 +117,22 @@ export const CaptureScreen: React.FC = () => {
     isShakingRef.current = isShaking;
     const lightLevelRef = useRef(lightLevel);
     lightLevelRef.current = lightLevel;
+
+    // === QR CODE SCANNER ===
+    const lastScannedCode = useRef<{ value: string; timestamp: number } | null>(null);
+    const codeScanner = useCodeScanner({
+        codeTypes: ['qr', 'ean-13', 'ean-8', 'code-128', 'code-39', 'data-matrix'],
+        onCodeScanned: (codes) => {
+            if (codes.length > 0 && codes[0].value) {
+                lastScannedCode.current = {
+                    value: codes[0].value,
+                    timestamp: Date.now()
+                };
+                // Optional: Feedback (only once per second to avoid spam)
+                // console.log(`[QR] Scanned: ${codes[0].value}`);
+            }
+        }
+    });
 
     const updateWarnings = (frameAnalysis: any) => {
         const messages: FeedbackMessage[] = [];
@@ -225,6 +246,39 @@ export const CaptureScreen: React.FC = () => {
         };
     }, [initializeCamera]);
 
+    // === SMART FOCUS ON DETECTION ===
+    // Automatically focus on the center of the kit when it is detected
+    const lastFocusTimeRef = useRef(0);
+    useEffect(() => {
+        if (!borderData?.detected || !cameraRef.current) return;
+
+        // Debounce focus calls (e.g., limit to once every 2 seconds to avoid hunting)
+        const now = Date.now();
+        if (now - lastFocusTimeRef.current < 2000) return;
+
+        // Calculate Center of the detected kit
+        // borderData.corners is typically [TL, TR, BR, BL]
+        if (borderData.corners && borderData.corners.length === 4) {
+            const xs = borderData.corners.map(p => p.x);
+            const ys = borderData.corners.map(p => p.y);
+
+            // Average X and Y to find center
+            const cx = xs.reduce((a, b) => a + b, 0) / 4;
+            const cy = ys.reduce((a, b) => a + b, 0) / 4;
+
+            console.log(`[SmartFocus] Focusing on detected kit at (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
+
+            cameraRef.current.focus({ x: cx, y: cy });
+            lastFocusTimeRef.current = now;
+
+            // Show feedback
+            setFocusPoint({ x: cx, y: cy, visible: true });
+            setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1000);
+        }
+
+    }, [borderData?.detected, borderData?.corners]); // Re-run when detection status or position updates slightly
+
+
     // Auto-capture logic
     useEffect(() => {
         if (!autoCapturePending || !settings.autoCapture) {
@@ -299,13 +353,11 @@ export const CaptureScreen: React.FC = () => {
 
     // ... inside CaptureScreen component ...
 
-    const cropImageToKit = async (imageUri: string, detected: boolean, corners: any[], width: number, height: number): Promise<string> => {
+    const cropImageToKit = async (imageUri: string, detected: boolean, corners: any[], width: number, height: number, needsScaling: boolean = true): Promise<string> => {
         try {
             console.log(`[Crop] Input: Photo=${width}x${height}, Detected=${detected}, Corners=${JSON.stringify(corners)}`);
 
-            // Frame Processor dimensions (Must match BorderGuide assumptions for correct alignment)
-            // BorderGuide uses CAMERA_WIDTH / 480, implying the layout logic treats the frame as 480 wide.
-            // Even though useFrameProcessor uses 640x480, the visual mapping seems to align with 480x640 in portrait.
+            // Frame Processor dimensions
             const FP_WIDTH = 480;
             const FP_HEIGHT = 640;
 
@@ -314,20 +366,23 @@ export const CaptureScreen: React.FC = () => {
                 size: { width: 0, height: 0 }
             };
 
-            const scaleX = width / FP_WIDTH;
-            const scaleY = height / FP_HEIGHT;
+            // FIX: If corners are from Native High-Res (already in photo coordinates), scale is 1.0.
+            // If corners are from Live Preview (480x640), we need to scale up (width/FP_WIDTH).
+            const scaleX = needsScaling ? (width / FP_WIDTH) : 1.0;
+            const scaleY = needsScaling ? (height / FP_HEIGHT) : 1.0;
 
             console.log(`[Crop] Scales: X=${scaleX.toFixed(3)}, Y=${scaleY.toFixed(3)}`);
 
             if (detected && corners && corners.length === 4) {
-                const xs = corners.map(p => p.x);
-                const ys = corners.map(p => p.y);
+                const xs = corners.map((p: any) => p.x);
+                const ys = corners.map((p: any) => p.y);
                 const minX = Math.min(...xs);
                 const maxX = Math.max(...xs);
                 const minY = Math.min(...ys);
                 const maxY = Math.max(...ys);
 
                 // Add padding (e.g. 10%)
+                // If scaled, padding is in photo pixels.
                 const padX = (maxX - minX) * 0.1;
                 const padY = (maxY - minY) * 0.1;
 
@@ -342,10 +397,7 @@ export const CaptureScreen: React.FC = () => {
                     }
                 };
             } else {
-                // Static Guide Fallback
-                // GUIDE_X/Y are in Screen Coordinates (CAMERA_WIDTH space).
-                // We need to map Screen -> Photo.
-                // Screen Scale = Photo / Screen = width / CAMERA_WIDTH
+                // Static Guide Fallback (Always needs scaling from Screen Space)
                 const screenScaleX = width / CAMERA_WIDTH;
                 const screenScaleY = height / CAMERA_HEIGHT;
 
@@ -399,17 +451,88 @@ export const CaptureScreen: React.FC = () => {
 
             if (!photo || !photo.path) throw new Error('Photo capture returned empty result');
 
+            // === 1. HIGH PRECISION DETECTION (NATIVE C++) ===
+            // We run the robust RANSAC/Hough detector on the FULL RESOLUTION image
+            // to get the most accurate corners possible, overriding the Live Preview approximate corners.
+            Toast.show({ type: 'info', text1: 'Refining detection...', visibilityTime: 1000 });
+
+            let highResCorners = borderData.detected ? borderData.corners : null;
+            let finalDetectionConfidence = borderData.confidence;
+            let needsScaling = true; // Default: Preview sources need scaling to Photo coordinates
+
+            try {
+                const nativeDetection = await imageProcessingService.detectBordersFromImage(photo.path);
+                if (nativeDetection.detected && nativeDetection.corners.length === 4) {
+                    console.log('[Capture] High precision corners found:', nativeDetection.corners);
+                    highResCorners = nativeDetection.corners;
+                    finalDetectionConfidence = nativeDetection.confidence;
+                    needsScaling = false; // Native detection is already in photo coordinates
+                } else {
+                    console.log('[Capture] High precision detection failed, falling back to live preview');
+                }
+            } catch (e) {
+                console.warn('[Capture] Native detection error', e);
+            }
+
+            // === 1.5 OCR & QR Integration ===
+            // 2024: Passive QR/OCR scanning implementation
+            // If we found a QR code recently (e.g. within last 2 seconds), attach it.
+            const now = Date.now();
+            let finalQrCode = undefined;
+            if (lastScannedCode.current && (now - lastScannedCode.current.timestamp < 3000)) {
+                // If code is fresh (seen in last 3 seconds), use it
+                finalQrCode = lastScannedCode.current.value;
+                console.log('[Capture] Using recently scanned QR:', finalQrCode);
+            }
+
+            // Perform OCR on the captured image (Full Resolution)
+            // Ideally we run this in parallel with other analysis but before final save
+            let cassetteId = undefined;
+            let lotNumber = undefined;
+
+            try {
+                // OCR returns Array of blocks
+                Toast.show({ type: 'info', text1: 'Reading Text...', visibilityTime: 500 });
+                console.log('[Capture] Starting OCR on:', photo.path);
+                const ocrResult = await MlkitOcr.detectFromFile(photo.path);
+
+                if (ocrResult && ocrResult.length > 0) {
+                    console.log('[Capture] OCR Found blocks:', ocrResult.length);
+                    const fullText = ocrResult.map(block => block.text).join('\n');
+
+                    // Simple Heuristics for ID / Lot (Customize regex as needed)
+                    // Example: "ID: 12345" or "LOT: ABC"
+                    // For now, checks for generic patterns. 
+                    // TODO: Move these regexes to a config or schema file
+
+                    // Look for "Lot" followed by alphanumeric
+                    const lotMatch = fullText.match(/(?:Lot|LOT|L\/N)\s*[:.]?\s*([A-Z0-9-]+)/i);
+                    if (lotMatch) lotNumber = lotMatch[1];
+
+                    // Look for "ID" or generic alphanumeric string if isolated (simplified)
+                    const idMatch = fullText.match(/(?:ID|REF)\s*[:.]?\s*([A-Z0-9-]+)/i);
+                    if (idMatch) cassetteId = idMatch[1];
+
+                    // Fallback: If we detect 2 distinct alphanumeric codes that are essentially isolated lines
+                    // we might guess. But usually safer to only extract if labeled.
+                }
+            } catch (ocrErr) {
+                console.warn('[Capture] OCR Failed:', ocrErr);
+                // Do NOT block capture flow
+            }
+
+            // === 2. CROP IMAGE TO KIT (Using Best Available Corners) ===
             Toast.show({ type: 'info', text1: 'Processing & Cropping...', visibilityTime: 1500 });
 
-            // CROP IMAGE TO KIT
             let finalImageUri = photo.path;
             try {
                 finalImageUri = await cropImageToKit(
                     photo.path,
-                    borderData.detected,
-                    borderData.corners,
+                    !!highResCorners,
+                    highResCorners || [],
                     photo.width,
-                    photo.height
+                    photo.height,
+                    needsScaling
                 );
             } catch (cropErr) {
                 logger.warn('Crop failed', cropErr);
@@ -496,18 +619,47 @@ export const CaptureScreen: React.FC = () => {
                 }
             };
 
+            // CONSTRUCT PROOF OF ALGORITHMS
+            // If needsScaling is false, it means we used the NATIVE C++ RESULT directly.
+            const usedNative = !needsScaling;
+            const detectionMetadata: DetectionMetadata = {
+                engine: usedNative ? 'NATIVE_CPP_JSI' : 'JS_FALLBACK',
+                algorithms: usedNative ? [
+                    'PROBABILISTIC_HOUGH_TRANSFORM',
+                    'ROBUST_WELSCH_FITTING', // The RANSAC equivalent
+                    'CANNY_EDGE_DETECTION_STRUCTURE',
+                    'OPENCV_NATIVE'
+                ] : [
+                    'JS_PREVIEW_APPROXIMATION',
+                    'KALMAN_FILTER_2D', // Kalman is always active on preview
+                    'THROTTLED_JS_WORKLET'
+                ],
+                parameters: {
+                    confidence: finalDetectionConfidence,
+                    fittingMethod: usedNative ? 'DIST_WELSCH' : 'SIMPLE_APPROX',
+                    scalingApplied: needsScaling
+                },
+                version: '2.0.0-Hybrid'
+            };
+
             const capturedData = await processCapture(
                 finalImageUri,
                 updatedMetadata,
                 fullSensorData,
                 analysisData,
                 selectedBatch ? selectedBatch.name : '', // Concentration Value
-                selectedBatch ? selectedBatch.id : undefined // Batch ID
+                detectionMetadata, // PASS METADATA HERE
+                selectedBatch ? selectedBatch.id : undefined, // Batch ID
+                { cassetteId, lotNumber, qrCode: finalQrCode } // Newly Added OCR Data
             );
 
             if (capturedData) {
                 if (settings.hapticFeedback) {
-                    Vibration.vibrate(50);
+                    const options = {
+                        enableVibrateFallback: true,
+                        ignoreAndroidSystemSettings: false,
+                    };
+                    ReactNativeHapticFeedback.trigger('notificationSuccess', options);
                 }
                 capturedData.captureMode = mode;
                 setCurrentCapture(capturedData);
@@ -565,7 +717,7 @@ export const CaptureScreen: React.FC = () => {
         );
     }
 
-    if (!device) {
+    if (!device || !hasPermission) {
         return (
             <View style={[styles.container, styles.errorContainer]}>
                 <ActivityIndicator size="large" color="#10b981" />
@@ -582,6 +734,7 @@ export const CaptureScreen: React.FC = () => {
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
+            <KeepAwake />
 
             {/* ===== HEADER (Updated Layout) ===== */}
             <View style={styles.header}>
@@ -638,7 +791,7 @@ export const CaptureScreen: React.FC = () => {
                 <View style={styles.cameraWrapper}>
                     <Camera
                         ref={cameraRef}
-                        key={device?.id || 'camera'} // Force remount when device changes
+                        key={`camera-${cameraKey}`} // FORCE REMOUNT on permission grant
                         style={StyleSheet.absoluteFill}
                         device={device}
                         isActive={config.isActive && isFocused}
@@ -651,7 +804,12 @@ export const CaptureScreen: React.FC = () => {
                         torch={config.torch}
                         photoQualityBalance={config.photoQualityBalance}
                         frameProcessor={frameProcessor}
+                        codeScanner={codeScanner}
                     />
+
+                    {/* Touch Area for Focus (Background Layer) */}
+                    {/* Rendered early so UI elements sit ON TOP of it */}
+                    <Pressable style={StyleSheet.absoluteFill} onPress={handleTapToFocus} />
 
                     {/* Border & Guides */}
                     <BorderGuide corners={borderData.corners} color={guideColor} isDetected={borderData.detected} />
@@ -714,8 +872,7 @@ export const CaptureScreen: React.FC = () => {
                         </View>
                     )}
 
-                    {/* Touch Area for Focus (Full Screen Overlay) */}
-                    <Pressable style={StyleSheet.absoluteFill} onPress={handleTapToFocus} />
+
                 </View>
             </View>
 

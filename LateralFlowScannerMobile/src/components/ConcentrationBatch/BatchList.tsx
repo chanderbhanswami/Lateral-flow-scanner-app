@@ -2,6 +2,7 @@ import React from 'react';
 import { FlatList, StyleSheet, View } from 'react-native';
 import { ConcentrationBatch } from '../../types';
 import { BatchItem } from './BatchItem';
+import { moderateScale } from '../../utils/responsive';
 
 interface BatchListProps {
     batches: ConcentrationBatch[];
@@ -28,6 +29,6 @@ export const BatchList: React.FC<BatchListProps> = ({ batches, onEdit, onDelete 
 
 const styles = StyleSheet.create({
     list: {
-        padding: 16,
+        padding: moderateScale(16),
     },
 });

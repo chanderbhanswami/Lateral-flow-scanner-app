@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import Modal from 'react-native-modal';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
+import { moderateScale, verticalScale } from '../../utils/responsive';
 
 interface TermsModalProps {
     isVisible: boolean;
@@ -64,22 +65,22 @@ const styles = StyleSheet.create({
     },
     container: {
         backgroundColor: 'white',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTopLeftRadius: moderateScale(20),
+        borderTopRightRadius: moderateScale(20),
         height: '80%',
-        padding: 20,
+        padding: moderateScale(20),
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
-        paddingBottom: 15,
+        paddingBottom: verticalScale(15),
     },
     title: {
-        fontSize: 20,
+        fontSize: moderateScale(20),
         fontWeight: '700',
         color: '#1f2937',
     },
@@ -87,10 +88,10 @@ const styles = StyleSheet.create({
         flex: 1,
     },
     text: {
-        fontSize: 16,
-        lineHeight: 24,
+        fontSize: moderateScale(16),
+        lineHeight: verticalScale(24),
         color: '#4b5563',
-        marginBottom: 20,
+        marginBottom: verticalScale(20),
     },
     bold: {
         fontWeight: '700',
@@ -98,14 +99,14 @@ const styles = StyleSheet.create({
     },
     button: {
         backgroundColor: '#3b82f6',
-        padding: 16,
-        borderRadius: 12,
+        padding: moderateScale(16),
+        borderRadius: moderateScale(12),
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: verticalScale(10),
     },
     buttonText: {
         color: 'white',
-        fontSize: 16,
+        fontSize: moderateScale(16),
         fontWeight: '600',
     },
 });
