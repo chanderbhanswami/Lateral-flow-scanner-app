@@ -11,7 +11,13 @@ export const initImageProcessingWorker = () => {
 
     const connection = getRedisClient();
 
-    imageQueue = new Queue('image-processing', { connection });
+    imageQueue = new Queue('image-processing', {
+        connection,
+        defaultJobOptions: {
+            removeOnComplete: { count: 100, age: 3600 }, // Keep 100 jobs or 1 hour history
+            removeOnFail: { count: 200, age: 24 * 3600 } // Keep 200 failed jobs or 24h history
+        }
+    });
 
     imageWorker = new Worker(
         'image-processing',
