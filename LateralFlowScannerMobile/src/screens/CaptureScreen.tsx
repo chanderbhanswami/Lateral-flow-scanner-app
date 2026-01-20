@@ -742,7 +742,7 @@ export const CaptureScreen: React.FC = () => {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#000',
+        backgroundColor: '#fff',
     },
     errorContainer: {
         backgroundColor: '#000',
