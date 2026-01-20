@@ -93,8 +93,10 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
                     result.putBoolean("detected", true);
                     result.putDouble("confidence", 0.95);
                     result.putDouble("area",
-                            dist(new Point(cppResult[0], cppResult[1]), new Point(cppResult[2], cppResult[3])) * dist(
-                                    new Point(cppResult[0], cppResult[1]), new Point(cppResult[6], cppResult[7])));
+                            distance(new Point(cppResult[0], cppResult[1]), new Point(cppResult[2], cppResult[3]))
+                                    * distance(
+                                            new Point(cppResult[0], cppResult[1]),
+                                            new Point(cppResult[6], cppResult[7])));
 
                     WritableArray corners = Arguments.createArray();
                     for (int i = 0; i < 8; i += 2) {

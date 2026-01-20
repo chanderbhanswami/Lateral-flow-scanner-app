@@ -163,10 +163,10 @@ Java_com_lateralflowscannermobile_modules_OpenCVModule_detectKitCpp(
     if (tl.x < 0 || tr.x < 0 || br.x < 0 || bl.x < 0) return nullptr;
 
     // Check size constraints (e.g., width > 50)
-    double width = dist(tl, tr);
-    double height = dist(tl, bl);
+    double detectedWidth = dist(tl, tr);
+    double detectedHeight = dist(tl, bl);
 
-    if (width < 50 || height < 50) return nullptr;
+    if (detectedWidth < 50 || detectedHeight < 50) return nullptr;
 
     // 7. Return Result as Array [x1, y1, x2, y2, x3, y3, x4, y4]
     jdoubleArray result = env->NewDoubleArray(8);
