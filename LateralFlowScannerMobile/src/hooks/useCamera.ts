@@ -30,15 +30,19 @@ export const useCamera = (highQualityMode: boolean = true) => {
     const cameraRef = useRef<Camera | null>(null);
 
     const initializeCamera = useCallback(async () => {
-        const hasPermission = await cameraService.checkPermission();
-        if (!hasPermission) {
-            const granted = await cameraService.requestPermission();
-            if (!granted) {
-                throw new Error('Camera permission denied');
-            }
-            // CRITICAL: On Android/iOS, obtaining permission doesn't immediately make the camera resource available.
-            // We wait to ensure the OS has fully propagated the permission state.
-            await new Promise(resolve => setTimeout(() => resolve(true), 1000));
+        let permission = await Camera.getCameraPermissionStatus();
+
+        if (permission === 'denied' || permission === 'not-determined') {
+            permission = await Camera.requestCameraPermission();
+        }
+
+        if (permission === 'denied') {
+            throw new Error('Camera permission denied');
+        }
+
+        // Wait a moment for the OS to release the camera resource to the app
+        if (permission === 'granted') {
+            await new Promise(resolve => setTimeout(() => resolve(true), 500));
         }
 
         // Activate camera
