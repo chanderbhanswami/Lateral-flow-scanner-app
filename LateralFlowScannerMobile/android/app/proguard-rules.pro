@@ -10,6 +10,48 @@
 # Add any project specific keep options here:
 -keep class com.lateralflowscannermobile.BuildConfig { *; }
 
+# ==============================================================================
+# NUCLEAR OPTION: KEEP EVERYTHING
+# User requested "nothing to be stripped out".
+# These rules force R8 to keep every single class in common namespaces.
+# This prevents code stripping but increases APK size.
+# ==============================================================================
+-keep class com.** { *; }
+-keep interface com.** { *; }
+-keep class org.** { *; }
+-keep interface org.** { *; }
+-keep class io.** { *; }
+-keep interface io.** { *; }
+-keep class net.** { *; }
+-keep interface net.** { *; }
+-keep class androidx.** { *; }
+-keep interface androidx.** { *; }
+-keep class kotlin.** { *; }
+-keep interface kotlin.** { *; }
+-keep class javax.** { *; }
+-keep interface javax.** { *; }
+-keep class android.** { *; }
+-keep interface android.** { *; }
+
+# ==============================================================================
+
+# Kotlin Metadata (Crucial for Reflection used by VisionCamera)
+-keep class kotlin.Metadata { *; }
+
+# Android Lifecycle (Critical for CameraX / VisionCamera)
+-keep class androidx.lifecycle.** { *; }
+-keep interface androidx.lifecycle.** { *; }
+
+# === SAFETY NET: Coroutines & Futures ===
+-keep class kotlinx.coroutines.** { *; }
+-keep class androidx.concurrent.** { *; }
+
+# === SAFETY NET: React Native Methods ===
+# Ensures all methods exposed to JS are kept, regardless of upstream rules
+-keepclassmembers class * {
+    @com.facebook.react.bridge.ReactMethod *;
+}
+
 # VisionCamera Resize Plugin Compatibility
 # Workaround for compileOnly dependency to avoid R8 errors
 -dontwarn com.mrousavy.camera.**
