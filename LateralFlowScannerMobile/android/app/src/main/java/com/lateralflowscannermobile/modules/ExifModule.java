@@ -68,6 +68,11 @@ public class ExifModule extends ReactContextBaseJavaModule {
                 exifData.putString("focalLength", focalLength);
             }
 
+            String subjectDistance = exif.getAttribute(ExifInterface.TAG_SUBJECT_DISTANCE);
+            if (subjectDistance != null) {
+                exifData.putString("subjectDistance", subjectDistance);
+            }
+
             // Resolution
             int imageWidth = exif.getAttributeInt(ExifInterface.TAG_IMAGE_WIDTH, 0);
             int imageHeight = exif.getAttributeInt(ExifInterface.TAG_IMAGE_LENGTH, 0);

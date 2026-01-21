@@ -147,3 +147,13 @@
 
 # === Crypto / RandomBytes ===
 -keep class com.bitgo.randombytes.** { *; }
+
+# === Aggressive Keep for TurboModules (New Arch) ===
+-keep class com.facebook.react.viewmanagers.** { *; }
+-keep class com.facebook.react.b.** { *; } # Bridge / JSI internals often obfuscated here
+-keep class com.facebook.jni.** { *; }
+
+# === RNBootSplash Specific (Fix for TurboModuleRegistry crash) ===
+-keep class com.zoontek.rnbootsplash.** { *; }
+-keep class com.zoontek.rnbootsplash.RNBootSplashModule { *; }
+-keep class com.zoontek.rnbootsplash.RNBootSplashSpec { *; }

@@ -8,7 +8,13 @@ class MetadataService {
     async extractExifData(imageUri: string): Promise<ExifData> {
         if (ExifModule && ExifModule.extractExifData) {
             try {
-                return await ExifModule.extractExifData(imageUri);
+                const rawExif = await ExifModule.extractExifData(imageUri);
+                // Convert string values to numbers where necessary
+                return {
+                    ...rawExif,
+                    subjectDistance: rawExif.subjectDistance ? parseFloat(rawExif.subjectDistance) : 0,
+                    // Ensure other numeric fields are handled if the native module returns strings
+                } as ExifData;
             } catch (error) {
                 console.error('EXIF extraction error:', error);
             }
@@ -58,6 +64,7 @@ class MetadataService {
             lensSpecification: [],
             lensMake: 'Unknown',
             lensModel: 'Unknown',
+            subjectDistance: 0,
         };
     }
 

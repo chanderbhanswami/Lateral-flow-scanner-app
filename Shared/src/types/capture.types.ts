@@ -89,6 +89,7 @@ export interface ExifData {
     lensSpecification: number[];
     lensMake: string;
     lensModel: string;
+    subjectDistance: number;
 }
 
 export interface GPSInfo {
