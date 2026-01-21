@@ -64,6 +64,9 @@ class MainApplication : Application(), ReactApplication {
         // Manual linking for VisionCamera (Autolinking disabled for this package)
         packages.add(com.mrousavy.camera.react.CameraPackage())
 
+        // Manual Force-Link for BootSplash (Fix for Release Crash)
+        packages.add(com.zoontek.rnbootsplash.RNBootSplashPackage())
+
         return packages
       }
 

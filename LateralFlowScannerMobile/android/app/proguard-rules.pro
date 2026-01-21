@@ -153,7 +153,27 @@
 -keep class com.facebook.react.b.** { *; } # Bridge / JSI internals often obfuscated here
 -keep class com.facebook.jni.** { *; }
 
+# === Codegen Generated Specs (CRITICAL for New Architecture) ===
+# This namespace contains ALL generated TurboModule specs
+-keep class com.facebook.fbreact.specs.** { *; }
+-keep interface com.facebook.fbreact.specs.** { *; }
+
+# Keep all Native*Spec interfaces (pattern matching for codegen output)
+-keep class **NativeRNBootSplashSpec { *; }
+-keep class **Native*Spec { *; }
+-keep interface **Native*Spec { *; }
+
 # === RNBootSplash Specific (Fix for TurboModuleRegistry crash) ===
 -keep class com.zoontek.rnbootsplash.** { *; }
 -keep class com.zoontek.rnbootsplash.RNBootSplashModule { *; }
--keep class com.zoontek.rnbootsplash.RNBootSplashSpec { *; }
+-keep class com.zoontek.rnbootsplash.RNBootSplashPackage { *; }
+-keep class com.zoontek.rnbootsplash.NativeRNBootSplashSpec { *; }
+-keep interface com.zoontek.rnbootsplash.NativeRNBootSplashSpec { *; }
+
+# Keep module name registration (prevents getName() from being stripped)
+-keepclassmembers class * extends com.facebook.react.bridge.ReactContextBaseJavaModule {
+    public java.lang.String getName();
+}
+-keepclassmembers class * implements com.facebook.react.turbomodule.core.interfaces.TurboModule {
+    *;
+}
