@@ -194,6 +194,7 @@ dependencies {
     // OpenCV (via QuickBirdStudios wrapper for easy integration)
     // OpenCV - compileOnly allows us to compile against it, but relies on react-native-fast-opencv for the runtime AAR.
     implementation 'org.opencv:opencv:4.12.0'
+    implementation 'com.google.mlkit:barcode-scanning:17.2.0'
 
     // Camera2 API
     implementation 'androidx.camera:camera-core:1.3.0'

@@ -30,8 +30,13 @@
 -keep interface kotlin.** { *; }
 -keep class javax.** { *; }
 -keep interface javax.** { *; }
+-keep class javax.** { *; }
+-keep interface javax.** { *; }
 -keep class android.** { *; }
 -keep interface android.** { *; }
+
+# Fix for R8 missing class java.lang.invoke.MethodHandleProxies
+-dontwarn org.apache.commons.lang3.**
 
 # ==============================================================================
 

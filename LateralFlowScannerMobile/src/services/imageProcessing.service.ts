@@ -237,6 +237,20 @@ class ImageProcessingService {
         return 1000; // Default fallback
     }
 
+    async scanCodes(imageUri: string): Promise<Array<{ rawValue: string; displayValue: string; format: number }>> {
+        if (OpenCVModule && OpenCVModule.scanCodes) {
+            try {
+                // Remove file:// prefix if present, OR keep it if native module handles it.
+                // My native implementation handles both.
+                return await OpenCVModule.scanCodes(imageUri);
+            } catch (e) {
+                console.warn('QR Scan failed', e);
+                return [];
+            }
+        }
+        return [];
+    }
+
     async detectBordersFromImage(imageData: string): Promise<BorderDetection> {
         if (OpenCVModule && OpenCVModule.detectBorders) {
             const result = await OpenCVModule.detectBorders(imageData);

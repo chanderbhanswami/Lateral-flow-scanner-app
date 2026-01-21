@@ -475,14 +475,25 @@ export const CaptureScreen: React.FC = () => {
             }
 
             // === 1.5 OCR & QR Integration ===
-            // 2024: Passive QR/OCR scanning implementation
-            // If we found a QR code recently (e.g. within last 2 seconds), attach it.
+            // Post-Processing: Scan the captured image for QR codes (Native MLKit)
             const now = Date.now();
-            let finalQrCode = undefined;
-            if (lastScannedCode.current && (now - lastScannedCode.current.timestamp < 3000)) {
-                // If code is fresh (seen in last 3 seconds), use it
+            let finalQrCode: string | undefined = undefined;
+
+            try {
+                Toast.show({ type: 'info', text1: 'Scanning QR...', visibilityTime: 500 });
+                const qrResults = await imageProcessingService.scanCodes(photo.path);
+                if (qrResults && qrResults.length > 0) {
+                    finalQrCode = qrResults[0].rawValue;
+                    console.log('[Capture] QR Found via Post-Processing:', finalQrCode);
+                }
+            } catch (qrErr) {
+                console.warn('[Capture] QR Scan failed:', qrErr);
+            }
+
+            // Fallback: If code scanner was enabled and found something recently
+            if (!finalQrCode && lastScannedCode.current && (now - lastScannedCode.current.timestamp < 3000)) {
                 finalQrCode = lastScannedCode.current.value;
-                console.log('[Capture] Using recently scanned QR:', finalQrCode);
+                console.log('[Capture] Using recently scanned QR (Live):', finalQrCode);
             }
 
             // Perform OCR on the captured image (Full Resolution)
@@ -804,7 +815,7 @@ export const CaptureScreen: React.FC = () => {
                         torch={config.torch}
                         photoQualityBalance={config.photoQualityBalance}
                         frameProcessor={frameProcessor}
-                        codeScanner={codeScanner}
+                    // codeScanner={codeScanner} // DISABLED: Conflicts with FrameProcessor (Hardware Limit)
                     />
 
                     {/* Touch Area for Focus (Background Layer) */}

@@ -3,6 +3,8 @@ package com.lateralflowscannermobile.modules;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
+import android.net.Uri;
+import java.io.IOException;
 
 import com.facebook.react.bridge.Promise;
 import com.facebook.react.bridge.ReactApplicationContext;
@@ -11,6 +13,12 @@ import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.Arguments;
+
+import com.google.mlkit.vision.barcode.BarcodeScanning;
+import com.google.mlkit.vision.barcode.common.Barcode;
+import com.google.mlkit.vision.barcode.BarcodeScanner;
+import com.google.mlkit.vision.barcode.BarcodeScannerOptions;
+import com.google.mlkit.vision.common.InputImage;
 
 import org.opencv.android.OpenCVLoader;
 import org.opencv.android.Utils;
@@ -67,6 +75,51 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
 
     // Native Method Declaration
     private native double[] detectKitCpp(long matAddr);
+
+    @ReactMethod
+    public void scanCodes(String imagePath, Promise promise) {
+        try {
+            InputImage image;
+            if (imagePath.startsWith("file://")) {
+                image = InputImage.fromFilePath(reactContext, Uri.parse(imagePath));
+            } else {
+                // Handle absolute path or other URI schemes
+                // For now assume absolute path if not file scheme
+                image = InputImage.fromFilePath(reactContext, Uri.parse("file://" + imagePath));
+            }
+
+            BarcodeScannerOptions options = new BarcodeScannerOptions.Builder()
+                    .setBarcodeFormats(
+                            Barcode.FORMAT_QR_CODE,
+                            Barcode.FORMAT_EAN_13,
+                            Barcode.FORMAT_EAN_8,
+                            Barcode.FORMAT_DATA_MATRIX)
+                    .build();
+
+            BarcodeScanner scanner = BarcodeScanning.getClient(options);
+
+            scanner.process(image)
+                    .addOnSuccessListener(barcodes -> {
+                        WritableArray result = Arguments.createArray();
+                        for (Barcode barcode : barcodes) {
+                            WritableMap map = Arguments.createMap();
+                            map.putString("rawValue", barcode.getRawValue());
+                            map.putString("displayValue", barcode.getDisplayValue());
+                            map.putInt("format", barcode.getFormat());
+                            result.pushMap(map);
+                        }
+                        promise.resolve(result);
+                    })
+                    .addOnFailureListener(e -> {
+                        promise.reject("BARCODE_ERROR", e.getMessage());
+                    });
+
+        } catch (IOException e) {
+            promise.reject("IO_ERROR", "Failed to load image for barcode scanning: " + e.getMessage());
+        } catch (Exception e) {
+            promise.reject("UNKNOWN_ERROR", e.getMessage());
+        }
+    }
 
     @ReactMethod
     public void detectBorders(String base64Image, Promise promise) {
