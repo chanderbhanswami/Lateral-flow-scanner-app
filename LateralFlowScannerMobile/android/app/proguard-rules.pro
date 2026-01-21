@@ -86,3 +86,64 @@
 
 # React Native Config
 -keep class com.lateralflowscannermobile.BuildConfig { *; }
+
+# === MLKit OCR (Prevent Stripping) ===
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.tasks.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_text_common.** { *; }
+-dontwarn com.google.mlkit.**
+
+# Reference: https://developers.google.com/ml-kit/android/text-recognition/v2
+-keep class com.google.mlkit.vision.text.** { *; }
+
+# === React Native Keep Awake ===
+-keep class com.corbt.keepawake.** { *; }
+
+# === React Native Haptic Feedback ===
+-keep class com.mkuczera.** { *; }
+
+# === React Native Fast OpenCV ===
+-keep class com.fastopencv.** { *; }
+
+# === React Native MLKit OCR ===
+-keep class com.reactnativemlkitocr.** { *; }
+
+# === OpenCV (Critical for Native Module) ===
+-keep class org.opencv.** { *; }
+-keep interface org.opencv.** { *; }
+-dontwarn org.opencv.**
+
+# === Other Native Modules (Prevent Stripping) ===
+-keep class com.shopify.reactnative.skia.** { *; }
+-keep class com.sensors.** { *; }
+-keep class com.imagepicker.** { *; }
+-keep class com.rnfs.** { *; }
+-keep class com.ReactNativeBlobUtil.** { *; }
+-keep class com.zoontek.** { *; }
+-keep class com.horcrux.svg.** { *; }
+-keep class com.notifee.** { *; }
+
+# === Community Modules (AsyncStorage, NetInfo, Slider, etc.) ===
+-keep class com.reactnativecommunity.** { *; }
+-keep class com.reactnativegooglesignin.** { *; }
+-keep class com.devialab.exif.** { *; }
+-keep class com.facebook.reactnative.androidsdk.** { *; }
+-keep class fr.bamlab.rnimageresizer.** { *; }
+-keep class com.oblador.keychain.** { *; }
+-keep class com.BV.LinearGradient.** { *; }
+-keep class com.cubicphuse.RCTTorch.** { *; }
+-keep class com.worklets.** { *; }
+-keep class com.th3rdwave.safeareacontext.** { *; }
+-keep class com.RNProximity.** { *; }
+-keep class org.linusu.** { *; }
+
+# === Nitro & Worklets ===
+-keep class com.margelo.nitro.** { *; }
+-keep class com.swmansion.worklets.** { *; }
+-keep class com.worklets.** { *; }
+
+# === Firebase (Safety Net) ===
+-keep class io.invertase.firebase.** { *; }
+
+# === Crypto / RandomBytes ===
+-keep class com.bitgo.randombytes.** { *; }
