@@ -14,6 +14,7 @@ export const useCamera = (highQualityMode: boolean = true) => {
     ]);
 
     const [hasPermission, setHasPermission] = useState(false);
+    const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'not-determined'>('not-determined');
     const [cameraKey, setCameraKey] = useState(0); // Used to force remount
     const appState = useRef(AppState.currentState);
 
@@ -38,11 +39,23 @@ export const useCamera = (highQualityMode: boolean = true) => {
     const checkPermissions = useCallback(async () => {
         const getPermission = async () => {
             const status = await Camera.getCameraPermissionStatus();
-            if (status === 'granted') return true;
+            if (status === 'granted') {
+                setPermissionStatus('granted');
+                return true;
+            }
             if (status === 'not-determined') {
                 const newStatus = await Camera.requestCameraPermission();
-                return newStatus === 'granted';
+                if (newStatus === 'granted') {
+                    setPermissionStatus('granted');
+                    return true;
+                } else {
+                    setPermissionStatus('denied'); // Explicitly denied after request
+                    return false;
+                }
             }
+
+            // If already denied or restricted
+            setPermissionStatus('denied');
             return false;
         };
 
@@ -128,6 +141,7 @@ export const useCamera = (highQualityMode: boolean = true) => {
         device,
         format,
         hasPermission, // Exported
+        permissionStatus, // Exported
         cameraKey,     // Exported
         initializeCamera: checkPermissions, // Renamed but kept signature compatible-ish
         capturePhoto,

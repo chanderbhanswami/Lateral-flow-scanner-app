@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent, Vibration, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, Text, TouchableOpacity, Dimensions, ActivityIndicator, Pressable, GestureResponderEvent, Vibration, StatusBar, Platform, Linking } from 'react-native';
 import { Camera, useCodeScanner } from 'react-native-vision-camera';
 import ImageEditor from '@react-native-community/image-editor';
 import KeepAwake from 'react-native-keep-awake';
@@ -72,6 +72,7 @@ export const CaptureScreen: React.FC = () => {
         toggleTorch,
         setFocusMode,
         hasPermission,
+        permissionStatus,
         cameraKey
     } = useCamera(settings.highQualityMode);
 
@@ -723,6 +724,28 @@ export const CaptureScreen: React.FC = () => {
                 <Text style={styles.errorText}>{cameraError}</Text>
                 <TouchableOpacity style={styles.errorButton} onPress={() => navigation.goBack()}>
                     <Text style={styles.errorButtonText}>Go Back</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+
+    // Permission Denied UI
+    if (permissionStatus === 'denied') {
+        return (
+            <View style={[styles.container, styles.errorContainer]}>
+                <Icon name="lock-alert" size={64} color="#f59e0b" />
+                <Text style={styles.errorTitle}>Permission Required</Text>
+                <Text style={[styles.errorText, { textAlign: 'center', marginBottom: 20 }]}>
+                    Camera permission is required. Please enable it in settings.
+                </Text>
+                <TouchableOpacity
+                    style={[styles.errorButton, { backgroundColor: '#10b981' }]}
+                    onPress={() => Linking.openSettings()}
+                >
+                    <Text style={styles.errorButtonText}>Open Settings</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={[styles.errorButton, { marginTop: 10, backgroundColor: 'transparent' }]} onPress={() => navigation.goBack()}>
+                    <Text style={[styles.errorButtonText, { color: '#fff' }]}>Cancel</Text>
                 </TouchableOpacity>
             </View>
         );
