@@ -65,7 +65,7 @@ class MainApplication : Application(), ReactApplication {
         packages.add(com.mrousavy.camera.react.CameraPackage())
 
         // Manual Force-Link for BootSplash (Fix for Release Crash)
-        packages.add(com.zoontek.rnbootsplash.RNBootSplashPackage())
+        // Manual Force-Link for BootSplash removed - already in PackageList
 
         return packages
       }

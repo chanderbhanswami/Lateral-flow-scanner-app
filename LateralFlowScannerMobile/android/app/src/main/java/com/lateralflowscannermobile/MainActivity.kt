@@ -5,11 +5,14 @@ import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint.fabricEnabled
 import com.facebook.react.defaults.DefaultReactActivityDelegate
+import com.swmansion.rnscreens.fragment.restoration.RNScreensFragmentFactory
 import com.zoontek.rnbootsplash.RNBootSplash
 
 class MainActivity : ReactActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
+    // Required for react-native-screens >= 4.16.0 with react-native-bootsplash
+    supportFragmentManager.fragmentFactory = RNScreensFragmentFactory()
     // Initialize bootsplash
     RNBootSplash.init(this, R.style.BootTheme)
     super.onCreate(savedInstanceState)

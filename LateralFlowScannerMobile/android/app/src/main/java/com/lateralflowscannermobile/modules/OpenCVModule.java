@@ -56,7 +56,7 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             openCVInitialized = OpenCVLoader.initDebug();
             if (openCVInitialized) {
                 try {
-                    System.loadLibrary("lateral-flow-cpp");
+                    System.loadLibrary("appmodules");
                 } catch (UnsatisfiedLinkError e) {
                     // Log error but don't crash, fallback to Java OpenCV
                     System.err.println("Failed to load native library: " + e.getMessage());
