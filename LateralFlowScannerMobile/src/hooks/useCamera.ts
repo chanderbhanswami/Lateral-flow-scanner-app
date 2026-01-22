@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
+import { check, request, PERMISSIONS, RESULTS } from 'react-native-permissions';
 import { CameraConfig, CameraMetadata } from '../types';
 import { CAMERA_CONSTANTS } from '../constants';
 import { cameraService } from '../services/camera.service';
@@ -35,26 +36,43 @@ export const useCamera = (highQualityMode: boolean = true) => {
     const [metadata, setMetadata] = useState<CameraMetadata | null>(null);
     const cameraRef = useRef<Camera | null>(null);
 
-    // Robust Initialization
+    // Robust Initialization (Updated to use react-native-permissions)
     const checkPermissions = useCallback(async () => {
         const getPermission = async () => {
-            const status = await Camera.getCameraPermissionStatus();
-            if (status === 'granted') {
+            if (Platform.OS !== 'android') return true; // TODO: iOS support
+
+            // 1. CHECK Current Status
+            const status = await check(PERMISSIONS.ANDROID.CAMERA);
+
+            console.log(`[Permission] Initial Status: ${status}`);
+
+            if (status === RESULTS.GRANTED) {
                 setPermissionStatus('granted');
                 return true;
             }
-            if (status === 'not-determined') {
-                const newStatus = await Camera.requestCameraPermission();
-                if (newStatus === 'granted') {
+
+            if (status === RESULTS.DENIED) {
+                // 2. REQUEST if Denied (Requestable)
+                console.log('[Permission] Requesting...');
+                const newStatus = await request(PERMISSIONS.ANDROID.CAMERA);
+                console.log(`[Permission] Post-Request Status: ${newStatus}`);
+
+                if (newStatus === RESULTS.GRANTED) {
                     setPermissionStatus('granted');
                     return true;
-                } else {
-                    setPermissionStatus('denied'); // Explicitly denied after request
-                    return false;
                 }
+
+                setPermissionStatus('denied'); // Denied or Blocked
+                return false;
             }
 
-            // If already denied or restricted
+            if (status === RESULTS.BLOCKED) {
+                console.log('[Permission] BLOCKED by OS (Don\'t ask again)');
+                setPermissionStatus('denied'); // Treat blocked as denied for UI purposes (shows Open Settings)
+                return false;
+            }
+
+            // UNAVAILABLE or limited
             setPermissionStatus('denied');
             return false;
         };
