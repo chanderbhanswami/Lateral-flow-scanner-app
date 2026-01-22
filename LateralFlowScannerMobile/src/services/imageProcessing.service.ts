@@ -251,9 +251,25 @@ class ImageProcessingService {
         return [];
     }
 
-    async detectBordersFromImage(imageData: string): Promise<BorderDetection> {
+    async detectBordersFromImage(imageDataOrPath: string): Promise<BorderDetection> {
         if (OpenCVModule && OpenCVModule.detectBorders) {
-            const result = await OpenCVModule.detectBorders(imageData);
+            let base64Data = imageDataOrPath;
+            // Check if it looks like a file path (starts with / or file://)
+            if (imageDataOrPath.startsWith('/') || imageDataOrPath.startsWith('file://')) {
+                try {
+                    // Ensure valid read path (some libs don't like file:// for readFile, some do. RNFS on Android usually prefers absolute path without file:// or works with both. Best to strip file:// for RNFS if needed, but let's try standard)
+                    const cleanPath = imageDataOrPath.startsWith('file://') ? imageDataOrPath.substring(7) : imageDataOrPath;
+                    base64Data = await RNFS.readFile(cleanPath, 'base64');
+                } catch (e) {
+                    console.warn('[ImageProcessing] Failed to read file for border detection', e);
+                    return {
+                        detected: false, confidence: 0, corners: [], area: 0, aspectRatio: 0,
+                        isAligned: false, isCentered: false, distanceFromCenter: 0
+                    };
+                }
+            }
+
+            const result = await OpenCVModule.detectBorders(base64Data);
 
             // Map OpenCV result to BorderDetection type
             if (result.detected) {

@@ -1,7 +1,13 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useFrameProcessor } from 'react-native-vision-camera';
 import { Worklets } from 'react-native-worklets-core';
-import { OpenCV } from 'react-native-fast-opencv';
+import {
+    OpenCV,
+    ObjectType,
+    DataTypes,
+    ColorConversionCodes,
+    MorphShapes
+} from 'react-native-fast-opencv';
 import { useResizePlugin } from 'vision-camera-resize-plugin';
 import { KalmanFilter2D } from '../utils/math/KalmanFilter';
 import { logger } from '../utils/logger';
@@ -94,6 +100,14 @@ export const useCustomFrameProcessor = (
         [onQualityAnalysis]
     );
 
+    const runOnJsLog = useMemo(() => Worklets.createRunOnJS((msg: string) => {
+        logger.warn(msg);
+    }), []);
+
+    const runOnJsError = useMemo(() => Worklets.createRunOnJS((msg: string) => {
+        console.error(msg);
+    }), []);
+
     const { resize } = useResizePlugin();
 
     const frameProcessor = useFrameProcessor((frame) => {
@@ -128,12 +142,18 @@ export const useCustomFrameProcessor = (
         const shouldProcessBorder = Math.random() < 0.5;
         const shouldProcessQuality = Math.random() < 0.33;
 
+        // Force logging to JS thread for visibility
+        if (Math.random() < 0.01) {
+            runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
+        }
+
         if (!shouldProcessBorder && !shouldProcessQuality) {
             return;
         }
 
         try {
             if (!cv || !resize) {
+                runOnJsError(`[FP] CRITICAL: Missing Deps - CV: ${!!cv}, Resize: ${!!resize}`);
                 throw new Error("OpenCV or Resize plugin missing");
             }
 
@@ -145,7 +165,9 @@ export const useCustomFrameProcessor = (
                     pixelFormat: 'rgba',
                     dataType: 'uint8',
                 });
+                // runOnJsLog(`[FP] Resized: ${!!resized} ${resized ? Object.keys(resized) : ''}`);
             } catch (e) {
+                runOnJsError(`[FP] Resize failed: ${e}`);
                 return;
             }
 
@@ -157,20 +179,23 @@ export const useCustomFrameProcessor = (
 
                 try {
                     src = cv.frameBufferToMat(480, 640, 4, resized);
-                    gray = cv.createObject(cv.ObjectType.Mat);
-                    cv.invoke('cvtColor', src, gray, cv.COLOR_RGBA2GRAY);
+                    gray = cv.createObject(ObjectType.Mat);
+                    cv.invoke('cvtColor', src, gray, ColorConversionCodes.COLOR_RGBA2GRAY);
                     matReady = true;
-                } catch (e) { }
+                    // runOnJsLog('[FP] Mat Ready');
+                } catch (e) {
+                    runOnJsError(`[FP] Mat conversion failed: ${e}`);
+                }
 
                 if (matReady) {
                     // === STEP 3: QUALITY ANALYSIS ===
                     if (shouldProcessQuality) {
                         try {
-                            const laplacian = cv.createObject(cv.ObjectType.Mat);
-                            cv.invoke('Laplacian', gray, laplacian, cv.CV_8U);
+                            const laplacian = cv.createObject(ObjectType.Mat);
+                            cv.invoke('Laplacian', gray, laplacian, DataTypes.CV_8U);
 
-                            const meanStdDevMean = cv.createObject(cv.ObjectType.Mat);
-                            const meanStdDevStd = cv.createObject(cv.ObjectType.Mat);
+                            const meanStdDevMean = cv.createObject(ObjectType.Mat);
+                            const meanStdDevStd = cv.createObject(ObjectType.Mat);
                             cv.invoke('meanStdDev', laplacian, meanStdDevMean, meanStdDevStd);
 
                             const stdDevVal = cv.toJSValue(meanStdDevStd);
@@ -181,15 +206,25 @@ export const useCustomFrameProcessor = (
                             blurAnalysis = analyzeBlurWorklet(laplacianVariance);
                             const focusRes = analyzeFocusNeedWorklet(laplacianVariance);
                             focusAnalysis = { needsFocus: focusRes.shouldRefocus };
-                        } catch (e) { }
+
+                            // CHECKPOINT 1: Blur
+                            // runOnJsLog(`[FP] Blur: ${blurAnalysis.isBlurry} val: ${laplacianVariance}`);
+                        } catch (e) {
+                            runOnJsError(`[FP] Blur Analysis Error: ${e}`);
+                        }
 
                         try {
                             const histResult = calculateHistogramWorklet(resized, 2);
+                            if (!histResult) throw new Error("Histogram result is null");
+
                             redHist = histResult.redHist;
                             greenHist = histResult.greenHist;
                             blueHist = histResult.blueHist;
                             const meanBrightness = histResult.sumBrightness / histResult.pixelCount;
                             brightnessHist = histResult.brightnessHist;
+
+                            // CHECKPOINT 2: Histogram Computed
+                            // runOnJsLog(`[FP] Hist Mean: ${meanBrightness}`);
 
                             exposureAnalysis = analyzeExposureWorklet(histResult.brightnessHist, meanBrightness, histResult.pixelCount);
                             colorAnalysis = analyzeColorWorklet(histResult.redHist, histResult.greenHist, histResult.blueHist, histResult.pixelCount);
@@ -235,30 +270,34 @@ export const useCustomFrameProcessor = (
 
                             histogramStats = calculateHistogramStatsWorklet(histResult.brightnessHist, histResult.pixelCount);
                             normalizedHist = normalizeHistogramWorklet(histResult.brightnessHist);
-                        } catch (e) { }
+
+                            // CHECKPOINT 3: Analysis Complete
+                        } catch (e) {
+                            runOnJsError(`[FP] Quality Analysis Error: ${e}`);
+                        }
                     }
 
-                    // === STEP 4: BORDER DETECTION (Enterprise Hough + Canny) ===
+                    // === STEP 4: BORDER DETECTION (Enterprise Hough + RANSAC) ===
                     if (shouldProcessBorder) {
                         try {
                             // 1. Denoise
                             cv.invoke('GaussianBlur', gray, gray, { width: 5, height: 5 }, 0);
 
                             // 2. Canny
-                            const edges = cv.createObject(cv.ObjectType.Mat);
+                            const edges = cv.createObject(ObjectType.Mat);
                             cv.invoke('Canny', gray, edges, 30, 100);
 
                             // 3. Dilate
-                            const kernel = cv.invoke('getStructuringElement', cv.MORPH_RECT, { width: 3, height: 3 });
+                            const kernel = cv.invoke('getStructuringElement', MorphShapes.MORPH_RECT, { width: 3, height: 3 });
                             cv.invoke('dilate', edges, edges, kernel);
 
                             // 4. Hough Lines Probabilistic
-                            const linesMat = cv.createObject(cv.ObjectType.Mat);
+                            const linesMat = cv.createObject(ObjectType.Mat);
                             cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 50, 50, 10);
 
                             const lineCount = cv.invoke('rows', linesMat);
 
-                            // 5. Enterprise Logic: Clustering & Line Fitting
+                            // 5. Enterprise Logic: Clustering & RANSAC Line Fitting
                             // --- HELPERS ---
                             const distSq = (p1: { x: number, y: number }, p2: { x: number, y: number }) =>
                                 (p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2;
@@ -275,13 +314,11 @@ export const useCustomFrameProcessor = (
                                 return { x, y };
                             };
 
-                            // RANSAC (Random Sample Consensus) Line Fitting
-                            // Robust to outliers (noise), matching native-lib.cpp's DIST_WELSCH behavior
+                            // RANSAC Line Fitting (Robust to outliers)
                             const fitLineToPoints = (points: { x: number, y: number }[]) => {
                                 const n = points.length;
                                 if (n < 2) return null;
                                 if (n === 2) {
-                                    // Trivial case
                                     const p1 = points[0], p2 = points[1];
                                     if (Math.abs(p1.x - p2.x) < 1) return { vertical: true, x: p1.x, m: 0, c: 0 };
                                     const m = (p2.y - p1.y) / (p2.x - p1.x);
@@ -290,21 +327,16 @@ export const useCustomFrameProcessor = (
 
                                 let bestLine = null;
                                 let maxInliers = -1;
-
-                                // RANSAC Iterations (20 is enough for small N < 50)
                                 const iterations = 20;
-                                const threshold = 5.0; // Pixel distance threshold for inlier
+                                const threshold = 5.0;
 
                                 for (let i = 0; i < iterations; i++) {
-                                    // 1. Pick 2 random points
                                     const idx1 = Math.floor(Math.random() * n);
                                     let idx2 = Math.floor(Math.random() * n);
                                     if (idx1 === idx2) idx2 = (idx1 + 1) % n;
 
                                     const p1 = points[idx1];
                                     const p2 = points[idx2];
-
-                                    // 2. Compute Model
                                     let m = 0, c = 0, vertical = false, xVal = 0;
 
                                     if (Math.abs(p1.x - p2.x) < 1) {
@@ -315,16 +347,11 @@ export const useCustomFrameProcessor = (
                                         c = p1.y - m * p1.x;
                                     }
 
-                                    // 3. Count Inliers
                                     let inliers = 0;
                                     for (const p of points) {
                                         let dist = 0;
-                                        if (vertical) {
-                                            dist = Math.abs(p.x - xVal);
-                                        } else {
-                                            // dist = |mx - y + c| / sqrt(m^2 + 1)
-                                            dist = Math.abs(m * p.x - p.y + c) / Math.sqrt(m * m + 1);
-                                        }
+                                        if (vertical) dist = Math.abs(p.x - xVal);
+                                        else dist = Math.abs(m * p.x - p.y + c) / Math.sqrt(m * m + 1);
                                         if (dist < threshold) inliers++;
                                     }
 
@@ -342,10 +369,8 @@ export const useCustomFrameProcessor = (
                             const ptsLeft: { x: number, y: number }[] = [];
                             const ptsRight: { x: number, y: number }[] = [];
 
-                            const width = 640;
-                            const height = 480;
-                            const centerX = width / 2;
-                            const centerY = height / 2;
+                            const centerX = 640 / 2;
+                            const centerY = 480 / 2;
 
                             const maxLines = Math.min(lineCount, 50);
                             const lineData = cv.invoke('data32S', linesMat);
@@ -397,14 +422,17 @@ export const useCustomFrameProcessor = (
                                 }
                             }
                         } catch (e) {
-                            // console.log('[FP] Border detection failed', e);
+                            runOnJsError(`[FP] Border detection failed: ${e}`);
                         }
                     }
                 }
             }
-        } catch (err) { }
-        finally {
+        } catch (err) {
+            runOnJsError(`[FP] Fatal Error: ${err}`);
+        } finally {
             try {
+                // runOnJsLog(`[FP] Finally: Border=${shouldProcessBorder} Corners=${bestCorners.length}, Quality=${shouldProcessQuality}`);
+
                 if (shouldProcessBorder && bestCorners.length > 0) {
                     runOnJsBorderDetected(bestCorners);
                 }
@@ -422,7 +450,9 @@ export const useCustomFrameProcessor = (
                         normalizedHistogram: normalizedHist,
                     });
                 }
-            } catch (e) { }
+            } catch (e) {
+                runOnJsError(`[FP] Callback Error: ${e}`);
+            }
         }
     }, [resize, runOnJsBorderDetected, runOnJsQualityAnalysis]);
 

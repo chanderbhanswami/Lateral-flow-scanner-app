@@ -505,8 +505,9 @@ export const CaptureScreen: React.FC = () => {
             try {
                 // OCR returns Array of blocks
                 Toast.show({ type: 'info', text1: 'Reading Text...', visibilityTime: 500 });
-                console.log('[Capture] Starting OCR on:', photo.path);
-                const ocrResult = await MlkitOcr.detectFromFile(photo.path);
+                const ocrPath = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
+                console.log('[Capture] Starting OCR on:', ocrPath);
+                const ocrResult = await MlkitOcr.detectFromFile(ocrPath);
 
                 if (ocrResult && ocrResult.length > 0) {
                     console.log('[Capture] OCR Found blocks:', ocrResult.length);
@@ -538,8 +539,10 @@ export const CaptureScreen: React.FC = () => {
 
             let finalImageUri = photo.path;
             try {
+                // ImageEditor REQUIRES file:// prefix
+                const cropSourceUri = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
                 finalImageUri = await cropImageToKit(
-                    photo.path,
+                    cropSourceUri,
                     !!highResCorners,
                     highResCorners || [],
                     photo.width,

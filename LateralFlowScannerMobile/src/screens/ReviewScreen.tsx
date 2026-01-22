@@ -91,7 +91,7 @@ export const ReviewScreen: React.FC = () => {
                     try {
                         const newBatch = await createBatch({
                             name: cleanConcentration,
-                            concentration: Number(cleanConcentration) || 0,
+                            concentration: cleanConcentration || '0',
                             unit: 'mg/ml', // Default unit
                             notes: cleanConcentration, // As requested: notes = value
                             color: '#eab308' // Default 'New' color (Yellow-ish)
