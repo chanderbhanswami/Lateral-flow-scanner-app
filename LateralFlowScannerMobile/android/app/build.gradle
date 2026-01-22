@@ -160,6 +160,7 @@ android {
 
     packagingOptions {
         pickFirst 'lib/**/libc++_shared.so'
+        pickFirst 'lib/**/libopencv_java4.so'
     }
 
     // Use short path to avoid Windows 260 char limit
@@ -193,8 +194,11 @@ dependencies {
     // OpenCV - commented out as it requires manual setup
     // OpenCV (via QuickBirdStudios wrapper for easy integration)
     // OpenCV - compileOnly allows us to compile against it, but relies on react-native-fast-opencv for the runtime AAR.
-    implementation 'org.opencv:opencv:4.12.0'
+    compileOnly 'org.opencv:opencv:4.12.0'
     implementation 'com.google.mlkit:barcode-scanning:17.2.0'
+    
+    // Add pickFirst to resolve any potential native lib conflicts
+    // packagingOptions below will need update if not already there, but let's stick to dependencies here.
 
     // Camera2 API
     implementation 'androidx.camera:camera-core:1.3.0'
