@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     title: { fontSize: moderateScale(24), fontWeight: '700', color: '#1f2937', marginBottom: verticalScale(8) },
     subtitle: { fontSize: moderateScale(14), color: '#6b7280', textAlign: 'center' },
     socialButtons: { gap: moderateScale(12), marginBottom: verticalScale(20) },
-    socialButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: moderateScale(14), borderRadius: moderateScale(12), gap: moderateScale(10), height: verticalScale(48) },
+    socialButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', padding: moderateScale(12), borderRadius: moderateScale(12), gap: moderateScale(10), height: verticalScale(52) },
     googleButton: { backgroundColor: '#fff', borderWidth: 1, borderColor: '#e5e7eb' },
     googleText: { color: '#374151', fontWeight: '600', fontSize: moderateScale(14) },
     facebookButton: { backgroundColor: '#1877f2' },
