@@ -87,7 +87,7 @@ class EmailService {
                     <p>Hello ${name},</p>
                     <p>Thank you for registering. Please use the OTP code below to verify your email:</p>
                     <div style="background: white; border: 2px solid #3b82f6; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
-                        <div style="font-size: 36px; font-weight: bold; color: #3b82f6; letter-spacing: 8px;">${otp}</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #3b82f6; letter-spacing: 8px;">${otp}</div>
                         <p style="margin: 10px 0 0 0; color: #64748b; font-size: 14px;">This code expires in 10 minutes</p>
                     </div>
                     <p style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 4px;">
