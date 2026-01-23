@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { BorderDetection } from '../types';
 
 // Import utilities directly
@@ -22,9 +22,23 @@ export const useBorderDetection = () => {
 
     const [guideColor, setGuideColor] = useState<string>('red');
 
+    // Stability Logic
+    const stableCount = useRef(0);
+    const STABILITY_THRESHOLD = 8; // Require 8 consecutive valid frames (~0.5s - 1s) to lock on
+
     const updateBorderDetection = useCallback((corners: Array<{ x: number; y: number }>) => {
         // Use utility for border analysis
         const analysis = analyzeBorderWorklet(corners, FRAME_WIDTH, FRAME_HEIGHT);
+
+        // Hysteresis / Stability Check
+        if (analysis.detected) {
+            stableCount.current += 1;
+        } else {
+            stableCount.current = 0;
+        }
+
+        // Only show "Detected" if we have been stable for a while
+        const isStable = stableCount.current >= STABILITY_THRESHOLD;
 
         // Calculate distance from center
         let distanceFromCenter = 0;
@@ -40,8 +54,8 @@ export const useBorderDetection = () => {
         }
 
         const detection: BorderDetection = {
-            detected: analysis.detected,
-            confidence: analysis.confidence,
+            detected: isStable, // Override with stability
+            confidence: isStable ? analysis.confidence : 0,
             corners: analysis.corners,
             area: analysis.area,
             aspectRatio: analysis.aspectRatio,
@@ -50,12 +64,14 @@ export const useBorderDetection = () => {
             distanceFromCenter,
         };
 
+        // Always update state to drive UI (green/red border)
+        // If !isStable, we effectively hide the dynamic border (or show it as red/searching if we wanted, but user wants Static Guide Default)
         setBorderData(detection);
 
         // Update guide color based on alignment
-        if (detection.detected && detection.isAligned && detection.isCentered) {
+        if (isStable && detection.isAligned && detection.isCentered) {
             setGuideColor('green');
-        } else if (detection.detected) {
+        } else if (isStable) {
             setGuideColor('yellow'); // Detected but not aligned
         } else {
             setGuideColor('red');

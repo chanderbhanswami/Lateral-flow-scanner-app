@@ -269,7 +269,13 @@ export const CaptureScreen: React.FC = () => {
 
             console.log(`[SmartFocus] Focusing on detected kit at (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
 
-            cameraRef.current.focus({ x: cx, y: cy });
+            try {
+                cameraRef.current.focus({ x: cx, y: cy });
+            } catch (e: any) {
+                if (e.code !== 'device/focus-not-supported') {
+                    console.warn('[SmartFocus] Focus failed:', e);
+                }
+            }
             lastFocusTimeRef.current = now;
 
             // Show feedback
@@ -436,6 +442,7 @@ export const CaptureScreen: React.FC = () => {
 
     const handleCapture = async (mode: 'auto' | 'manual') => {
         try {
+            console.log('[PostCapture] --- STARTING CAPTURE SEQUENCE ---');
             setIsCapturing(true);
             if (!device) throw new Error('No camera device available');
             if (!config.isActive) throw new Error('Camera is not active');
@@ -443,6 +450,7 @@ export const CaptureScreen: React.FC = () => {
             try {
                 await lockExposure(manualExposure !== 0 ? manualExposure : config.exposure);
                 await lockWhiteBalance();
+                console.log('[PostCapture] Exposure and WB Locked');
             } catch (lockError) {
                 logger.warn('Could not lock exposure/white balance', lockError);
             }
@@ -451,95 +459,93 @@ export const CaptureScreen: React.FC = () => {
             const photo = await capturePhoto();
 
             if (!photo || !photo.path) throw new Error('Photo capture returned empty result');
+            console.log(`[PostCapture] Photo Captured: ${photo.width}x${photo.height} at ${photo.path}`);
 
             // === 1. HIGH PRECISION DETECTION (NATIVE C++) ===
-            // We run the robust RANSAC/Hough detector on the FULL RESOLUTION image
-            // to get the most accurate corners possible, overriding the Live Preview approximate corners.
             Toast.show({ type: 'info', text1: 'Refining detection...', visibilityTime: 1000 });
+            console.log('[PostCapture] Step 1: Native High-Precision Detection...');
 
             let highResCorners = borderData.detected ? borderData.corners : null;
             let finalDetectionConfidence = borderData.confidence;
-            let needsScaling = true; // Default: Preview sources need scaling to Photo coordinates
+            let needsScaling = true;
 
             try {
                 const nativeDetection = await imageProcessingService.detectBordersFromImage(photo.path);
                 if (nativeDetection.detected && nativeDetection.corners.length === 4) {
-                    console.log('[Capture] High precision corners found:', nativeDetection.corners);
+                    console.log('[PostCapture] ✅ Native Detection Success:', JSON.stringify(nativeDetection.corners));
                     highResCorners = nativeDetection.corners;
                     finalDetectionConfidence = nativeDetection.confidence;
-                    needsScaling = false; // Native detection is already in photo coordinates
+                    needsScaling = false;
                 } else {
-                    console.log('[Capture] High precision detection failed, falling back to live preview');
+                    console.log('[PostCapture] ⚠️ Native Detection returned false/invalid. Using Live Preview fallback.');
                 }
             } catch (e) {
-                console.warn('[Capture] Native detection error', e);
+                console.warn('[PostCapture] ❌ Native detection exception', e);
             }
 
             // === 1.5 OCR & QR Integration ===
-            // Post-Processing: Scan the captured image for QR codes (Native MLKit)
             const now = Date.now();
             let finalQrCode: string | undefined = undefined;
 
             try {
                 Toast.show({ type: 'info', text1: 'Scanning QR...', visibilityTime: 500 });
+                console.log('[PostCapture] Step 2: QR Scan...');
                 const qrResults = await imageProcessingService.scanCodes(photo.path);
                 if (qrResults && qrResults.length > 0) {
                     finalQrCode = qrResults[0].rawValue;
-                    console.log('[Capture] QR Found via Post-Processing:', finalQrCode);
+                    console.log('[PostCapture] ✅ QR Found:', finalQrCode);
+                } else {
+                    console.log('[PostCapture] No QR code found in static image.');
                 }
             } catch (qrErr) {
-                console.warn('[Capture] QR Scan failed:', qrErr);
+                console.warn('[PostCapture] QR Scan failed:', qrErr);
             }
 
-            // Fallback: If code scanner was enabled and found something recently
+            // Fallback
             if (!finalQrCode && lastScannedCode.current && (now - lastScannedCode.current.timestamp < 3000)) {
                 finalQrCode = lastScannedCode.current.value;
-                console.log('[Capture] Using recently scanned QR (Live):', finalQrCode);
+                console.log('[PostCapture] ✅ Using recent Live QR:', finalQrCode);
             }
 
-            // Perform OCR on the captured image (Full Resolution)
-            // Ideally we run this in parallel with other analysis but before final save
+            // OCR
             let cassetteId = undefined;
             let lotNumber = undefined;
 
             try {
-                // OCR returns Array of blocks
                 Toast.show({ type: 'info', text1: 'Reading Text...', visibilityTime: 500 });
                 const ocrPath = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
-                console.log('[Capture] Starting OCR on:', ocrPath);
+                console.log('[PostCapture] Step 3: OCR on', ocrPath);
                 const ocrResult = await MlkitOcr.detectFromFile(ocrPath);
 
                 if (ocrResult && ocrResult.length > 0) {
-                    console.log('[Capture] OCR Found blocks:', ocrResult.length);
+                    console.log(`[PostCapture] OCR found ${ocrResult.length} blocks.`);
                     const fullText = ocrResult.map(block => block.text).join('\n');
+                    // console.log('[PostCapture] Full OCR Text:', fullText); // Uncomment if needed
 
-                    // Simple Heuristics for ID / Lot (Customize regex as needed)
-                    // Example: "ID: 12345" or "LOT: ABC"
-                    // For now, checks for generic patterns. 
-                    // TODO: Move these regexes to a config or schema file
-
-                    // Look for "Lot" followed by alphanumeric
                     const lotMatch = fullText.match(/(?:Lot|LOT|L\/N)\s*[:.]?\s*([A-Z0-9-]+)/i);
-                    if (lotMatch) lotNumber = lotMatch[1];
+                    if (lotMatch) {
+                        lotNumber = lotMatch[1];
+                        console.log('[PostCapture] ✅ Extracted LOT:', lotNumber);
+                    }
 
-                    // Look for "ID" or generic alphanumeric string if isolated (simplified)
                     const idMatch = fullText.match(/(?:ID|REF)\s*[:.]?\s*([A-Z0-9-]+)/i);
-                    if (idMatch) cassetteId = idMatch[1];
-
-                    // Fallback: If we detect 2 distinct alphanumeric codes that are essentially isolated lines
-                    // we might guess. But usually safer to only extract if labeled.
+                    if (idMatch) {
+                        cassetteId = idMatch[1];
+                        console.log('[PostCapture] ✅ Extracted ID:', cassetteId);
+                    }
+                } else {
+                    console.log('[PostCapture] No text detected.');
                 }
             } catch (ocrErr) {
-                console.warn('[Capture] OCR Failed:', ocrErr);
-                // Do NOT block capture flow
+                console.warn('[PostCapture] OCR Failed:', ocrErr);
             }
 
-            // === 2. CROP IMAGE TO KIT (Using Best Available Corners) ===
+            // === 2. CROP IMAGE TO KIT ===
             Toast.show({ type: 'info', text1: 'Processing & Cropping...', visibilityTime: 1500 });
+            console.log('[PostCapture] Step 4: Cropping...');
 
             let finalImageUri = photo.path;
             try {
-                // ImageEditor REQUIRES file:// prefix
                 const cropSourceUri = photo.path.startsWith('file://') ? photo.path : `file://${photo.path}`;
                 finalImageUri = await cropImageToKit(
                     cropSourceUri,
@@ -549,40 +555,39 @@ export const CaptureScreen: React.FC = () => {
                     photo.height,
                     needsScaling
                 );
+                console.log('[PostCapture] ✅ Crop Success. URI:', finalImageUri);
             } catch (cropErr) {
                 logger.warn('Crop failed', cropErr);
                 Toast.show({ type: 'error', text1: 'Crop failed', text2: 'Using full image' });
             }
 
+            // === 3. ANALYZE IMAGE ===
             Toast.show({ type: 'info', text1: 'Analyzing image...', visibilityTime: 1500 });
+            console.log('[PostCapture] Step 5: Quality Analysis...');
 
             let realAnalysis: any = null;
             try {
                 realAnalysis = await analyzeImage(finalImageUri);
+                console.log('[PostCapture] ✅ Analysis Complete. Score:', realAnalysis?.qualityScore);
+                console.log('[PostCapture] Warnings:', realAnalysis?.warnings?.join(', '));
             } catch (analysisError) {
                 logger.warn('Image analysis failed, using defaults', analysisError);
             }
 
-            // Parse EXIF to populate CameraMetadata
+            // Parse EXIF
             let nativeExif: any = {};
             try {
                 nativeExif = await imageProcessingService.extractExif(finalImageUri);
+                console.log('[PostCapture] EXIF extracted.');
             } catch (e) {
                 logger.warn('EXIF extraction failed', e);
             }
-
-            // Map EXIF to normalized CameraMetadata
-            // Note: EXIF tags usually return strings, we parse them.
-            // ExposureTime "0.02" -> 0.02
-            // FNumber "1.8" -> 1.8
-            // ISO "100" -> 100
 
             const updatedMetadata = {
                 ...metadata,
                 width: photo.width,
                 height: photo.height,
                 timestamp: new Date().toISOString(),
-                // Populate dynamic values from Native EXIF
                 iso: nativeExif.iso ? parseInt(nativeExif.iso, 10) : (metadata?.iso || 0),
                 aperture: nativeExif.aperture ? parseFloat(nativeExif.aperture) : (metadata?.aperture || 0),
                 exposureTime: nativeExif.exposureTime ? parseFloat(nativeExif.exposureTime) : (metadata?.exposureTime || 0),
@@ -604,12 +609,11 @@ export const CaptureScreen: React.FC = () => {
                 borderDetection: realAnalysis?.borderDetection ?? null,
                 shadowAnalysis: realAnalysis?.shadowAnalysis ?? null,
                 reflectionAnalysis: realAnalysis?.reflectionAnalysis ?? null,
-                // Use captured image analysis as fallback for frameAnalysis to avoid null
                 frameAnalysis: frameAnalysisRef.current || {
                     blurAnalysis: realAnalysis?.blurAnalysis,
                     exposureAnalysis: realAnalysis?.exposureAnalysis,
                     shadowAnalysis: realAnalysis?.shadowAnalysis,
-                    whiteBalanceAnalysis: null, // Not available in static analysis yet
+                    whiteBalanceAnalysis: null,
                     focusAnalysis: null
                 },
                 ...(realAnalysis || {}),
@@ -634,19 +638,17 @@ export const CaptureScreen: React.FC = () => {
                 }
             };
 
-            // CONSTRUCT PROOF OF ALGORITHMS
-            // If needsScaling is false, it means we used the NATIVE C++ RESULT directly.
             const usedNative = !needsScaling;
             const detectionMetadata: DetectionMetadata = {
                 engine: usedNative ? 'NATIVE_CPP_JSI' : 'JS_FALLBACK',
                 algorithms: usedNative ? [
                     'PROBABILISTIC_HOUGH_TRANSFORM',
-                    'ROBUST_WELSCH_FITTING', // The RANSAC equivalent
+                    'ROBUST_WELSCH_FITTING',
                     'CANNY_EDGE_DETECTION_STRUCTURE',
                     'OPENCV_NATIVE'
                 ] : [
                     'JS_PREVIEW_APPROXIMATION',
-                    'KALMAN_FILTER_2D', // Kalman is always active on preview
+                    'KALMAN_FILTER_2D',
                     'THROTTLED_JS_WORKLET'
                 ],
                 parameters: {
@@ -657,15 +659,16 @@ export const CaptureScreen: React.FC = () => {
                 version: '2.0.0-Hybrid'
             };
 
+            console.log('[PostCapture] Step 6: Assembling Capture Data...');
             const capturedData = await processCapture(
                 finalImageUri,
                 updatedMetadata,
                 fullSensorData,
                 analysisData,
-                selectedBatch ? selectedBatch.name : '', // Concentration Value
-                detectionMetadata, // PASS METADATA HERE
-                selectedBatch ? selectedBatch.id : undefined, // Batch ID
-                { cassetteId, lotNumber, qrCode: finalQrCode } // Newly Added OCR Data
+                selectedBatch ? selectedBatch.name : '',
+                detectionMetadata,
+                selectedBatch ? selectedBatch.id : undefined,
+                { cassetteId, lotNumber, qrCode: finalQrCode }
             );
 
             if (capturedData) {
@@ -678,6 +681,7 @@ export const CaptureScreen: React.FC = () => {
                 }
                 capturedData.captureMode = mode;
                 setCurrentCapture(capturedData);
+                console.log('[PostCapture] 🚀 Navigating to Review Screen');
                 navigation.navigate('Review', { captureData: capturedData, imageUri: finalImageUri });
                 Toast.show({
                     type: 'success',
@@ -689,9 +693,11 @@ export const CaptureScreen: React.FC = () => {
             }
         } catch (error: any) {
             logger.error('Capture error', error);
+            console.error('[PostCapture] ❌ CRITICAL ERROR:', error);
             Toast.show({ type: 'error', text1: 'Capture failed', text2: error?.message || String(error) });
         } finally {
             setIsCapturing(false);
+            console.log('[PostCapture] Sequence Ended');
         }
     };
 
@@ -709,13 +715,22 @@ export const CaptureScreen: React.FC = () => {
             // Show focus indicator IMMEDIATELY before async focus operation
             setFocusPoint({ x: locationX, y: locationY, visible: true });
 
-            await cameraRef.current.focus({ x: locationX, y: locationY });
+            // Catch 'device/focus-not-supported' for emulators/fixed-focus cameras
+            try {
+                await cameraRef.current.focus({ x: locationX, y: locationY });
+            } catch (focusError: any) {
+                if (focusError.code !== 'device/focus-not-supported') {
+                    console.warn('[Focus] Unexpected error:', focusError);
+                } else {
+                    console.log('[Focus] Skipped: Device does not support focus');
+                }
+            }
 
             // Hide after delay
             setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1500);
 
         } catch (e) {
-            console.warn('[Focus] Could not focus:', e);
+            console.warn('[Focus] Handler failed:', e);
         }
     }, [cameraRef]);
 
@@ -840,7 +855,7 @@ export const CaptureScreen: React.FC = () => {
                         exposure={config.exposure}
                         torch={config.torch}
                         photoQualityBalance={config.photoQualityBalance}
-                        frameProcessor={frameProcessor}
+                        frameProcessor={isFocused && config.isActive ? frameProcessor : undefined}
                     // codeScanner={codeScanner} // DISABLED: Conflicts with FrameProcessor (Hardware Limit)
                     />
 

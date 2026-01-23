@@ -23,19 +23,19 @@ export const GUIDE_Y = (CAMERA_HEIGHT - CASSETTE_HEIGHT) / 2;
 // Result Window (Scan Area)
 // Width: 40% of Cassette Width
 // Height: 20% of Cassette Height
-// Top Y: 38% from top
+// Top Y: 33% from top (Moved UP from 38% to extend height)
 export const WINDOW_WIDTH = CASSETTE_WIDTH * 0.40;
-export const WINDOW_HEIGHT = CASSETTE_HEIGHT * 0.20;
+export const WINDOW_HEIGHT = CASSETTE_HEIGHT * 0.25; // Increased height (was 0.20)
 export const WINDOW_X_OFFSET = (CASSETTE_WIDTH - WINDOW_WIDTH) / 2;
-export const WINDOW_Y_OFFSET = CASSETTE_HEIGHT * 0.38;
+export const WINDOW_Y_OFFSET = CASSETTE_HEIGHT * 0.33; // Start higher to keep bottom fixed (0.33 + 0.25 = 0.58)
 
 // Sample Well (Circle)
 // Diameter: 40% of Cassette Width
-// Top Y: 82% from top
+// Top Y: 75% from top (Moved UP from 82%)
 export const SAMPLE_WELL_WIDTH = CASSETTE_WIDTH * 0.40;
 export const SAMPLE_WELL_HEIGHT = SAMPLE_WELL_WIDTH; // Circular (1:1 aspect in pixels)
 export const SAMPLE_WELL_X_OFFSET = (CASSETTE_WIDTH - SAMPLE_WELL_WIDTH) / 2;
-export const SAMPLE_WELL_Y_OFFSET = CASSETTE_HEIGHT * 0.82;
+export const SAMPLE_WELL_Y_OFFSET = CASSETTE_HEIGHT * 0.75;
 
 // For backward compatibility
 export const SAMPLE_WELL_RADIUS = SAMPLE_WELL_WIDTH / 2;

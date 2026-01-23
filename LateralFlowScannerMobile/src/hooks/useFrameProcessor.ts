@@ -186,7 +186,8 @@ export const useCustomFrameProcessor = (
                     if (shouldProcessQuality) {
                         try {
                             const laplacian = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
-                            cv.invoke('Laplacian', gray, laplacian, 0); // CV_8U = 0
+                            // Laplacian args: src, dst, ddepth(0=8U), ksize(1), scale(1), delta(0), borderType(4=DEFAULT)
+                            cv.invoke('Laplacian', gray, laplacian, 0, 1, 1, 0, 4);
 
                             const meanStdDevMean = cv.createObject('mat', 0, 0, 6); // CV_64F = 6 (Empty)
                             const meanStdDevStd = cv.createObject('mat', 0, 0, 6); // CV_64F = 6 (Empty)
@@ -275,15 +276,17 @@ export const useCustomFrameProcessor = (
                     if (shouldProcessBorder) {
                         try {
                             // 1. Denoise
-                            cv.invoke('GaussianBlur', gray, gray, { width: 5, height: 5 }, 0);
+                            const ksize5 = cv.createObject('size', 5, 5);
+                            cv.invoke('GaussianBlur', gray, gray, ksize5, 0);
 
                             // 2. Canny
                             const edges = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
                             cv.invoke('Canny', gray, edges, 30, 100);
 
                             // 3. Dilate
-                            const kernel = cv.invoke('getStructuringElement', 0, { width: 3, height: 3 }); // MorphShapes.MORPH_RECT = 0
-                            cv.invoke('dilate', edges, edges, kernel);
+                            const ksize3 = cv.createObject('size', 3, 3);
+                            const kernel = cv.invoke('getStructuringElement', 0, ksize3); // MorphShapes.MORPH_RECT = 0
+                            cv.invoke('morphologyEx', edges, edges, 1, kernel); // MORPH_DILATE = 1
 
                             // 4. Hough Lines Probabilistic
                             const linesMat = cv.createObject('mat', 0, 0, 4); // CV_32S = 4
@@ -368,7 +371,8 @@ export const useCustomFrameProcessor = (
                             const centerY = 480 / 2;
 
                             const maxLines = Math.min(lineCount, 50);
-                            const lineData = cv.invoke('data32S', linesMat);
+                            const lineDataObj = cv.matToBuffer(linesMat, 'int32');
+                            const lineData = lineDataObj.buffer;
 
                             if (lineData) {
                                 for (let i = 0; i < maxLines; i++) {
@@ -405,12 +409,53 @@ export const useCustomFrameProcessor = (
                                     const bl = computeIntersect(lBottom, lLeft);
 
                                     if (tl && tr && br && bl) {
-                                        const w = Math.sqrt(distSq(tl, tr));
-                                        const h = Math.sqrt(distSq(tl, bl));
-                                        if (w > 50 && h > 50) {
-                                            const aspectRatio = Math.max(w, h) / Math.min(w, h);
-                                            if (aspectRatio > 1.5 && aspectRatio < 6.0) {
-                                                bestCorners = [tl, tr, br, bl];
+                                        // 6. Enterprise Geometric Validation
+                                        // Sort corners spatially to prevent "Bowtie" / Crossed shapes
+                                        // Standard order: TL, TR, BR, BL
+                                        const pts = [tl, tr, br, bl];
+
+                                        // 1. Sort by Y (Top vs Bottom)
+                                        pts.sort((a, b) => a.y - b.y);
+                                        const topPts = pts.slice(0, 2).sort((a, b) => a.x - b.x); // TL, TR
+                                        const botPts = pts.slice(2, 4).sort((a, b) => b.x - a.x); // BR, BL (Note: BR first for clockwise, or standard sort for grid?)
+
+                                        // Re-assign strict geometric corners
+                                        const sTL = topPts[0];
+                                        const sTR = topPts[1];
+                                        const sBR = botPts[0]; // Wait, let's keep standard TL, TR, BR, BL order for winding
+                                        const sBL = botPts[1];
+
+                                        // Corrections: bottom points sorted by X descending means BR is index 0?
+                                        // Let's stick to X ascending for simplicity
+                                        const botPtsAsc = pts.slice(2, 4).sort((a, b) => a.x - b.x); // BL, BR
+                                        const nBL = botPtsAsc[0];
+                                        const nBR = botPtsAsc[1];
+
+                                        const wTop = Math.sqrt(distSq(sTL, sTR));
+                                        const wBot = Math.sqrt(distSq(nBL, nBR));
+                                        const hLeft = Math.sqrt(distSq(sTL, nBL));
+                                        const hRight = Math.sqrt(distSq(sTR, nBR));
+
+                                        const avgW = (wTop + wBot) / 2;
+                                        const avgH = (hLeft + hRight) / 2;
+
+                                        // Validation 1: Size (Increase min size to avoid small noise)
+                                        if (avgW > 100 && avgH > 40) {
+                                            const aspectRatio = Math.max(avgW, avgH) / Math.min(avgW, avgH);
+
+                                            // Validation 2: Aspect Ratio (TIGHTENED)
+                                            // TV/Monitors = 1.77 (16:9). Cassettes = 2.5 - 5.0.
+                                            // Setting min to 2.0 filters out almost all screens & square items.
+                                            if (aspectRatio > 2.0 && aspectRatio < 8.0) {
+
+                                                // Validation 3: Non-Crossed (Convexity) check
+                                                // Check diagonals intersect
+                                                // But sorting by Y then X ALREADY guarantees a specific winding (Trapezoid-ish).
+                                                // We just need to ensure it's not skewed into a line.
+
+                                                // Optional: Check parallelism (slopes roughly match)
+                                                // For now, strict sorting solves the visual "Cross" artifact.
+                                                bestCorners = [sTL, sTR, nBR, nBL]; // Clockwise: TL, TR, BR, BL
                                             }
                                         }
                                     }
@@ -426,7 +471,7 @@ export const useCustomFrameProcessor = (
             runOnJsError(`[FP] Fatal Error: ${err}`);
         } finally {
             try {
-                // runOnJsLog(`[FP] Finally: Border=${shouldProcessBorder} Corners=${bestCorners.length}, Quality=${shouldProcessQuality}`);
+                runOnJsLog(`[FP] Finally: Border=${shouldProcessBorder} Corners=${bestCorners.length}, Quality=${shouldProcessQuality}`);
 
                 if (shouldProcessBorder && bestCorners.length > 0) {
                     runOnJsBorderDetected(bestCorners);
