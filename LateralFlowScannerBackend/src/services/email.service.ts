@@ -22,7 +22,7 @@ class EmailService {
             // Use port 465 with secure connection for better reliability on cloud platforms
             // Port 587 with STARTTLS can be blocked by some cloud providers
             const smtpPort = config.SMTP_PORT || 587;
-            const isSecure = smtpPort === 465;
+            const isSecure = smtpPort === 465 || smtpPort === 2465;
 
             this.transporter = nodemailer.createTransport({
                 host: config.SMTP_HOST,

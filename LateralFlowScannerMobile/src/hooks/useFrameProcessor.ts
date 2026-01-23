@@ -154,13 +154,18 @@ export const useCustomFrameProcessor = (
             // === STEP 1: RESIZE FRAME ===
             let resized: any;
             try {
+                // Resize plugin expects a valid view. If view is destroyed (navigating away), this throws.
                 resized = resize(frame, {
                     scale: { width: 640, height: 480 },
                     pixelFormat: 'rgba',
                     dataType: 'uint8',
                 });
-                // runOnJsLog(`[FP] Resized: ${!!resized} ${resized ? Object.keys(resized) : ''}`);
-            } catch (e) {
+            } catch (e: any) {
+                // IGNORE ViewNotFoundError - this is expected during navigation/unmount
+                if (e.message?.includes('ViewNotFoundError') || e.message?.includes('VisionCameraProxy')) {
+                    // runOnJsLog('[FP] View detached, skipping frame');
+                    return;
+                }
                 runOnJsError(`[FP] Resize failed: ${e}`);
                 return;
             }

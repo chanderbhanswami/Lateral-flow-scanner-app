@@ -500,7 +500,7 @@ export const RegisterScreen: React.FC = () => {
                                 color={acceptTerms ? '#3b82f6' : '#9ca3af'}
                             />
                         </TouchableOpacity>
-                        <View style={{ flex: 1, marginLeft: 8 }}>
+                        <View style={{ flex: 1, marginLeft: 8, marginTop: 2 }}>
                             <Text style={styles.termsText}>
                                 I agree to the{' '}
                                 <Text style={styles.termsLink} onPress={() => setShowTermsModal(true)}>

@@ -719,10 +719,10 @@ export const CaptureScreen: React.FC = () => {
             try {
                 await cameraRef.current.focus({ x: locationX, y: locationY });
             } catch (focusError: any) {
-                if (focusError.code !== 'device/focus-not-supported') {
+                // Sentry Noise Reduction: Do not log or warn for not-supported errors
+                if (focusError.code !== 'device/focus-not-supported' && focusError.message !== 'device/focus-not-supported') {
+                    // Only warn for legitimate failures
                     console.warn('[Focus] Unexpected error:', focusError);
-                } else {
-                    console.log('[Focus] Skipped: Device does not support focus');
                 }
             }
 
