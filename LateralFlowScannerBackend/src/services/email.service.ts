@@ -32,10 +32,16 @@ class EmailService {
                     user: config.SMTP_USER,
                     pass: config.SMTP_PASS,
                 },
-                // Connection timeout settings
-                connectionTimeout: 10000, // 10 seconds
-                greetingTimeout: 10000,   // 10 seconds
-                socketTimeout: 15000,     // 15 seconds
+                // Updated timeout settings to prevent ETIMEDOUT
+                connectionTimeout: 30000, // 30 seconds (was 10)
+                greetingTimeout: 30000,   // 30 seconds (was 10)
+                socketTimeout: 60000,     // 60 seconds (was 15)
+                dnsTimeout: 30000,        // 30 seconds
+                // Force IPv4 to avoid IPv6 connection issues on some cloud providers
+                family: 4,
+                // Enable debug logging for troubleshooting
+                debug: true,
+                logger: true,
                 // Pool connections for better performance
                 pool: true,
                 maxConnections: 3,

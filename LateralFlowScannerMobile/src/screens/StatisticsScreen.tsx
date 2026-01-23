@@ -16,19 +16,24 @@ const CountUp = ({ value, suffix = '', formatter = (v: number) => v.toString() }
     useEffect(() => {
         Animated.timing(animatedValue, {
             toValue: value,
-            duration: 1500,
-            useNativeDriver: false, // needed for listener
-            easing: Easing.out(Easing.exp),
+            duration: 800, // Faster animation (was 1500)
+            useNativeDriver: false,
+            easing: Easing.out(Easing.cubic), // Snappier easing
         }).start();
 
         const listener = animatedValue.addListener(({ value: v }) => {
-            setDisplayValue(Math.floor(v));
+            // Use round to snap to nearest integer (e.g. 0.6 -> 1)
+            // This ensures small numbers (1, 2) appear quickly
+            setDisplayValue(Math.round(v));
         });
 
         return () => {
             animatedValue.removeAllListeners();
         };
     }, [value]);
+
+    // Force final value render if animation is done (safety)
+    // Actually the listener handles it, but if value changes 0->0 it's fine.
 
     return <Text style={styles.statValue}>{formatter(displayValue)}{suffix}</Text>;
 };

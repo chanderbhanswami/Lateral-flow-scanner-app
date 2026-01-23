@@ -13,6 +13,7 @@ import { storageService } from '../services/storage.service';
 import { logger } from '../utils/logger';
 import { authApi } from '../api/auth.api';
 import { moderateScale, verticalScale, scale } from '../utils/responsive';
+import DeviceInfo from 'react-native-device-info';
 
 export const SettingsScreen: React.FC = () => {
     const navigation = useNavigation();
@@ -311,7 +312,7 @@ export const SettingsScreen: React.FC = () => {
                     </TouchableOpacity>
 
                     <View style={styles.footer}>
-                        <Text style={styles.footerText}>Version 1.0.0 (Build 102)</Text>
+                        <Text style={styles.footerText}>Version {DeviceInfo.getVersion()} (Build {DeviceInfo.getBuildNumber()})</Text>
                     </View>
 
                 </Animated.ScrollView>

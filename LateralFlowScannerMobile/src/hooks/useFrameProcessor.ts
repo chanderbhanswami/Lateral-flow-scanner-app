@@ -137,9 +137,9 @@ export const useCustomFrameProcessor = (
         const shouldProcessQuality = Math.random() < 0.33;
 
         // Force logging to JS thread for visibility
-        // if (Math.random() < 0.01) {
-        runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
-        // }
+        if (Math.random() < 0.01) {
+            runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
+        }
 
         if (!shouldProcessBorder && !shouldProcessQuality) {
             return;

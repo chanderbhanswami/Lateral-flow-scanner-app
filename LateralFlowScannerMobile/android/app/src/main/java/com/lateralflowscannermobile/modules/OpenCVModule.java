@@ -550,6 +550,92 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
     }
 
     @ReactMethod
+    public void perspectiveCorrection(String base64Image, ReadableArray corners, Promise promise) {
+        try {
+            if (!openCVInitialized) {
+                promise.reject("OPENCV_ERROR", "OpenCV not initialized");
+                return;
+            }
+
+            if (corners.size() != 4) {
+                promise.reject("ERROR", "Need exactly 4 corners");
+                return;
+            }
+
+            // Decode base64
+            byte[] decodedString = Base64.decode(base64Image, Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
+
+            if (bitmap == null) {
+                promise.reject("ERROR", "Could not decode base64 image");
+                return;
+            }
+
+            Mat mat = new Mat();
+            Utils.bitmapToMat(bitmap, mat);
+
+            // Extract source points
+            Point[] srcPoints = new Point[4];
+            for (int i = 0; i < 4; i++) {
+                ReadableMap corner = corners.getMap(i);
+                srcPoints[i] = new Point(corner.getDouble("x"), corner.getDouble("y"));
+            }
+
+            // Calculate target dimensions
+            double width = Math.max(
+                    distance(srcPoints[0], srcPoints[1]),
+                    distance(srcPoints[2], srcPoints[3]));
+            double height = Math.max(
+                    distance(srcPoints[0], srcPoints[3]),
+                    distance(srcPoints[1], srcPoints[2]));
+
+            // Define destination points (Rectangular)
+            Point[] dstPoints = new Point[] {
+                    new Point(0, 0),
+                    new Point(width - 1, 0),
+                    new Point(width - 1, height - 1),
+                    new Point(0, height - 1)
+            };
+
+            Mat srcMat = new MatOfPoint2f(srcPoints);
+            Mat dstMat = new MatOfPoint2f(dstPoints);
+            Mat transform = Imgproc.getPerspectiveTransform(srcMat, dstMat);
+
+            Mat corrected = new Mat();
+            Imgproc.warpPerspective(mat, corrected, transform, new Size(width, height));
+
+            // Convert back to base64
+            Bitmap correctedBitmap = Bitmap.createBitmap(
+                    corrected.cols(),
+                    corrected.rows(),
+                    Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(corrected, correctedBitmap);
+
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            correctedBitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
+            byte[] byteArray = byteArrayOutputStream.toByteArray();
+            String encoded = Base64.encodeToString(byteArray, Base64.DEFAULT);
+
+            // Cleanup
+            mat.release();
+            corrected.release();
+            srcMat.release();
+            dstMat.release();
+            transform.release();
+
+            promise.resolve(encoded);
+
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    // Helper for distance
+    private double distance(Point p1, Point p2) {
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+    }
+
+    @ReactMethod
     public void cropImage(String imagePath, ReadableArray corners, Promise promise) {
         try {
             if (!openCVInitialized) {

@@ -19,28 +19,16 @@ export interface GlobalStatistics {
 
 export const statisticsApi = {
     async getUserStatistics(): Promise<UserStatistics> {
-        try {
-            const response = await apiClient.get<ApiResponse<UserStatistics>>(
-                API_ENDPOINTS.STATISTICS.USER
-            );
-            console.log('[StatisticsAPI] User Response:', JSON.stringify(response, null, 2));
-            return response.data!;
-        } catch (error) {
-            console.error('[StatisticsAPI] User Error:', error);
-            throw error;
-        }
+        const response = await apiClient.get<ApiResponse<UserStatistics>>(
+            API_ENDPOINTS.STATISTICS.USER
+        );
+        return response.data!;
     },
 
     async getGlobalStatistics(): Promise<GlobalStatistics> {
-        try {
-            const response = await apiClient.get<ApiResponse<GlobalStatistics>>(
-                API_ENDPOINTS.STATISTICS.GLOBAL
-            );
-            console.log('[StatisticsAPI] Global Response:', JSON.stringify(response, null, 2));
-            return response.data!;
-        } catch (error) {
-            console.error('[StatisticsAPI] Global Error:', error);
-            throw error;
-        }
+        const response = await apiClient.get<ApiResponse<GlobalStatistics>>(
+            API_ENDPOINTS.STATISTICS.GLOBAL
+        );
+        return response.data!;
     },
 };

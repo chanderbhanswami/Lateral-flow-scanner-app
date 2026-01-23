@@ -14,6 +14,7 @@ import { captureApi } from '../api/capture.api';
 import { formatDistanceToNow } from 'date-fns';
 import { logger } from '../utils/logger';
 import { moderateScale, verticalScale, scale } from '../utils/responsive';
+import DeviceInfo from 'react-native-device-info';
 
 const { width: screenWidth } = Dimensions.get('window');
 const isSmallScreen = screenWidth < 380;
@@ -300,7 +301,7 @@ export const HomeScreen: React.FC = () => {
                                 style={styles.logo}
                                 resizeMode="contain"
                             />
-                            <Text style={styles.footerText}>Lateral Flow Scanner v1.0</Text>
+                            <Text style={styles.footerText}>Lateral Flow Scanner v{DeviceInfo.getVersion()}</Text>
                         </View>
 
                     </Animated.View>

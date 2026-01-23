@@ -208,6 +208,99 @@ RCT_EXPORT_METHOD(calculateHistogram:(NSString *)base64Image
     }
 }
 
+RCT_EXPORT_METHOD(perspectiveCorrection:(NSString *)base64Image
+                  corners:(NSArray *)corners
+                  resolver:(RCTPromiseResolveBlock)resolve
+                  rejecter:(RCTPromiseRejectBlock)reject) {
+    @try {
+        if (corners.count != 4) {
+             reject(@"ERROR", @"Need exactly 4 corners", nil);
+             return;
+        }
+        
+        NSData *imageData = [[NSData alloc] initWithBase64EncodedString:base64Image options:0];
+        UIImage *image = [UIImage imageWithData:imageData];
+        
+        if (!image) {
+            reject(@"ERROR", @"Failed to decode image", nil);
+            return;
+        }
+        
+        cv::Mat mat;
+        [self UIImageToMat:image mat:&mat];
+        
+        // Extract source points
+        std::vector<cv::Point2f> srcPoints;
+        for (NSDictionary *corner in corners) {
+            float x = [corner[@"x"] floatValue];
+            float y = [corner[@"y"] floatValue];
+            srcPoints.push_back(cv::Point2f(x, y));
+        }
+        
+        // Calculate dimensions
+        float w1 = sqrt(pow(srcPoints[1].x - srcPoints[0].x, 2) + pow(srcPoints[1].y - srcPoints[0].y, 2));
+        float w2 = sqrt(pow(srcPoints[2].x - srcPoints[3].x, 2) + pow(srcPoints[2].y - srcPoints[3].y, 2));
+        float h1 = sqrt(pow(srcPoints[3].x - srcPoints[0].x, 2) + pow(srcPoints[3].y - srcPoints[0].y, 2));
+        float h2 = sqrt(pow(srcPoints[2].x - srcPoints[1].x, 2) + pow(srcPoints[2].y - srcPoints[1].y, 2));
+        
+        float width = std::max(w1, w2);
+        float height = std::max(h1, h2);
+        
+        // Destination points
+        std::vector<cv::Point2f> dstPoints;
+        dstPoints.push_back(cv::Point2f(0, 0));
+        dstPoints.push_back(cv::Point2f(width - 1, 0));
+        dstPoints.push_back(cv::Point2f(width - 1, height - 1));
+        dstPoints.push_back(cv::Point2f(0, height - 1));
+        
+        // Warp
+        cv::Mat transform = cv::getPerspectiveTransform(srcPoints, dstPoints);
+        cv::Mat corrected;
+        cv::warpPerspective(mat, corrected, transform, cv::Size(width, height));
+        
+        // Convert to UIImage
+        NSData *data = [NSData dataWithBytes:corrected.data length:corrected.elemSize()*corrected.total()];
+        CGColorSpaceRef colorSpace;
+        
+        if (corrected.elemSize() == 1) {
+            colorSpace = CGColorSpaceCreateDeviceGray();
+        } else {
+            colorSpace = CGColorSpaceCreateDeviceRGB();
+        }
+        
+        CGDataProviderRef provider = CGDataProviderCreateWithCFData((__bridge CFDataRef)data);
+        
+        CGImageRef imageRef = CGImageCreate(
+            corrected.cols,
+            corrected.rows,
+            8,
+            8 * corrected.elemSize(),
+            corrected.step[0],
+            colorSpace,
+            kCGImageAlphaNone|kCGBitmapByteOrderDefault,
+            provider,
+            NULL,
+            false,
+            kCGRenderingIntentDefault
+        );
+        
+        UIImage *finalImage = [UIImage imageWithCGImage:imageRef];
+        
+        CGImageRelease(imageRef);
+        CGDataProviderRelease(provider);
+        CGColorSpaceRelease(colorSpace);
+        
+        // Convert to Base64
+        NSData *jpgData = UIImageJPEGRepresentation(finalImage, 0.9);
+        NSString *base64String = [jpgData base64EncodedStringWithOptions:0];
+        
+        resolve(base64String);
+        
+    } @catch (NSException *exception) {
+        reject(@"ERROR", exception.reason, nil);
+    }
+}
+
 - (void)UIImageToMat:(UIImage *)image mat:(cv::Mat *)mat {
     CGColorSpaceRef colorSpace = CGImageGetColorSpace(image.CGImage);
     CGFloat cols = image.size.width;
