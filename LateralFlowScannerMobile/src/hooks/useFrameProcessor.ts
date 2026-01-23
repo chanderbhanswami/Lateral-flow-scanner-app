@@ -1,13 +1,7 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { useFrameProcessor } from 'react-native-vision-camera';
 import { Worklets } from 'react-native-worklets-core';
-import {
-    OpenCV,
-    ObjectType,
-    DataTypes,
-    ColorConversionCodes,
-    MorphShapes
-} from 'react-native-fast-opencv';
+import { OpenCV } from 'react-native-fast-opencv';
 import { useResizePlugin } from 'vision-camera-resize-plugin';
 import { KalmanFilter2D } from '../utils/math/KalmanFilter';
 import { logger } from '../utils/logger';
@@ -143,9 +137,9 @@ export const useCustomFrameProcessor = (
         const shouldProcessQuality = Math.random() < 0.33;
 
         // Force logging to JS thread for visibility
-        if (Math.random() < 0.01) {
-            runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
-        }
+        // if (Math.random() < 0.01) {
+        runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
+        // }
 
         if (!shouldProcessBorder && !shouldProcessQuality) {
             return;
@@ -179,8 +173,8 @@ export const useCustomFrameProcessor = (
 
                 try {
                     src = cv.frameBufferToMat(480, 640, 4, resized);
-                    gray = cv.createObject(ObjectType.Mat);
-                    cv.invoke('cvtColor', src, gray, ColorConversionCodes.COLOR_RGBA2GRAY);
+                    gray = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
+                    cv.invoke('cvtColor', src, gray, 11); // COLOR_RGBA2GRAY = 11
                     matReady = true;
                     // runOnJsLog('[FP] Mat Ready');
                 } catch (e) {
@@ -191,11 +185,11 @@ export const useCustomFrameProcessor = (
                     // === STEP 3: QUALITY ANALYSIS ===
                     if (shouldProcessQuality) {
                         try {
-                            const laplacian = cv.createObject(ObjectType.Mat);
-                            cv.invoke('Laplacian', gray, laplacian, DataTypes.CV_8U);
+                            const laplacian = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
+                            cv.invoke('Laplacian', gray, laplacian, 0); // CV_8U = 0
 
-                            const meanStdDevMean = cv.createObject(ObjectType.Mat);
-                            const meanStdDevStd = cv.createObject(ObjectType.Mat);
+                            const meanStdDevMean = cv.createObject('mat', 0, 0, 6); // CV_64F = 6 (Empty)
+                            const meanStdDevStd = cv.createObject('mat', 0, 0, 6); // CV_64F = 6 (Empty)
                             cv.invoke('meanStdDev', laplacian, meanStdDevMean, meanStdDevStd);
 
                             const stdDevVal = cv.toJSValue(meanStdDevStd);
@@ -284,18 +278,19 @@ export const useCustomFrameProcessor = (
                             cv.invoke('GaussianBlur', gray, gray, { width: 5, height: 5 }, 0);
 
                             // 2. Canny
-                            const edges = cv.createObject(ObjectType.Mat);
+                            const edges = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
                             cv.invoke('Canny', gray, edges, 30, 100);
 
                             // 3. Dilate
-                            const kernel = cv.invoke('getStructuringElement', MorphShapes.MORPH_RECT, { width: 3, height: 3 });
+                            const kernel = cv.invoke('getStructuringElement', 0, { width: 3, height: 3 }); // MorphShapes.MORPH_RECT = 0
                             cv.invoke('dilate', edges, edges, kernel);
 
                             // 4. Hough Lines Probabilistic
-                            const linesMat = cv.createObject(ObjectType.Mat);
+                            const linesMat = cv.createObject('mat', 0, 0, 4); // CV_32S = 4
                             cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 50, 50, 10);
 
-                            const lineCount = cv.invoke('rows', linesMat);
+                            const linesInfo = cv.toJSValue(linesMat);
+                            const lineCount = linesInfo.rows;
 
                             // 5. Enterprise Logic: Clustering & RANSAC Line Fitting
                             // --- HELPERS ---
