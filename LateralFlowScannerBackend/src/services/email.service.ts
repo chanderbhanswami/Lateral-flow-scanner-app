@@ -42,10 +42,8 @@ class EmailService {
                 // Enable debug logging for troubleshooting
                 debug: true,
                 logger: true,
-                // Pool connections for better performance
-                pool: true,
-                maxConnections: 3,
-                maxMessages: 100,
+                // Disable pooling on serverless/cloud environments to prevent stale connection timeouts
+                pool: false,
             } as nodemailer.TransportOptions);
             this.isConfigured = true;
             logger.info(`Email service initialized (host: ${config.SMTP_HOST}, port: ${smtpPort}, secure: ${isSecure})`);
