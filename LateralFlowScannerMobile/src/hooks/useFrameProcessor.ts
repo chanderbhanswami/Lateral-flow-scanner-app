@@ -167,11 +167,14 @@ export const useCustomFrameProcessor = (
                 });
             } catch (e: any) {
                 // IGNORE ViewNotFoundError - this is expected during navigation/unmount
-                if (e.message?.includes('ViewNotFoundError') || e.message?.includes('VisionCameraProxy')) {
+                const msg = e.toString();
+                if (msg.includes('ViewNotFoundError') ||
+                    msg.includes('VisionCameraProxy') ||
+                    msg.includes('not found in the view manager')) {
                     // runOnJsLog('[FP] View detached, skipping frame');
                     return;
                 }
-                runOnJsError(`[FP] Resize failed: ${e}`);
+                runOnJsError(`[FP] Resize failed: ${msg}`);
                 return;
             }
 

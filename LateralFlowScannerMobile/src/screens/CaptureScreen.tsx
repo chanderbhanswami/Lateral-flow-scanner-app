@@ -250,39 +250,47 @@ export const CaptureScreen: React.FC = () => {
     // === SMART FOCUS ON DETECTION ===
     // Automatically focus on the center of the kit when it is detected
     const lastFocusTimeRef = useRef(0);
+    const isFocusingRef = useRef(false); // MUTEX to prevent "focus-canceled" errors
+
     useEffect(() => {
         if (!borderData?.detected || !cameraRef.current) return;
 
-        // Debounce focus calls (e.g., limit to once every 2 seconds to avoid hunting)
         const now = Date.now();
-        if (now - lastFocusTimeRef.current < 2000) return;
+        // Debounce: 2000ms cooldown AND check if currently focusing
+        if (now - lastFocusTimeRef.current < 2000 || isFocusingRef.current) return;
 
         // Calculate Center of the detected kit
-        // borderData.corners is typically [TL, TR, BR, BL]
         if (borderData.corners && borderData.corners.length === 4) {
             const xs = borderData.corners.map(p => p.x);
             const ys = borderData.corners.map(p => p.y);
 
-            // Average X and Y to find center
             const cx = xs.reduce((a, b) => a + b, 0) / 4;
             const cy = ys.reduce((a, b) => a + b, 0) / 4;
 
-            console.log(`[SmartFocus] Focusing on detected kit at (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
-
-            try {
-                cameraRef.current.focus({ x: cx, y: cy });
-            } catch (e: any) {
-                if (e.code !== 'device/focus-not-supported') {
-                    console.warn('[SmartFocus] Focus failed:', e);
+            // Trigger Focus (Async)
+            const triggerFocus = async () => {
+                if (!cameraRef.current) return;
+                try {
+                    isFocusingRef.current = true;
+                    // console.log(`[SmartFocus] Focusing at (${cx.toFixed(0)}, ${cy.toFixed(0)})`);
+                    await cameraRef.current.focus({ x: cx, y: cy });
+                } catch (e: any) {
+                    // Ignore cancellation errors (expected during rapid movement)
+                    if (e.code !== 'device/focus-not-supported' && e.code !== 'capture/focus-canceled') {
+                        // console.warn('[SmartFocus] Focus failed:', e);
+                    }
+                } finally {
+                    isFocusingRef.current = false;
+                    lastFocusTimeRef.current = Date.now();
                 }
-            }
-            lastFocusTimeRef.current = now;
+            };
 
-            // Show feedback
+            triggerFocus();
+
+            // Show feedback immediately (don't wait for focus)
             setFocusPoint({ x: cx, y: cy, visible: true });
             setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1000);
         }
-
     }, [borderData?.detected, borderData?.corners]);
 
 
