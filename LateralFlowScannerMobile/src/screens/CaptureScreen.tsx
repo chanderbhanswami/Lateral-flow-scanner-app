@@ -283,7 +283,41 @@ export const CaptureScreen: React.FC = () => {
             setTimeout(() => setFocusPoint(p => ({ ...p, visible: false })), 1000);
         }
 
-    }, [borderData?.detected, borderData?.corners]); // Re-run when detection status or position updates slightly
+    }, [borderData?.detected, borderData?.corners]);
+
+
+    // === HAPTIC FEEDBACK FOR DETECTION & ALIGNMENT ===
+    const prevDetectedRef = useRef(false);
+    const prevAlignedRef = useRef(false);
+
+    useEffect(() => {
+        if (!settings.hapticFeedback) return;
+
+        const isDetected = borderData?.detected || false;
+        const isAligned = (borderData?.isAligned && borderData?.isCentered) || false;
+
+        // 1. Trigger on INITIAL Detection (False -> True)
+        if (isDetected && !prevDetectedRef.current) {
+            ReactNativeHapticFeedback.trigger('impactLight', {
+                enableVibrateFallback: true,
+                ignoreAndroidSystemSettings: false,
+            });
+            console.log('[Haptic] Detection Triggered');
+        }
+
+        // 2. Trigger on INITIAL Alignment/Hugging (False -> True)
+        // Only if also detected (to be safe)
+        if (isDetected && isAligned && !prevAlignedRef.current) {
+            ReactNativeHapticFeedback.trigger('notificationSuccess', {
+                enableVibrateFallback: true,
+                ignoreAndroidSystemSettings: false,
+            });
+            console.log('[Haptic] Alignment (Hugged) Triggered');
+        }
+
+        prevDetectedRef.current = isDetected;
+        prevAlignedRef.current = isAligned;
+    }, [borderData?.detected, borderData?.isAligned, borderData?.isCentered, settings.hapticFeedback]);
 
 
     // Auto-capture logic
@@ -373,10 +407,23 @@ export const CaptureScreen: React.FC = () => {
                 size: { width: 0, height: 0 }
             };
 
-            // FIX: If corners are from Native High-Res (already in photo coordinates), scale is 1.0.
-            // If corners are from Live Preview (480x640), we need to scale up (width/FP_WIDTH).
-            const scaleX = needsScaling ? (width / FP_WIDTH) : 1.0;
-            const scaleY = needsScaling ? (height / FP_HEIGHT) : 1.0;
+            // FIX: Auto-detect if corners are Normalized (0-1) or Pixel Coordinates
+            // Normalized comes from Live Preview (useFrameProcessor)
+            // Pixel comes from Native High-Res Detection
+            const isNormalized = corners && corners.length > 0 && corners.every((p: any) => p.x <= 1.0 && p.y <= 1.0);
+
+            let scaleX = 1.0;
+            let scaleY = 1.0;
+
+            if (isNormalized) {
+                console.log('[Crop] Detected Normalized Coordinates (0-1). Scaling to Photo Dimensions.');
+                scaleX = width;
+                scaleY = height;
+            } else if (needsScaling) {
+                // Legacy fallback if non-normalized low-res coords are passed (unlikely now)
+                scaleX = width / FP_WIDTH;
+                scaleY = height / FP_HEIGHT;
+            }
 
             console.log(`[Crop] Scales: X=${scaleX.toFixed(3)}, Y=${scaleY.toFixed(3)}`);
 
@@ -389,9 +436,10 @@ export const CaptureScreen: React.FC = () => {
                 const maxY = Math.max(...ys);
 
                 // Add padding (e.g. 10%)
-                // If scaled, padding is in photo pixels.
-                const padX = (maxX - minX) * 0.1;
-                const padY = (maxY - minY) * 0.1;
+                const boxW = (maxX - minX);
+                const boxH = (maxY - minY);
+                const padX = boxW * 0.1;
+                const padY = boxH * 0.1;
 
                 cropData = {
                     offset: {
@@ -399,8 +447,8 @@ export const CaptureScreen: React.FC = () => {
                         y: Math.max(0, (minY - padY) * scaleY)
                     },
                     size: {
-                        width: Math.min(width, (maxX - minX + 2 * padX) * scaleX),
-                        height: Math.min(height, (maxY - minY + 2 * padY) * scaleY)
+                        width: Math.min(width, (boxW + 2 * padX) * scaleX),
+                        height: Math.min(height, (boxH + 2 * padY) * scaleY)
                     }
                 };
             } else {

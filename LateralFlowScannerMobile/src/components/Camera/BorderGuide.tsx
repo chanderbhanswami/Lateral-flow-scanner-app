@@ -28,10 +28,10 @@ export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDete
     // Use green when detected, otherwise use provided color
     const guideColor = isDetected ? '#10b981' : color || '#ef4444';
 
-    // Scale factors (processing frame is 480x640, verifying against screen size)
-    // Note: If frame processor uses 480x640 for portrait
-    const scaleX = CAMERA_WIDTH / 480;
-    const scaleY = CAMERA_HEIGHT / 640;
+    // Scale factors: Coordinates are now NORMALIZED (0-1) from useFrameProcessor
+    // So we just multiply by the screen/camera dimensions to position them.
+    const scaleX = CAMERA_WIDTH;
+    const scaleY = CAMERA_HEIGHT;
 
     const renderDynamicGuide = () => {
         if (!isDetected || !corners || corners.length !== 4) return null;

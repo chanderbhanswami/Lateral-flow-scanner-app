@@ -139,7 +139,7 @@ class EmailService {
                     <p>Hello ${name},</p>
                     <p>Use this OTP to reset your password:</p>
                     <div style="background: white; border: 2px solid #ef4444; border-radius: 10px; padding: 20px; text-align: center; margin: 20px 0;">
-                        <div style="font-size: 36px; font-weight: bold; color: #ef4444; letter-spacing: 8px;">${otp}</div>
+                        <div style="font-size: 28px; font-weight: bold; color: #ef4444; letter-spacing: 8px;">${otp}</div>
                         <p style="margin: 10px 0 0 0; color: #64748b; font-size: 14px;">This code expires in 10 minutes</p>
                     </div>
                 </div>

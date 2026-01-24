@@ -152,11 +152,16 @@ export const useCustomFrameProcessor = (
             }
 
             // === STEP 1: RESIZE FRAME ===
+            // FIX: Switch to PORTRAIT Mode (480x640) because the App is Portrait.
+            // Previous 640x480 (Landscape) caused stretching and angle distortion.
+            const TARGET_WIDTH = 480;
+            const TARGET_HEIGHT = 640;
+
             let resized: any;
             try {
                 // Resize plugin expects a valid view. If view is destroyed (navigating away), this throws.
                 resized = resize(frame, {
-                    scale: { width: 640, height: 480 },
+                    scale: { width: TARGET_WIDTH, height: TARGET_HEIGHT },
                     pixelFormat: 'rgba',
                     dataType: 'uint8',
                 });
@@ -177,8 +182,8 @@ export const useCustomFrameProcessor = (
                 let matReady = false;
 
                 try {
-                    src = cv.frameBufferToMat(480, 640, 4, resized);
-                    gray = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
+                    src = cv.frameBufferToMat(TARGET_HEIGHT, TARGET_WIDTH, 4, resized); // Note: Rows=Height, Cols=Width
+                    gray = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0); // CV_8U = 0
                     cv.invoke('cvtColor', src, gray, 11); // COLOR_RGBA2GRAY = 11
                     matReady = true;
                     // runOnJsLog('[FP] Mat Ready');
@@ -190,7 +195,7 @@ export const useCustomFrameProcessor = (
                     // === STEP 3: QUALITY ANALYSIS ===
                     if (shouldProcessQuality) {
                         try {
-                            const laplacian = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
+                            const laplacian = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0); // CV_8U = 0
                             // Laplacian args: src, dst, ddepth(0=8U), ksize(1), scale(1), delta(0), borderType(4=DEFAULT)
                             cv.invoke('Laplacian', gray, laplacian, 0, 1, 1, 0, 4);
 
@@ -285,7 +290,7 @@ export const useCustomFrameProcessor = (
                             cv.invoke('GaussianBlur', gray, gray, ksize5, 0);
 
                             // 2. Canny
-                            const edges = cv.createObject('mat', 480, 640, 0); // CV_8U = 0
+                            const edges = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0); // CV_8U = 0
                             cv.invoke('Canny', gray, edges, 30, 100);
 
                             // 3. Dilate
@@ -372,8 +377,8 @@ export const useCustomFrameProcessor = (
                             const ptsLeft: { x: number, y: number }[] = [];
                             const ptsRight: { x: number, y: number }[] = [];
 
-                            const centerX = 640 / 2;
-                            const centerY = 480 / 2;
+                            const centerX = TARGET_WIDTH / 2;
+                            const centerY = TARGET_HEIGHT / 2;
 
                             const maxLines = Math.min(lineCount, 50);
                             const lineDataObj = cv.matToBuffer(linesMat, 'int32');
@@ -453,14 +458,25 @@ export const useCustomFrameProcessor = (
                                             // Setting min to 2.0 filters out almost all screens & square items.
                                             if (aspectRatio > 2.0 && aspectRatio < 8.0) {
 
-                                                // Validation 3: Non-Crossed (Convexity) check
-                                                // Check diagonals intersect
-                                                // But sorting by Y then X ALREADY guarantees a specific winding (Trapezoid-ish).
-                                                // We just need to ensure it's not skewed into a line.
+                                                // Validation 3: Parallelism Check (Avoid random crossed lines)
+                                                // Check if top/bottom slopes are somewhat similar
+                                                const slopeTop = Math.abs((sTR.y - sTL.y) / (sTR.x - sTL.x + 0.001));
+                                                const slopeBot = Math.abs((nBR.y - nBL.y) / (nBR.x - nBL.x + 0.001));
 
-                                                // Optional: Check parallelism (slopes roughly match)
-                                                // For now, strict sorting solves the visual "Cross" artifact.
-                                                bestCorners = [sTL, sTR, nBR, nBL]; // Clockwise: TL, TR, BR, BL
+                                                // Allow small skew (perspective), but huge difference means random lines
+                                                if (Math.abs(slopeTop - slopeBot) < 0.5) {
+                                                    // NORMALIZE COORDINATES TO 0-1 RANGE
+                                                    // This fixes the 640x480 vs Screen Size mismatch
+                                                    const width = 640;
+                                                    const height = 480;
+
+                                                    bestCorners = [
+                                                        { x: sTL.x / width, y: sTL.y / height },
+                                                        { x: sTR.x / width, y: sTR.y / height },
+                                                        { x: nBR.x / width, y: nBR.y / height },
+                                                        { x: nBL.x / width, y: nBL.y / height }
+                                                    ];
+                                                }
                                             }
                                         }
                                     }

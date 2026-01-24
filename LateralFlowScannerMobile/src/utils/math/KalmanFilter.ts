@@ -12,17 +12,18 @@ export class KalmanFilter2D {
     private dx: number = 0;
     private dy: number = 0;
 
-    // Covariance Matrix (Uncertainty) - 4x4
-    // Simplified as diagonal elements for performance
-    private p: number[] = [100, 100, 10, 10];
+    // Covariance Matrix (Uncertainty) - Normalized Scale
+    private p: number[] = [1, 1, 0.5, 0.5];
 
-    // Process Noise (Q) - How much we expect the actual kit to move
-    // High = Responsive, Low = Smooth
-    private q: number = 0.5;
+    // Process Noise (Q) - Normalized
+    // How much the object actually moves per second (0.005 = 0.5% of screen)
+    private q: number = 0.005;
 
-    // Measurement Noise (R) - How much noise is in the detection
-    // High = Trust model (Smooth), Low = Trust measurement (Jittery)
-    private r: number = 10;
+    // Measurement Noise (R) - Normalized
+    // Expected jitter in detection (0.01 = 1% error)
+    // Decreasing R makes it trust measurement more (faster response)
+    // Increasing R makes it trust model more (smoother)
+    private r: number = 0.01;
 
     // Last update time for velocity calculation
     private lastTime: number = 0;
@@ -59,7 +60,8 @@ export class KalmanFilter2D {
      */
     update(measureX: number, measureY: number) {
         // Validation: Ignore wild jumps (measurement noise gating)
-        if (Math.abs(measureX - this.x) > 200 || Math.abs(measureY - this.y) > 200) {
+        // Normalized Space 0-1: A jump of 0.3 (30%) is huge.
+        if (Math.abs(measureX - this.x) > 0.3 || Math.abs(measureY - this.y) > 0.3) {
             // If jump is too huge, maybe we lost tracking? 
             // For now, accept it but trust model more (High R) to damp it.
             // Or simple reset if it's the first lock.

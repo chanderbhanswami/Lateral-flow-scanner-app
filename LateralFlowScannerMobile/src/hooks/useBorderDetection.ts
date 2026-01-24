@@ -40,16 +40,15 @@ export const useBorderDetection = () => {
         // Only show "Detected" if we have been stable for a while
         const isStable = stableCount.current >= STABILITY_THRESHOLD;
 
-        // Calculate distance from center
+        // Calculate distance from center (Normalized 0-1)
         let distanceFromCenter = 0;
         if (corners.length === 4) {
             const centerX = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4;
             const centerY = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4;
-            const frameCenterX = FRAME_WIDTH / 2;
-            const frameCenterY = FRAME_HEIGHT / 2;
+            // Center is always 0.5, 0.5 in normalized space
             distanceFromCenter = Math.sqrt(
-                Math.pow(centerX - frameCenterX, 2) +
-                Math.pow(centerY - frameCenterY, 2)
+                Math.pow(centerX - 0.5, 2) +
+                Math.pow(centerY - 0.5, 2)
             );
         }
 

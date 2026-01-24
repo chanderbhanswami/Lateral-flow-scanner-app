@@ -235,6 +235,62 @@ export const ReviewScreen: React.FC = () => {
                 </Card>
             )}
 
+            {/* Detailed Analysis Report */}
+            {captureData.analysisData && (
+                <Card style={styles.infoCard}>
+                    <Text style={styles.sectionTitle}>Analysis Report</Text>
+
+                    {/* Exposure */}
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Exposure:</Text>
+                        <Text style={styles.infoValue}>
+                            {captureData.analysisData.exposureAnalysis?.isUnderexposed ? 'Underexposed' :
+                                captureData.analysisData.exposureAnalysis?.isOverexposed ? 'Overexposed' : 'Good'}
+                        </Text>
+                    </View>
+
+                    {/* Blur */}
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Focus Score:</Text>
+                        <Text style={styles.infoValue}>
+                            {captureData.analysisData.blurAnalysis?.isBlurry ? 'Blurry' : 'Sharp'}
+                            {captureData.analysisData.blurAnalysis?.laplacianVariance ?
+                                ` (${captureData.analysisData.blurAnalysis.laplacianVariance.toFixed(0)})` : ''}
+                        </Text>
+                    </View>
+
+                    {/* Shadows */}
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Shadows:</Text>
+                        <Text style={styles.infoValue}>
+                            {captureData.analysisData.shadowAnalysis?.hasShadow ?
+                                `Detected (${(captureData.analysisData.shadowAnalysis.shadowCoverage * 100).toFixed(0)}%)` :
+                                'None'}
+                        </Text>
+                    </View>
+
+                    {/* Glare */}
+                    <View style={styles.infoRow}>
+                        <Text style={styles.infoLabel}>Glare:</Text>
+                        <Text style={styles.infoValue}>
+                            {captureData.analysisData.reflectionAnalysis?.hasReflection ?
+                                `Detected (${(captureData.analysisData.reflectionAnalysis.affectedArea * 100).toFixed(0)}%)` :
+                                'None'}
+                        </Text>
+                    </View>
+
+                    {/* Recommendations */}
+                    {(captureData.analysisData.recommendations?.length ?? 0) > 0 && (
+                        <View style={{ marginTop: 12, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' }}>
+                            <Text style={[styles.infoLabel, { marginBottom: 4 }]}>Recommendations:</Text>
+                            {captureData.analysisData.recommendations.map((rec: string, i: number) => (
+                                <Text key={i} style={[styles.infoValue, { color: '#059669', marginBottom: 2 }]}>• {rec}</Text>
+                            ))}
+                        </View>
+                    )}
+                </Card>
+            )}
+
             {/* Action Buttons */}
             <View style={styles.buttonContainer}>
                 <Button

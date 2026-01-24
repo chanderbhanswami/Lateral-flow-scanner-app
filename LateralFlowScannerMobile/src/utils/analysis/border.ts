@@ -16,8 +16,9 @@ interface BorderDetection {
 }
 
 // Inline thresholds
+// Inline thresholds
 const BORDER_THRESHOLDS = {
-    MIN_AREA: 1000,
+    MIN_AREA: 0.05, // 5% of screen area (Normalized 0-1)
     ASPECT_RATIO_MIN: 1.2,
     ASPECT_RATIO_MAX: 8.0,
     ALIGNMENT_TOLERANCE: 15, // degrees - slightly relaxed
@@ -26,11 +27,14 @@ const BORDER_THRESHOLDS = {
 
 /**
  * Analyze border from detected corners (Worklet-safe)
+ * EXPECTS NORMALIZED CORNERS (0-1)
  */
 export function analyzeBorderWorklet(
     corners: Array<{ x: number; y: number }>,
-    frameWidth: number,
-    frameHeight: number
+    // Frame dimensions unused in normalized mode, but kept for compatibility if needed.
+    // In normalized mode, assume frame is 1x1.
+    frameWidth: number = 1,
+    frameHeight: number = 1
 ): BorderDetection {
     'worklet';
 
@@ -56,7 +60,7 @@ export function analyzeBorderWorklet(
     }
     area = Math.abs(area) / 2;
 
-    // Calculate width and height
+    // Calculate width and height (Normalized distance)
     const width = Math.sqrt(
         Math.pow(corners[1].x - corners[0].x, 2) +
         Math.pow(corners[1].y - corners[0].y, 2)
@@ -66,10 +70,16 @@ export function analyzeBorderWorklet(
         Math.pow(corners[3].y - corners[0].y, 2)
     );
 
+    // Aspect Ratio depends on the physical dimensions.
+    // If we are normalized, 'width' is relative width.
+    // Assuming portrait frame (480x640) or landscape?
+    // Normalized ratio is purely geometric shape in 0-1 space.
+    // To get Real Aspect Ratio, we would need real aspect.
+    // But detecting "squareness" in normalized space is usually sufficient if screen is not ultra-wide.
     const aspectRatio = height > 0 ? width / height : 0;
     const normalizedRatio = aspectRatio > 1 ? aspectRatio : 1 / aspectRatio;
 
-    // Check if aspect ratio matches cassette (roughly 1:3.5)
+    // Check if aspect ratio matches cassette
     const isRectangular = normalizedRatio >= BORDER_THRESHOLDS.ASPECT_RATIO_MIN &&
         normalizedRatio <= BORDER_THRESHOLDS.ASPECT_RATIO_MAX;
 
@@ -77,23 +87,26 @@ export function analyzeBorderWorklet(
     const centerX = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4;
     const centerY = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4;
 
-    // Check if centered
-    const frameCenterX = frameWidth / 2;
-    const frameCenterY = frameHeight / 2;
-    const offsetX = Math.abs(centerX - frameCenterX) / frameWidth;
-    const offsetY = Math.abs(centerY - frameCenterY) / frameHeight;
+    // Check if centered (0.5, 0.5 is center)
+    const offsetX = Math.abs(centerX - 0.5);
+    const offsetY = Math.abs(centerY - 0.5);
     const isCentered = offsetX < BORDER_THRESHOLDS.CENTER_TOLERANCE &&
         offsetY < BORDER_THRESHOLDS.CENTER_TOLERANCE;
 
     // Check alignment (how horizontal/vertical the edges are)
-    const angle1 = Math.atan2(corners[1].y - corners[0].y, corners[1].x - corners[0].x) * 180 / Math.PI;
+    // De-normalize coordinates using Aspect Ratio (4:3) to get correct angles
+    const ASPECT_RATIO = 4 / 3;
+    const dx = corners[1].x - corners[0].x;
+    const dy = (corners[1].y - corners[0].y) * ASPECT_RATIO;
+    const angle1 = Math.atan2(dy, dx) * 180 / Math.PI;
     const isAligned = Math.abs(angle1) < BORDER_THRESHOLDS.ALIGNMENT_TOLERANCE ||
         Math.abs(angle1 - 90) < BORDER_THRESHOLDS.ALIGNMENT_TOLERANCE ||
         Math.abs(angle1 + 90) < BORDER_THRESHOLDS.ALIGNMENT_TOLERANCE ||
         Math.abs(Math.abs(angle1) - 180) < BORDER_THRESHOLDS.ALIGNMENT_TOLERANCE;
 
     // Confidence based on multiple factors
-    const areaConfidence = Math.min(area / (frameWidth * frameHeight * 0.4), 1);
+    // Area confidence: expected kit size is ~30-50% of screen width.
+    const areaConfidence = Math.min(area / 0.1, 1);
     const shapeConfidence = isRectangular ? 1 : 0.5;
     const alignmentConfidence = isAligned ? 1 : 0.7;
     const centerConfidence = isCentered ? 1 : 0.8;
