@@ -152,10 +152,10 @@ export const useCustomFrameProcessor = (
             }
 
             // === STEP 1: RESIZE FRAME ===
-            // FIX: Switch to PORTRAIT Mode (480x640) because the App is Portrait.
-            // Previous 640x480 (Landscape) caused stretching and angle distortion.
-            const TARGET_WIDTH = 480;
-            const TARGET_HEIGHT = 640;
+            // FIX: Revert to LANDSCAPE Mode (640x480) match Native Sensor.
+            // We handled the rotation dynamically in the Detection Step.
+            const TARGET_WIDTH = 640;
+            const TARGET_HEIGHT = 480;
 
             let resized: any;
             try {
@@ -289,22 +289,22 @@ export const useCustomFrameProcessor = (
                             const ksize5 = cv.createObject('size', 5, 5);
                             cv.invoke('GaussianBlur', gray, gray, ksize5, 0);
 
-                            // 2. Canny (Tightened Thresholds)
-                            // Was 30, 100. Increasing to 50, 150 to ignore faint background noise.
+                            // 2. Canny (Relaxed for Sensitivity)
+                            // Reverting to 30, 100 to ensure we catch edges even in low contrast.
                             const edges = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0);
-                            cv.invoke('Canny', gray, edges, 50, 150);
+                            cv.invoke('Canny', gray, edges, 30, 100);
 
                             // 3. Dilate
                             const ksize3 = cv.createObject('size', 3, 3);
                             const kernel = cv.invoke('getStructuringElement', 0, ksize3);
                             cv.invoke('morphologyEx', edges, edges, 1, kernel);
 
-                            // 4. Hough Lines Probabilistic (Stricter)
-                            // threshold: 50 -> 80 (More votes needed)
-                            // minLineLength: 50 -> 60 (Longer lines only)
-                            // maxLineGap: 10 -> 20 (Allow gaps for broken cassette edges)
+                            // 4. Hough Lines Probabilistic (More Permissive)
+                            // threshold: 80 -> 40 (Catch weaker lines)
+                            // minLineLength: 60 -> 30 (Catch segments)
+                            // maxLineGap: 20 -> 20 (Keep gap jumping)
                             const linesMat = cv.createObject('mat', 0, 0, 4);
-                            cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 80, 60, 20);
+                            cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 40, 30, 20);
 
                             const linesInfo = cv.toJSValue(linesMat);
                             const lineCount = linesInfo.rows;
@@ -469,16 +469,29 @@ export const useCustomFrameProcessor = (
 
                                                 // Allow small skew (perspective), but huge difference means random lines
                                                 if (Math.abs(slopeTop - slopeBot) < 0.5) {
-                                                    // NORMALIZE COORDINATES TO 0-1 RANGE
-                                                    // This fixes the 640x480 vs Screen Size mismatch
-                                                    const width = 640;
-                                                    const height = 480;
+                                                    // FRAME COORDINATES (Landscape 640x480)
+                                                    // x: 0 (Left) -> 640 (Right)
+                                                    // y: 0 (Top) -> 480 (Bottom)
+
+                                                    // SCREEN COORDINATES (Portrait)
+                                                    // The Sensor is rotated 90 degrees relative to the Screen.
+                                                    // If we detect a Horizontal Kit in the Frame (Width > Height),
+                                                    // it corresponds to a Vertical Kit on the Screen.
+
+                                                    // Coordinate Mapping (90 deg Counter-Clockwise):
+                                                    // Screen X (0-1) = Frame Y (0-1)
+                                                    // Screen Y (0-1) = 1 - Frame X (0-1)
+
+                                                    const normalizeAndRotate = (p: { x: number, y: number }) => ({
+                                                        x: p.y / TARGET_HEIGHT,       // Swap X with Y (Normalized)
+                                                        y: 1 - (p.x / TARGET_WIDTH)   // Rotate 90deg (Swap Y with 1-X)
+                                                    });
 
                                                     bestCorners = [
-                                                        { x: sTL.x / width, y: sTL.y / height },
-                                                        { x: sTR.x / width, y: sTR.y / height },
-                                                        { x: nBR.x / width, y: nBR.y / height },
-                                                        { x: nBL.x / width, y: nBL.y / height }
+                                                        normalizeAndRotate(sTL),
+                                                        normalizeAndRotate(sTR),
+                                                        normalizeAndRotate(nBR),
+                                                        normalizeAndRotate(nBL)
                                                     ];
                                                 }
                                             }
