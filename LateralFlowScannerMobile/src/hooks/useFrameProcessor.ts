@@ -289,18 +289,22 @@ export const useCustomFrameProcessor = (
                             const ksize5 = cv.createObject('size', 5, 5);
                             cv.invoke('GaussianBlur', gray, gray, ksize5, 0);
 
-                            // 2. Canny
-                            const edges = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0); // CV_8U = 0
-                            cv.invoke('Canny', gray, edges, 30, 100);
+                            // 2. Canny (Tightened Thresholds)
+                            // Was 30, 100. Increasing to 50, 150 to ignore faint background noise.
+                            const edges = cv.createObject('mat', TARGET_HEIGHT, TARGET_WIDTH, 0);
+                            cv.invoke('Canny', gray, edges, 50, 150);
 
                             // 3. Dilate
                             const ksize3 = cv.createObject('size', 3, 3);
-                            const kernel = cv.invoke('getStructuringElement', 0, ksize3); // MorphShapes.MORPH_RECT = 0
-                            cv.invoke('morphologyEx', edges, edges, 1, kernel); // MORPH_DILATE = 1
+                            const kernel = cv.invoke('getStructuringElement', 0, ksize3);
+                            cv.invoke('morphologyEx', edges, edges, 1, kernel);
 
-                            // 4. Hough Lines Probabilistic
-                            const linesMat = cv.createObject('mat', 0, 0, 4); // CV_32S = 4
-                            cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 50, 50, 10);
+                            // 4. Hough Lines Probabilistic (Stricter)
+                            // threshold: 50 -> 80 (More votes needed)
+                            // minLineLength: 50 -> 60 (Longer lines only)
+                            // maxLineGap: 10 -> 20 (Allow gaps for broken cassette edges)
+                            const linesMat = cv.createObject('mat', 0, 0, 4);
+                            cv.invoke('HoughLinesP', edges, linesMat, 1, Math.PI / 180, 80, 60, 20);
 
                             const linesInfo = cv.toJSValue(linesMat);
                             const lineCount = linesInfo.rows;

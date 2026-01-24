@@ -451,14 +451,41 @@ export const CaptureScreen: React.FC = () => {
                         height: Math.min(height, (boxH + 2 * padY) * scaleY)
                     }
                 };
-            } else {
-                // Static Guide Fallback (Always needs scaling from Screen Space)
-                const screenScaleX = width / CAMERA_WIDTH;
-                const screenScaleY = height / CAMERA_HEIGHT;
+
+                // NOISE CHECK: If crop is suspiciously small (< 5% of width), assume it's noise/garbage
+                if (cropData.size.width < width * 0.05 || cropData.size.height < height * 0.05) {
+                    console.log('[Crop] Detected crop is tiny (likely noise). Reverting to Center Fallback.');
+                    detected = false; // Trigger fallback below
+                }
+            }
+
+            if (!detected || !corners || corners.length !== 4) {
+                // Static Guide Fallback -> ROBUST CENTER CROP
+                // Ignore Screen Scaling (risky). Just crop the center of the image.
+                console.log('[Crop] Using Robust Center Fallback.');
+
+                // Determine Safe Dimensions based on Image Orientation
+                // We want a Portrait Kit (4:1 Ratio)
+                // Constraint: Height must fit in Image Height
+                // Constraint: Width must fit in Image Width
+
+                // If Landscape Image (Width > Height), safeH is Height * 0.8
+                // If Portrait Image (Height > Width), safeH is limited by Width * 4
+                const safeH = Math.min(height, width * 4.0) * 0.8;
+                const safeW = safeH / 4.0; // Maintain 4:1 Ratio
+
+                const centerX = width / 2;
+                const centerY = height / 2;
 
                 cropData = {
-                    offset: { x: GUIDE_X * screenScaleX, y: GUIDE_Y * screenScaleY },
-                    size: { width: CASSETTE_WIDTH * screenScaleX, height: CASSETTE_HEIGHT * screenScaleY }
+                    offset: {
+                        x: centerX - (safeW / 2),
+                        y: centerY - (safeH / 2)
+                    },
+                    size: {
+                        width: safeW,
+                        height: safeH
+                    }
                 };
             }
 
