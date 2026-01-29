@@ -2,6 +2,8 @@ package com.lateralflowscannermobile.modules;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Matrix;
+import android.media.ExifInterface;
 import android.util.Base64;
 import android.net.Uri;
 import java.io.IOException;
@@ -119,6 +121,162 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
         } catch (Exception e) {
             promise.reject("UNKNOWN_ERROR", e.getMessage());
         }
+    }
+
+    @ReactMethod
+    public void detectBordersFromFile(String imagePath, Promise promise) {
+        try {
+            if (!openCVInitialized) {
+                promise.reject("OPENCV_ERROR", "OpenCV not initialized");
+                return;
+            }
+
+            // Remove file:// prefix
+            String path = imagePath.replace("file://", "");
+
+            // 1. Decode File
+            Bitmap bitmap = BitmapFactory.decodeFile(path);
+            if (bitmap == null) {
+                promise.reject("ERROR", "Could not decode file: " + path);
+                return;
+            }
+
+            // 2. Handle Rotation (EXIF)
+            ExifInterface ei = new ExifInterface(path);
+            int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+
+            Bitmap rotatedBitmap = null;
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_ROTATE_90:
+                    rotatedBitmap = rotateImage(bitmap, 90);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_180:
+                    rotatedBitmap = rotateImage(bitmap, 180);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    rotatedBitmap = rotateImage(bitmap, 270);
+                    break;
+                case ExifInterface.ORIENTATION_NORMAL:
+                default:
+                    rotatedBitmap = bitmap;
+            }
+
+            // 3. Process
+            Mat mat = new Mat();
+            Utils.bitmapToMat(rotatedBitmap, mat);
+
+            // Attempt Native C++ Detection First (Robust Hough+RANSAC)
+            try {
+                double[] cppResult = detectKitCpp(mat.getNativeObjAddr());
+                if (cppResult != null && cppResult.length == 8) {
+                    // Success from C++!
+                    WritableMap result = Arguments.createMap();
+                    result.putBoolean("detected", true);
+                    result.putDouble("confidence", 0.95);
+                    result.putDouble("area",
+                            distance(new Point(cppResult[0], cppResult[1]), new Point(cppResult[2], cppResult[3]))
+                                    * distance(
+                                            new Point(cppResult[0], cppResult[1]),
+                                            new Point(cppResult[6], cppResult[7])));
+
+                    WritableArray corners = Arguments.createArray();
+                    for (int i = 0; i < 8; i += 2) {
+                        WritableMap p = Arguments.createMap();
+                        p.putDouble("x", cppResult[i]);
+                        p.putDouble("y", cppResult[i + 1]);
+                        corners.pushMap(p);
+                    }
+                    result.putArray("corners", corners);
+
+                    // Return ROTATED DIMENSIONS so JS scaling works naturally
+                    // We are working in Visual Space now.
+                    result.putInt("width", mat.width());
+                    result.putInt("height", mat.height());
+
+                    mat.release();
+                    if (rotatedBitmap != bitmap)
+                        rotatedBitmap.recycle();
+                    promise.resolve(result);
+                    return;
+                }
+            } catch (UnsatisfiedLinkError e) {
+                // Ignore
+            }
+
+            // Fallback to Base64 logic's detection structure (simplified here for brevity,
+            // or we can copy-paste/refactor)
+            // For now, let's reuse the Java fallback logic by just letting it fall through
+            // if needed,
+            // BUT simpler to just fail over to existing detectBorders if C++ fails?
+            // No, let's copy the Java logic or risk inconsistency.
+            // Copied Java Logic:
+
+            Mat gray = new Mat();
+            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_BGR2GRAY);
+            Imgproc.GaussianBlur(gray, gray, new Size(5, 5), 0);
+            Mat edges = new Mat();
+            Imgproc.Canny(gray, edges, 50, 150);
+            Mat kernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+            Imgproc.dilate(edges, edges, kernel);
+
+            List<MatOfPoint> contours = new ArrayList<>();
+            Mat hierarchy = new Mat();
+            Imgproc.findContours(edges, contours, hierarchy, Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+            double maxArea = 0;
+            MatOfPoint largestContour = null;
+            for (MatOfPoint contour : contours) {
+                double area = Imgproc.contourArea(contour);
+                if (area > maxArea) {
+                    maxArea = area;
+                    largestContour = contour;
+                }
+            }
+
+            WritableMap result = Arguments.createMap();
+            if (largestContour != null && maxArea > 1000) {
+                MatOfPoint2f contour2f = new MatOfPoint2f(largestContour.toArray());
+                MatOfPoint2f approx = new MatOfPoint2f();
+                double epsilon = 0.02 * Imgproc.arcLength(contour2f, true);
+                Imgproc.approxPolyDP(contour2f, approx, epsilon, true);
+                Point[] cornersPoints = approx.toArray();
+                WritableArray cornersArray = Arguments.createArray();
+                for (Point corner : cornersPoints) {
+                    WritableMap point = Arguments.createMap();
+                    point.putDouble("x", corner.x);
+                    point.putDouble("y", corner.y);
+                    cornersArray.pushMap(point);
+                }
+                result.putBoolean("detected", true);
+                result.putDouble("confidence", Math.min(maxArea / (mat.width() * mat.height()), 1.0));
+                result.putArray("corners", cornersArray);
+                result.putDouble("area", maxArea);
+                result.putInt("width", mat.width());
+                result.putInt("height", mat.height());
+            } else {
+                result.putBoolean("detected", false);
+                result.putDouble("confidence", 0.0);
+            }
+
+            mat.release();
+            gray.release();
+            edges.release();
+            kernel.release();
+            hierarchy.release();
+            if (rotatedBitmap != bitmap)
+                rotatedBitmap.recycle();
+
+            promise.resolve(result);
+
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    private Bitmap rotateImage(Bitmap source, float angle) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(angle);
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(), matrix, true);
     }
 
     @ReactMethod
@@ -624,6 +782,130 @@ public class OpenCVModule extends ReactContextBaseJavaModule {
             transform.release();
 
             promise.resolve(encoded);
+
+        } catch (Exception e) {
+            promise.reject("ERROR", e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void cropImageFromFile(String imagePath, ReadableArray corners, Promise promise) {
+        try {
+            if (!openCVInitialized) {
+                promise.reject("OPENCV_ERROR", "OpenCV not initialized");
+                return;
+            }
+
+            // Remove file:// prefix
+            String path = imagePath.replace("file://", "");
+
+            // 1. Decode File
+            Bitmap bitmap = BitmapFactory.decodeFile(path);
+            if (bitmap == null) {
+                promise.reject("ERROR", "Could not decode file: " + path);
+                return;
+            }
+
+            // 2. Handle Rotation (EXIF) - MATCHING detectBordersFromFile
+            ExifInterface ei = new ExifInterface(path);
+            int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_UNDEFINED);
+
+            Bitmap rotatedBitmap = null;
+            switch (orientation) {
+                case ExifInterface.ORIENTATION_ROTATE_90:
+                    rotatedBitmap = rotateImage(bitmap, 90);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_180:
+                    rotatedBitmap = rotateImage(bitmap, 180);
+                    break;
+                case ExifInterface.ORIENTATION_ROTATE_270:
+                    rotatedBitmap = rotateImage(bitmap, 270);
+                    break;
+                case ExifInterface.ORIENTATION_NORMAL:
+                default:
+                    rotatedBitmap = bitmap;
+            }
+
+            // 3. Convert to Mat
+            Mat mat = new Mat();
+            Utils.bitmapToMat(rotatedBitmap, mat);
+
+            // 4. Extract corners (which are in Rotated visual space)
+            if (corners.size() != 4) {
+                promise.reject("ERROR", "Need exactly 4 corners");
+                return;
+            }
+
+            Point[] srcPoints = new Point[4];
+            boolean isNormalized = true;
+            for (int i = 0; i < 4; i++) {
+                ReadableMap corner = corners.getMap(i);
+                double x = corner.getDouble("x");
+                double y = corner.getDouble("y");
+                if (x > 1.0 || y > 1.0)
+                    isNormalized = false;
+                srcPoints[i] = new Point(x, y);
+            }
+
+            if (isNormalized) {
+                // Auto-scale normalized coordinates to the ROTATED bitmap dimensions
+                double w = rotatedBitmap.getWidth();
+                double h = rotatedBitmap.getHeight();
+                for (int i = 0; i < 4; i++) {
+                    srcPoints[i].x *= w;
+                    srcPoints[i].y *= h;
+                }
+            }
+
+            // 5. Calculate dimensions
+            double width = Math.max(
+                    distance(srcPoints[0], srcPoints[1]),
+                    distance(srcPoints[2], srcPoints[3]));
+            double height = Math.max(
+                    distance(srcPoints[0], srcPoints[3]),
+                    distance(srcPoints[1], srcPoints[2]));
+
+            Point[] dstPoints = new Point[] {
+                    new Point(0, 0),
+                    new Point(width - 1, 0),
+                    new Point(width - 1, height - 1),
+                    new Point(0, height - 1)
+            };
+
+            Mat srcMat = new MatOfPoint2f(srcPoints);
+            Mat dstMat = new MatOfPoint2f(dstPoints);
+            Mat transform = Imgproc.getPerspectiveTransform(srcMat, dstMat);
+
+            Mat corrected = new Mat();
+            Imgproc.warpPerspective(mat, corrected, transform, new Size(width, height));
+
+            // Save to new file
+            Bitmap correctedBitmap = Bitmap.createBitmap(corrected.cols(), corrected.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(corrected, correctedBitmap);
+
+            String outputPath = path.replace(".jpg", "_cropped.jpg");
+            if (outputPath.equals(path))
+                outputPath = path + "_cropped.jpg";
+
+            java.io.File file = new java.io.File(outputPath);
+            java.io.FileOutputStream fOut = new java.io.FileOutputStream(file);
+
+            correctedBitmap.compress(Bitmap.CompressFormat.JPEG, 95, fOut);
+            fOut.flush();
+            fOut.close();
+
+            // Cleanup
+            mat.release();
+            corrected.release();
+            srcMat.release();
+            dstMat.release();
+            transform.release();
+            if (rotatedBitmap != bitmap)
+                rotatedBitmap.recycle();
+            if (bitmap != null && bitmap != rotatedBitmap)
+                bitmap.recycle(); // Ensure original is recycled if rotated was created
+
+            promise.resolve(outputPath);
 
         } catch (Exception e) {
             promise.reject("ERROR", e.getMessage());

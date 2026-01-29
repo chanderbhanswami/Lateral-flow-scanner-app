@@ -21,11 +21,35 @@ import { detectShadowsDetailedJS } from '../utils/analysis/shadow';
 import { detectReflectionsDetailedJS } from '../utils/analysis/reflection';
 import { calculateHistogramStatsWorklet, normalizeHistogramWorklet } from '../utils/camera/histogram';
 import { assessImageQualityWorklet } from '../utils/image/quality';
-
-
 const { OpenCVModule } = NativeModules;
 
 class ImageProcessingService {
+    async cropImage(imageUri: string, corners: BorderDetection['corners']): Promise<string> {
+        if (!corners || corners.length !== 4) return imageUri;
+
+        if (OpenCVModule && OpenCVModule.cropImageFromFile) {
+            // New Method: Handles Rotation internally
+            try {
+                const croppedPath = await OpenCVModule.cropImageFromFile(imageUri, corners);
+                return `file://${croppedPath}`;
+            } catch (e) {
+                console.warn('cropImageFromFile failed', e);
+                // Fallback?
+            }
+        }
+
+        if (OpenCVModule && OpenCVModule.cropImage) {
+            try {
+                // Legacy Method: Might have rotation issues if we don't handle it
+                const croppedPath = await OpenCVModule.cropImage(imageUri.replace('file://', ''), corners);
+                return `file://${croppedPath}`;
+            } catch (e) {
+                console.warn('cropImage failed', e);
+            }
+        }
+        return imageUri;
+    }
+
     async analyzeImage(imageUri: string): Promise<ImageAnalysisData> {
         try {
             // Read image data
@@ -253,19 +277,40 @@ class ImageProcessingService {
 
     async detectBordersFromImage(imageDataOrPath: string): Promise<BorderDetection> {
         if (OpenCVModule && OpenCVModule.detectBorders) {
-            let base64Data = imageDataOrPath;
-            // Check if it looks like a file path (starts with / or file://)
+            // OPTIMIZED: Use new native method that handles File I/O + EXIF Rotation natively
+            // This prevents the "Right Side" crop bug (Coordinate Mismatch)
             if (imageDataOrPath.startsWith('/') || imageDataOrPath.startsWith('file://')) {
-                try {
-                    // Ensure valid read path (some libs don't like file:// for readFile, some do. RNFS on Android usually prefers absolute path without file:// or works with both. Best to strip file:// for RNFS if needed, but let's try standard)
-                    const cleanPath = imageDataOrPath.startsWith('file://') ? imageDataOrPath.substring(7) : imageDataOrPath;
-                    base64Data = await RNFS.readFile(cleanPath, 'base64');
-                } catch (e) {
-                    console.warn('[ImageProcessing] Failed to read file for border detection', e);
+                if (OpenCVModule.detectBordersFromFile) {
+                    const result = await OpenCVModule.detectBordersFromFile(imageDataOrPath);
+                    // Map OpenCV result to BorderDetection type
+                    if (result.detected) {
+                        return {
+                            detected: true,
+                            confidence: result.confidence || 0.9,
+                            corners: result.corners || [],
+                            area: result.area || 0,
+                            aspectRatio: 0,
+                            isAligned: true,
+                            isCentered: true,
+                            distanceFromCenter: 0,
+                        };
+                    }
                     return {
                         detected: false, confidence: 0, corners: [], area: 0, aspectRatio: 0,
                         isAligned: false, isCentered: false, distanceFromCenter: 0
                     };
+                }
+            }
+
+            // Legacy Base64 Fallback (Only used if file path not provided)
+            let base64Data = imageDataOrPath;
+            if (imageDataOrPath.startsWith('/') || imageDataOrPath.startsWith('file://')) {
+                try {
+                    const cleanPath = imageDataOrPath.startsWith('file://') ? imageDataOrPath.substring(7) : imageDataOrPath;
+                    base64Data = await RNFS.readFile(cleanPath, 'base64');
+                } catch (e) {
+                    console.warn('[ImageProcessing] Failed to read file', e);
+                    return { detected: false, confidence: 0, corners: [], area: 0, aspectRatio: 0, isAligned: false, isCentered: false, distanceFromCenter: 0 };
                 }
             }
 

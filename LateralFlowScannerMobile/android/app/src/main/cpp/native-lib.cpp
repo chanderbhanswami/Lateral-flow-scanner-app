@@ -54,8 +54,18 @@ Java_com_lateralflowscannermobile_modules_OpenCVModule_detectKitCpp(
     // Gaussian Blur to reduce noise
     GaussianBlur(gray, blur, Size(5, 5), 0);
 
-    // Canny Edge Detection
-    Canny(blur, edges, 30, 100);
+    // Adaptive Canny Edge Detection (Otsu-like)
+    Scalar meanScalar = mean(gray);
+    double v = meanScalar[0];
+    double sigma = 0.33;
+    int lower = std::max(0.0, (1.0 - sigma) * v);
+    int upper = std::min(255.0, (1.0 + sigma) * v);
+
+    // Safety clamps
+    if (lower < 30) lower = 30;
+    if (upper < 30) upper = 30;
+
+    Canny(blur, edges, lower, upper);
 
     // Dilate to close gaps
     Mat kernel = getStructuringElement(MORPH_RECT, Size(3, 3));
@@ -64,8 +74,8 @@ Java_com_lateralflowscannermobile_modules_OpenCVModule_detectKitCpp(
     // 3. Hough Lines Probabilistic
     // This finds line segments. Stronger than contours for broken shapes.
     vector<Vec4i> lines;
-    // rho=1, theta=PI/180, thresh=50, minLen=50, maxGap=10
-    HoughLinesP(edges, lines, 1, CV_PI / 180, 50, 50, 10);
+    // rho=1, theta=PI/180, thresh=50, minLen=50, maxGap=30 (Relaxed gap to 30)
+    HoughLinesP(edges, lines, 1, CV_PI / 180, 50, 50, 30);
 
     // 4. Advanced Heuristics: Line Clustering & Fitting (Robust RANSAC-like approach)
     // Instead of just picking the single outlier line, we gather "support" for 4 dominant lines
@@ -159,8 +169,18 @@ Java_com_lateralflowscannermobile_modules_OpenCVModule_detectKitCpp(
     Point2f br = computeIntersection(segBottom, segRight);
     Point2f bl = computeIntersection(segBottom, segLeft);
 
-    // Validate result
-    if (tl.x < 0 || tr.x < 0 || br.x < 0 || bl.x < 0) return nullptr;
+    // Validate result (Clamp to Image Bounds)
+    // Instead of failing, we clamp the coordinates. This fixes "Right Side" accumulation
+    // if a point is slightly outside the frame math.
+    auto clampPoint = [&](Point2f& p) {
+        p.x = std::max(0.0f, std::min(p.x, (float)width - 1));
+        p.y = std::max(0.0f, std::min(p.y, (float)height - 1));
+    };
+
+    clampPoint(tl);
+    clampPoint(tr);
+    clampPoint(br);
+    clampPoint(bl);
 
     // Check size constraints (e.g., width > 50)
     double detectedWidth = dist(tl, tr);

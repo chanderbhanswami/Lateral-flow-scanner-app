@@ -208,8 +208,14 @@ export const CaptureScreen: React.FC = () => {
     // Frame processor for real-time analysis
 
     const frameProcessor = useCustomFrameProcessor(
-        useCallback((corners) => {
-            updateBorderDetection(corners);
+        useCallback((data) => {
+            // Data contains { corners, sourceWidth, sourceHeight }
+            // If it's the old signature (just array), handle safely
+            if (Array.isArray(data)) {
+                updateBorderDetection(data);
+            } else {
+                updateBorderDetection(data.corners, data.sourceWidth, data.sourceHeight);
+            }
         }, [updateBorderDetection]),
         useCallback((frameAnalysis) => {
             frameAnalysisRef.current = frameAnalysis;
@@ -410,14 +416,7 @@ export const CaptureScreen: React.FC = () => {
             const FP_WIDTH = 480;
             const FP_HEIGHT = 640;
 
-            let cropData = {
-                offset: { x: 0, y: 0 },
-                size: { width: 0, height: 0 }
-            };
-
             // FIX: Auto-detect if corners are Normalized (0-1) or Pixel Coordinates
-            // Normalized comes from Live Preview (useFrameProcessor)
-            // Pixel comes from Native High-Res Detection
             const isNormalized = corners && corners.length > 0 && corners.every((p: any) => p.x <= 1.0 && p.y <= 1.0);
 
             let scaleX = 1.0;
@@ -428,7 +427,7 @@ export const CaptureScreen: React.FC = () => {
                 scaleX = width;
                 scaleY = height;
             } else if (needsScaling) {
-                // Legacy fallback if non-normalized low-res coords are passed (unlikely now)
+                // Legacy fallback if non-normalized low-res coords are passed
                 scaleX = width / FP_WIDTH;
                 scaleY = height / FP_HEIGHT;
             }
@@ -436,77 +435,48 @@ export const CaptureScreen: React.FC = () => {
             console.log(`[Crop] Scales: X=${scaleX.toFixed(3)}, Y=${scaleY.toFixed(3)}`);
 
             if (detected && corners && corners.length === 4) {
-                const xs = corners.map((p: any) => p.x);
-                const ys = corners.map((p: any) => p.y);
-                const minX = Math.min(...xs);
-                const maxX = Math.max(...xs);
-                const minY = Math.min(...ys);
-                const maxY = Math.max(...ys);
+                // ---------------------------------------------------------
+                // PATH A: High-Accuracy Native Crop (Rotated & Perspective)
+                // ---------------------------------------------------------
+                console.log('[Crop] Using Native Rotation-Aware Warp/Crop...');
 
-                // Add padding (e.g. 10%)
-                const boxW = (maxX - minX);
-                const boxH = (maxY - minY);
-                const padX = boxW * 0.1;
-                const padY = boxH * 0.1;
+                // 1. Scale Corners to Photo Pixels
+                const scaledCorners = corners.map((p: any) => ({
+                    x: p.x * scaleX,
+                    y: p.y * scaleY
+                }));
 
-                cropData = {
-                    offset: {
-                        x: Math.max(0, (minX - padX) * scaleX),
-                        y: Math.max(0, (minY - padY) * scaleY)
-                    },
-                    size: {
-                        width: Math.min(width, (boxW + 2 * padX) * scaleX),
-                        height: Math.min(height, (boxH + 2 * padY) * scaleY)
-                    }
-                };
+                // 2. Call Native Module via Service
+                // This handles EXIF Rotation (90 deg) internally + Perspective Warp
+                const croppedUri = await imageProcessingService.cropImage(imageUri, scaledCorners);
+                return croppedUri;
+            }
 
-                // NOISE CHECK: If crop is suspiciously small (< 5% of width), assume it's noise/garbage
-                if (cropData.size.width < width * 0.05 || cropData.size.height < height * 0.05) {
-                    console.log('[Crop] Detected crop is tiny (likely noise). Reverting to Center Fallback.');
-                    detected = false; // Trigger fallback below
+            // ---------------------------------------------------------
+            // PATH B: Fallback Center Crop (ImageEditor)
+            // ---------------------------------------------------------
+            console.log('[Crop] Using Robust Center Fallback (ImageEditor).');
+
+            // Determine Safe Dimensions based on Image Orientation
+            // We want a Portrait Kit (4:1 Ratio)
+            const safeH = Math.min(height, width * 4.0) * 0.8;
+            const safeW = safeH / 4.0; // Maintain 4:1 Ratio
+
+            const centerX = width / 2;
+            const centerY = height / 2;
+
+            const cropData = {
+                offset: {
+                    x: Math.floor(Math.max(0, centerX - (safeW / 2))),
+                    y: Math.floor(Math.max(0, centerY - (safeH / 2)))
+                },
+                size: {
+                    width: Math.floor(safeW),
+                    height: Math.floor(safeH)
                 }
-            }
+            };
 
-            if (!detected || !corners || corners.length !== 4) {
-                // Static Guide Fallback -> ROBUST CENTER CROP
-                // Ignore Screen Scaling (risky). Just crop the center of the image.
-                console.log('[Crop] Using Robust Center Fallback.');
-
-                // Determine Safe Dimensions based on Image Orientation
-                // We want a Portrait Kit (4:1 Ratio)
-                // Constraint: Height must fit in Image Height
-                // Constraint: Width must fit in Image Width
-
-                // If Landscape Image (Width > Height), safeH is Height * 0.8
-                // If Portrait Image (Height > Width), safeH is limited by Width * 4
-                const safeH = Math.min(height, width * 4.0) * 0.8;
-                const safeW = safeH / 4.0; // Maintain 4:1 Ratio
-
-                const centerX = width / 2;
-                const centerY = height / 2;
-
-                cropData = {
-                    offset: {
-                        x: centerX - (safeW / 2),
-                        y: centerY - (safeH / 2)
-                    },
-                    size: {
-                        width: safeW,
-                        height: safeH
-                    }
-                };
-            }
-
-            // Ensure constraints (Round to integer for ImageEditor)
-            cropData.offset.x = Math.floor(Math.max(0, cropData.offset.x));
-            cropData.offset.y = Math.floor(Math.max(0, cropData.offset.y));
-            if (cropData.offset.x + cropData.size.width > width) cropData.size.width = width - cropData.offset.x;
-            if (cropData.offset.y + cropData.size.height > height) cropData.size.height = height - cropData.offset.y;
-
-            cropData.size.width = Math.floor(cropData.size.width);
-            cropData.size.height = Math.floor(cropData.size.height);
-
-            console.log(`[Crop] Final Rect: ${JSON.stringify(cropData)}`);
+            console.log(`[Crop] Fallback Rect: ${JSON.stringify(cropData)}`);
 
             const result = await ImageEditor.cropImage(imageUri, {
                 offset: cropData.offset,
@@ -947,7 +917,13 @@ export const CaptureScreen: React.FC = () => {
                     <Pressable style={StyleSheet.absoluteFill} onPress={handleTapToFocus} />
 
                     {/* Border & Guides */}
-                    <BorderGuide corners={borderData.corners} color={guideColor} isDetected={borderData.detected} />
+                    <BorderGuide
+                        corners={borderData.corners}
+                        color={guideColor}
+                        isDetected={borderData.detected}
+                        sourceWidth={borderData.sourceWidth}
+                        sourceHeight={borderData.sourceHeight}
+                    />
                     <FocusIndicator x={focusPoint.x} y={focusPoint.y} visible={focusPoint.visible} />
 
                     {/* Overlays */}

@@ -22,9 +22,11 @@ interface BorderGuideProps {
     corners: Array<{ x: number; y: number }>;
     color: string;
     isDetected: boolean;
+    sourceWidth?: number;
+    sourceHeight?: number;
 }
 
-export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDetected }) => {
+export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDetected, sourceWidth, sourceHeight }) => {
     // Use green when detected, otherwise use provided color
     const guideColor = isDetected ? '#10b981' : color || '#ef4444';
 
@@ -36,11 +38,67 @@ export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDete
     const renderDynamicGuide = () => {
         if (!isDetected || !corners || corners.length !== 4) return null;
 
-        // Convert corners to string for Polygon points
-        // Scale the points to screen coordinates
+        // NEW: Aspect Ratio Correction for resizeMode="cover"
+        // The sensor output (detected corners) is relative to the FULL transformed image (e.g. 480x640)
+        // The View (Screen) is taller/narrower (e.g. 1080x2400)
+        // "Cover" scales the image to match HEIGHT (typically) and crops WIDTH, or matches WIDTH and crops HEIGHT.
+
+        // Source Dimensions (from useFrameProcessor, swapped for portrait)
+        // Default to a 3:4 aspect ratio if not provided (Standard Sensor)
+        const srcW = sourceWidth || 480;
+        const srcH = sourceHeight || 640;
+        const srcAspect = srcW / srcH; // ~0.75
+
+        // View Dimensions
+        const viewW = CAMERA_WIDTH;
+        const viewH = CAMERA_HEIGHT;
+        const viewAspect = viewW / viewH; // ~0.45 (20:9)
+
+        // Calculate Scale to "Cover"
+        // If View is "Narrower" (Taller) than Source, we match Height and Crop Width.
+        // If View is "Wider" (Shorter) than Source, we match Width and Crop Height.
+        let scale, offsetX, offsetY;
+
+        if (viewAspect < srcAspect) {
+            // View is narrower (Typical Portrait Phone)
+            // Scale to match Height
+            scale = viewH / srcH;
+            const scaledW = srcW * scale;
+            offsetX = (viewW - scaledW) / 2; // Negative offset usually (centered)
+            offsetY = 0;
+        } else {
+            // View is wider (Tablet?)
+            // Scale to match Width
+            scale = viewW / srcW;
+            const scaledH = srcH * scale;
+            offsetX = 0;
+            offsetY = (viewH - scaledH) / 2;
+        }
+
+        // Map Normalized Corners (0-1) to Screen Pixels
         const points = corners
-            .map(p => `${p.x * scaleX},${p.y * scaleY}`)
+            .map(p => {
+                // De-normalize to Source Pixels
+                const pxSrc = p.x * srcW;
+                const pySrc = p.y * srcH;
+
+                // Scale and Offset to View Pixels
+                const pxView = (pxSrc * scale) + offsetX;
+                const pyView = (pySrc * scale) + offsetY;
+
+                return `${pxView},${pyView}`;
+            })
             .join(' ');
+
+        // Compute Circle Centers
+        const circlePoints = corners.map(p => {
+            const pxSrc = p.x * srcW;
+            const pySrc = p.y * srcH;
+            return {
+                cx: (pxSrc * scale) + offsetX,
+                cy: (pySrc * scale) + offsetY
+            };
+        });
 
         return (
             <Svg width={CAMERA_WIDTH} height={CAMERA_HEIGHT} style={StyleSheet.absoluteFill}>
@@ -52,11 +110,11 @@ export const BorderGuide: React.FC<BorderGuideProps> = ({ corners, color, isDete
                 />
 
                 {/* Draw corners with circles for better visibility */}
-                {corners.map((p, i) => (
+                {circlePoints.map((p, i) => (
                     <Circle
                         key={i}
-                        cx={p.x * scaleX}
-                        cy={p.y * scaleY}
+                        cx={p.cx}
+                        cy={p.cy}
                         r={4}
                         fill={guideColor}
                     />

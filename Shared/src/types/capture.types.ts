@@ -184,6 +184,9 @@ export interface BorderDetection {
     isAligned: boolean;
     isCentered: boolean;
     distanceFromCenter: number;
+    // New fields for aspect ratio correction
+    sourceWidth?: number;
+    sourceHeight?: number;
 }
 
 export interface ShadowAnalysis {

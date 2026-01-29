@@ -26,9 +26,12 @@ export const useBorderDetection = () => {
     const stableCount = useRef(0);
     const STABILITY_THRESHOLD = 8; // Require 8 consecutive valid frames (~0.5s - 1s) to lock on
 
-    const updateBorderDetection = useCallback((corners: Array<{ x: number; y: number }>) => {
+    const updateBorderDetection = useCallback((corners: Array<{ x: number; y: number }>, sourceWidth?: number, sourceHeight?: number) => {
         // Use utility for border analysis
-        const analysis = analyzeBorderWorklet(corners, FRAME_WIDTH, FRAME_HEIGHT);
+        // Use passed dimensions if available, else fallback to constants
+        const w = sourceWidth || FRAME_WIDTH;
+        const h = sourceHeight || FRAME_HEIGHT;
+        const analysis = analyzeBorderWorklet(corners, w, h);
 
         // Hysteresis / Stability Check
         if (analysis.detected) {
@@ -45,10 +48,15 @@ export const useBorderDetection = () => {
         if (corners.length === 4) {
             const centerX = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4;
             const centerY = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4;
+
+            // FIX: Normalize coordinates before comparing to 0.5 center
+            const normX = centerX / w;
+            const normY = centerY / h;
+
             // Center is always 0.5, 0.5 in normalized space
             distanceFromCenter = Math.sqrt(
-                Math.pow(centerX - 0.5, 2) +
-                Math.pow(centerY - 0.5, 2)
+                Math.pow(normX - 0.5, 2) +
+                Math.pow(normY - 0.5, 2)
             );
         }
 
@@ -61,6 +69,8 @@ export const useBorderDetection = () => {
             isAligned: analysis.isAligned,
             isCentered: analysis.isCentered,
             distanceFromCenter,
+            sourceWidth: w,
+            sourceHeight: h,
         };
 
         // Always update state to drive UI (green/red border)
