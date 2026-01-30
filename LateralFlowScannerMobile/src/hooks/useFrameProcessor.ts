@@ -136,10 +136,12 @@ export const useCustomFrameProcessor = (
         let normalizedHist: number[] = new Array(256).fill(0);
         let histogramStats = { mean: 128, std: 50, median: 128, mode: 128 };
 
-        // FIX: Revert to LANDSCAPE Mode (640x480) match Native Sensor.
-        // We handled the rotation dynamically in the Detection Step.
-        const TARGET_WIDTH = 640;
-        const TARGET_HEIGHT = 480;
+        // DYNAMIC ASPECT RATIO HANDLING
+        // Check if the source frame is Portrait or Landscape
+        // Most sensors are Landscape (Width > Height) but some devices rotate it early.
+        const isSourcePortrait = frame.width < frame.height;
+        const TARGET_WIDTH = isSourcePortrait ? 480 : 640;
+        const TARGET_HEIGHT = isSourcePortrait ? 640 : 480;
 
         let bestCorners: Array<{ x: number; y: number }> = [];
 
@@ -150,7 +152,7 @@ export const useCustomFrameProcessor = (
 
         // Force logging to JS thread for visibility
         if (Math.random() < 0.01) {
-            runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} | Border: ${shouldProcessBorder} | Quality: ${shouldProcessQuality}`);
+            runOnJsLog(`[FP] Alive. Res: ${frame.width}x${frame.height} -> ${TARGET_WIDTH}x${TARGET_HEIGHT} | Border: ${shouldProcessBorder}`);
         }
 
         if (!shouldProcessBorder && !shouldProcessQuality) {
@@ -164,11 +166,6 @@ export const useCustomFrameProcessor = (
             }
 
             // === STEP 1: RESIZE FRAME ===
-            // FIX: Revert to LANDSCAPE Mode (640x480) match Native Sensor.
-            // We handled the rotation dynamically in the Detection Step.
-            const TARGET_WIDTH = 640;
-            const TARGET_HEIGHT = 480;
-
             let resized: any;
             try {
                 // Resize plugin expects a valid view. If view is destroyed (navigating away), this throws.
@@ -308,8 +305,8 @@ export const useCustomFrameProcessor = (
 
                             // Helper: Compute adaptive Canny thresholds
                             const computeAdaptiveCannyThresholds = () => {
-                                let cannyLower = 35;
-                                let cannyUpper = 105;
+                                let cannyLower = 20; // RELAXED: Was 35
+                                let cannyUpper = 80; // RELAXED: Was 105
 
                                 // Calculate median brightness from histogram for adaptive thresholding
                                 if (brightnessHist && brightnessHist.length === 256) {
@@ -336,11 +333,11 @@ export const useCustomFrameProcessor = (
 
                                     // SAFETY CLAMP: Prevent extreme values that break detection
                                     // STABILITY FIX: Narrowed range to prevent "random" noise detection on dark surfaces
-                                    cannyLower = Math.max(30, Math.min(cannyLower, 100));   // Min 30 (was 40), Max 100
-                                    cannyUpper = Math.max(100, Math.min(cannyUpper, 200));  // Min 100 (was 80), Max 200
+                                    cannyLower = Math.max(20, Math.min(cannyLower, 100));   // Min 20, Max 100
+                                    cannyUpper = Math.max(50, Math.min(cannyUpper, 150));  // Min 50, Max 150
 
                                     // Ensure Gap
-                                    if (cannyUpper < cannyLower + 50) cannyUpper = cannyLower + 50;
+                                    if (cannyUpper < cannyLower + 30) cannyUpper = cannyLower + 30; // Was 50
 
                                 }
 
@@ -380,10 +377,10 @@ export const useCustomFrameProcessor = (
                                 }
 
                                 // 4. Hough Lines Probabilistic (Scale-adjusted parameters)
-                                const minLineLength = Math.round(50 * scaleFactor);
-                                const maxLineGap = Math.round(15 * scaleFactor);
+                                const minLineLength = Math.round(40 * scaleFactor); // RELAXED: Was 50
+                                const maxLineGap = Math.round(20 * scaleFactor); // RELAXED: Was 15
                                 const linesMat = cv.createObject('mat', 0, 0, 4);
-                                cv.invoke('HoughLinesP', scaledEdges, linesMat, 1, Math.PI / 180, 35, minLineLength, maxLineGap);
+                                cv.invoke('HoughLinesP', scaledEdges, linesMat, 1, Math.PI / 180, 25, minLineLength, maxLineGap); // Threshold 25 (Was 35)
 
                                 const linesInfo = cv.toJSValue(linesMat);
                                 const lineCount = linesInfo.rows;
@@ -453,7 +450,7 @@ export const useCustomFrameProcessor = (
                                 // CRITICAL FIX (Bug #7): Normalize threshold to frame size
                                 // ENHANCEMENT 3.2: Make threshold scale-aware for multi-scale detection
                                 // Scale-aware threshold
-                                const threshold = 5.0 / currentScaleWidth; // Loosened from 4.0
+                                const threshold = 8.0 / currentScaleWidth; // RELAXED: was 5.0
 
                                 for (let i = 0; i < iterations; i++) {
                                     const idx1 = Math.floor(Math.random() * n);
@@ -498,7 +495,7 @@ export const useCustomFrameProcessor = (
                             const centerX = currentScaleWidth / 2;
                             const centerY = currentScaleHeight / 2;
 
-                            const maxLines = Math.min(lineCount, 60); // OPTIMIZED: Process more lines for accuracy
+                            const maxLines = Math.min(lineCount, 80); // OPTIMIZED: Process more lines for accuracy
                             const lineDataObj = cv.matToBuffer(linesMat, 'int32');
                             const lineData = lineDataObj.buffer;
 
@@ -554,14 +551,14 @@ export const useCustomFrameProcessor = (
                                         return diff;
                                     };
 
-                                    // Max deviation 8 degrees
-                                    const parallelThreshold = 8;
+                                    // Max deviation 20 degrees - RELAXED (Was 8)
+                                    const parallelThreshold = 20;
                                     const isParallel = angleDiff(tAngle, bAngle) <= parallelThreshold &&
                                         angleDiff(lAngle, rAngle) <= parallelThreshold;
 
                                     // Check Corner Angles (should be ~90 deg difference between H and V lines)
                                     // Horizontal ~ 0, Vertical ~ 90/ -90. Diff should be ~90.
-                                    const isRectangular = Math.abs(Math.abs(tAngle - lAngle) - 90) <= 20;
+                                    const isRectangular = Math.abs(Math.abs(tAngle - lAngle) - 90) <= 30; // RELAXED: Was 20
 
                                     if (isParallel && isRectangular) {
                                         const tl = computeIntersect(lTop, lLeft);
@@ -591,49 +588,47 @@ export const useCustomFrameProcessor = (
                                             const avgH = (hLeft + hRight) / 2;
 
                                             // Validation 1: Size
-                                            const minWidth = 120 * currentScale;
-                                            const minHeight = 50 * currentScale;
+                                            const minWidth = 100 * currentScale; // RELAXED: Was 120
+                                            const minHeight = 40 * currentScale; // RELAXED: Was 50
 
                                             if (avgW > minWidth && avgH > minHeight) {
                                                 const aspectRatio = Math.max(avgW, avgH) / Math.min(avgW, avgH);
 
                                                 // Validation 2: Aspect Ratio
-                                                if (aspectRatio > 2.0 && aspectRatio < 7.0) {
+                                                if (aspectRatio > 1.5 && aspectRatio < 10.0) { // RELAXED: Was 2.0 - 7.0
                                                     // Success!
 
-                                                    // FRAME COORDINATES (Landscape 640x480)
-                                                    // x: 0 (Left) -> 640 (Right)
-                                                    // y: 0 (Top) -> 480 (Bottom)
-
-                                                    // SCREEN COORDINATES (Portrait)
-                                                    // The Sensor is rotated 90 degrees relative to the Screen.
-                                                    // If we detect a Horizontal Kit in the Frame (Width > Height),
-                                                    // it corresponds to a Vertical Kit on the Screen.
-
-                                                    // Coordinate Mapping (90 deg Counter-Clockwise):
+                                                    // Coordinate Mapping:
+                                                    // If isSourcePortrait: Simple normalization (x/W, y/H)
+                                                    // If !isSourcePortrait (Landscape): 90-deg rotation needed:
                                                     // Screen X (0-1) = Frame Y (0-1)
                                                     // Screen Y (0-1) = 1 - Frame X (0-1)
 
                                                     // ENHANCEMENT 3.2: Scale-aware coordinate normalization
-                                                    // Corners are in scaled space, map back to original space
-                                                    const normalizeAndRotate = (p: { x: number, y: number }) => {
-                                                        // Scale back to original coordinates
+                                                    const normalizeAndUnrotate = (p: { x: number, y: number }) => {
                                                         const originalX = (p.x / currentScale);
                                                         const originalY = (p.y / currentScale);
 
-                                                        return {
-                                                            x: originalY / TARGET_HEIGHT,       // Swap X with Y (Normalized)
-                                                            y: 1 - (originalX / TARGET_WIDTH)   // Rotate 90deg (Swap Y with 1-X)
-                                                        };
+                                                        if (isSourcePortrait) {
+                                                            // DIRECT MAPPING (No Rotation needed)
+                                                            return {
+                                                                x: originalX / TARGET_WIDTH,
+                                                                y: originalY / TARGET_HEIGHT
+                                                            };
+                                                        } else {
+                                                            // 90 DEG ROTATION
+                                                            return {
+                                                                x: originalY / TARGET_HEIGHT,       // Swap X with Y (Normalized)
+                                                                y: 1 - (originalX / TARGET_WIDTH)   // Rotate 90deg (Swap Y with 1-X)
+                                                            };
+                                                        }
                                                     };
 
-
-
                                                     const detectedCorners = [
-                                                        normalizeAndRotate(sTL),
-                                                        normalizeAndRotate(sTR),
-                                                        normalizeAndRotate(sBR),
-                                                        normalizeAndRotate(sBL)
+                                                        normalizeAndUnrotate(sTL),
+                                                        normalizeAndUnrotate(sTR),
+                                                        normalizeAndUnrotate(sBR),
+                                                        normalizeAndUnrotate(sBL)
                                                     ];
 
                                                     // Store this scale's result for multi-scale comparison
@@ -646,10 +641,12 @@ export const useCustomFrameProcessor = (
                                                     });
 
                                                     bestCorners = detectedCorners;
-                                                    // Pass source dimensions (Swapped because we rotated detection 90 deg)
-                                                    // Frame Width (640) became Screen Height. Frame Height (480) became Screen Width.
-                                                    // So source width effectively = TARGET_HEIGHT
-                                                    // source height effectively = TARGET_WIDTH
+                                                    // Pass correct source dimensions
+                                                    // If isSourcePortrait, we are passing 480x640.
+                                                    // If isSourceLandscape, we are effectively passing 480x640 (swapped).
+                                                    // In both cases, the Consumer (JS/Screen) receives "Portrait-oriented" dimensions.
+                                                    // TARGET_WIDTH = 480 (Portrait) or 640 (Landscape)
+                                                    // TARGET_HEIGHT = 640 (Portrait) or 480 (Landscape)
                                                 }
 
                                             }
@@ -673,11 +670,16 @@ export const useCustomFrameProcessor = (
                 runOnJsLog(`[FP] Finally: Border=${shouldProcessBorder} Corners=${bestCorners.length}, Quality=${shouldProcessQuality}`);
 
                 if (shouldProcessBorder && bestCorners.length > 0) {
-                    // FIX: Pass dimensions (swapped for portrait)
+                    // FIX: Pass dimensions as perceived by the screen (Always Portrait)
+                    // If source was portrait, output TARGET_WIDTH, TARGET_HEIGHT
+                    // If source was landscape, output TARGET_HEIGHT, TARGET_WIDTH (Because we rotated 90deg)
+                    const outputWidth = isSourcePortrait ? TARGET_WIDTH : TARGET_HEIGHT;
+                    const outputHeight = isSourcePortrait ? TARGET_HEIGHT : TARGET_WIDTH;
+
                     runOnJsBorderDetected({
                         corners: bestCorners,
-                        sourceWidth: TARGET_HEIGHT, // 480 (became Width)
-                        sourceHeight: TARGET_WIDTH  // 640 (became Height)
+                        sourceWidth: outputWidth,
+                        sourceHeight: outputHeight
                     });
                 }
                 if (shouldProcessQuality) {
